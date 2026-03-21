@@ -169,8 +169,6 @@ window.saveScore = async function (className, userName, qID, gameMode, timeSpent
     // 1. 永遠先寫入本地快取（樂觀更新，確保星星立即可見）
     const cacheKey = `fb_cache_${newRecord.userName}`;
     cacheAppend(cacheKey, newRecord);
-    localStorage.removeItem('fb_cache_overall_ranking');
-    localStorage.removeItem('fb_cache_dashboard_teacher');
 
     // 2. 嘗試寫入 Firestore
     if (!db) {
@@ -347,7 +345,7 @@ window.getOverallRanking = async function (classFilter = "ALL") {
                 const q = query(
                     collection(db, "scores"),
                     orderBy("timestamp", "desc"),
-                    limit(2000)
+                    limit(500)
                 );
                 const snapshot = await getDocs(q);
                 snapshot.forEach(doc => {

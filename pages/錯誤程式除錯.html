@@ -116,14 +116,19 @@
   <div class="section-label">除錯實戰區</div>
 
   <div class="bug-container">
-      <div class="scenario-desc">⚠️ 系統發現一個錯誤！請點選「有錯誤的那一行」程式碼：</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <div class="scenario-desc" style="margin-bottom:0;">⚠️ 請點選「有錯誤的那一行」程式碼：</div>
+        <div id="bug-progress" style="font-size:.85rem;font-weight:700;color:var(--muted);white-space:nowrap;"></div>
+      </div>
       <div class="code-editor" id="code-editor">
           <!-- 程式碼會在這裡產生 -->
       </div>
       <div class="feedback-box" id="feedback"></div>
+      <div id="hint-area" style="display:none;margin-top:12px;padding:12px 16px;border-radius:8px;background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.3);color:var(--gold);font-size:.95rem;font-weight:700;text-align:center;"></div>
   </div>
 
   <div class="btn-row">
+      <button class="btn btn-ghost" id="btn-hint-debug">💡 提示</button>
       <button class="btn btn-primary" id="btn-next" style="display:none;">下一題 ➔</button>
   </div>
 </div>
@@ -190,11 +195,17 @@ document.getElementById('btn-back').addEventListener('click', (e) => {
 function loadBug() {
     document.getElementById('feedback').className = 'feedback-box';
     document.getElementById('btn-next').style.display = 'none';
-    
+    document.getElementById('hint-area').style.display = 'none';
+    document.getElementById('btn-hint-debug').disabled = false;
+    document.getElementById('btn-hint-debug').style.display = 'inline-flex';
+
     let bugList = (BUGS[qID] && BUGS[qID][tID]) || (BUGS["Q1"] && BUGS["Q1"]["T01"]) || [];
     if (currentBugIndex >= bugList.length) {
-        currentBugIndex = 0; // 循環練習
+        currentBugIndex = 0;
     }
+
+    // 更新進度
+    document.getElementById('bug-progress').textContent = `第 ${currentBugIndex + 1} / ${bugList.length} 題`;
     
     let targetBug = bugList[currentBugIndex];
     let editor = document.getElementById('code-editor');
@@ -233,6 +244,7 @@ function loadBug() {
                  fb.className = 'feedback-box success';
                  fb.innerHTML = `✅ 抓到蟲了！<br><span style="font-weight:normal; margin-top:8px; display:inline-block">${targetBug.desc}</span>`;
                  document.getElementById('btn-next').style.display = 'inline-block';
+                 document.getElementById('btn-hint-debug').style.display = 'none';
              } else {
                  lEl.classList.add('selected');
                  wrongClicks++;
@@ -248,6 +260,7 @@ function loadBug() {
 
 let wrongClicks = 0; // 記錄錯誤點擊次數
 let startTime = Date.now();
+let totalHintsUsed = 0;
 
 document.getElementById('btn-next').addEventListener('click', () => {
     currentBugIndex++;
@@ -257,6 +270,25 @@ document.getElementById('btn-next').addEventListener('click', () => {
         return;
     }
     loadBug();
+});
+
+document.getElementById('btn-hint-debug').addEventListener('click', () => {
+    let bugList = (BUGS[qID] && BUGS[qID][tID]) || (BUGS["Q1"] && BUGS["Q1"]["T01"]) || [];
+    if (currentBugIndex >= bugList.length) return;
+    let targetBug = bugList[currentBugIndex];
+    // Find the bug line index
+    let bugLineIdx = baseSteps.findIndex(s => s.code.trim() === targetBug.orig);
+    let totalLines = baseSteps.length;
+    let hintArea = document.getElementById('hint-area');
+    if (bugLineIdx >= 0) {
+        let msg = bugLineIdx < totalLines / 2 ? '🔍 錯誤在前半段程式碼' : '🔍 錯誤在後半段程式碼';
+        hintArea.textContent = msg;
+    } else {
+        hintArea.textContent = '🔍 仔細比對每一行的語法！';
+    }
+    hintArea.style.display = 'block';
+    totalHintsUsed++;
+    document.getElementById('btn-hint-debug').disabled = true;
 });
 
 const LEVEL_SEQUENCE = [
@@ -271,22 +303,25 @@ const LEVEL_SEQUENCE = [
 function showWinOverlay() {
     const elapsed = Math.round((Date.now() - startTime) / 1000);
 
-    // 星星：0 錯誤 = 3星, 1~2 錯誤 = 2星, >2 錯誤 = 1星
+    // 星星：0 錯誤 = 3星, 1~2 錯誤 = 2星, >2 錯誤 = 1星; 提示也影響星星
     let stars = 3;
     if (wrongClicks > 0 && wrongClicks <= 2) stars = 2;
     if (wrongClicks > 2) stars = 1;
+    if (totalHintsUsed > 0 && stars > 2) stars = 2;
+    if (totalHintsUsed > 3 && stars > 1) stars = 1;
 
     const title = QUIZ_DATA[qID] ? `${qID} ${QUIZ_DATA[qID].title} (${tID})` : qID;
     document.getElementById('win-desc').textContent = `成功修復 ${title} 的所有程式錯誤！`;
     document.getElementById('win-stats').innerHTML = `
         用時：${elapsed} 秒<br>
-        錯誤點擊：${wrongClicks} 次
+        錯誤點擊：${wrongClicks} 次<br>
+        使用提示：${totalHintsUsed} 次
         <div style="margin-top:16px;display:flex;justify-content:center;gap:12px;">
             ${Array(3).fill(0).map((_, i) => `<span style="font-size:2.5rem;filter:${i < stars ? 'drop-shadow(0 0 12px rgba(251,191,36,0.8))' : 'grayscale(100%) opacity(20%)'};transform:scale(${i < stars ? 1.1 : 1});transition:all .3s;line-height:1;">⭐</span>`).join('')}
         </div>`;
 
     const overlay = document.getElementById('win-overlay');
-    overlay.style.display = 'flex';
+    overlay.classList.add('show');
 
     // 下一關按鈕
     const curIdx = LEVEL_SEQUENCE.findIndex(l => l.q === qID && l.t === tID);
@@ -311,9 +346,10 @@ function showWinOverlay() {
 }
 
 document.getElementById('btn-win-again').addEventListener('click', () => {
-    document.getElementById('win-overlay').style.display = 'none';
+    document.getElementById('win-overlay').classList.remove('show');
     currentBugIndex = 0;
     wrongClicks = 0;
+    totalHintsUsed = 0;
     startTime = Date.now();
     loadBug();
 });

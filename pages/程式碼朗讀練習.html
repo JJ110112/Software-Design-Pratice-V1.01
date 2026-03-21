@@ -280,6 +280,11 @@ h1 em { color:var(--accent); font-style:normal; }
 
 
 
+    <div style="display:flex;justify-content:center;gap:12px;margin-bottom:16px;">
+        <button class="btn btn-ghost" id="btn-hint">💡 提示</button>
+    </div>
+    <div id="hint-area" style="display:none;text-align:center;padding:12px 20px;margin-bottom:16px;background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.3);border-radius:8px;color:var(--gold);font-size:.95rem;font-weight:500;"></div>
+
     <!-- 來源程式碼區塊放在下方/現在是唯一可見的區塊 -->
     <div class="code-panel">
         <div class="panel-header">
@@ -545,6 +550,26 @@ CODE_SOURCE.forEach((line, index) => {
 document.getElementById('btn-again').addEventListener('click', () => {
     document.getElementById('overlay').classList.remove('show');
     clickedLines.clear();
+});
+
+// Hint button: show the zh explanation of the next unclicked line
+document.getElementById('btn-hint').addEventListener('click', () => {
+    const hintArea = document.getElementById('hint-area');
+    // Find the first unclicked line that has a zh
+    let nextIdx = -1;
+    for (let i = 0; i < CODE_SOURCE.length; i++) {
+        if (CODE_SOURCE[i].zh && !clickedLines.has(i)) {
+            nextIdx = i;
+            break;
+        }
+    }
+    if (nextIdx >= 0) {
+        hintArea.style.display = 'block';
+        hintArea.textContent = `第 ${nextIdx + 1} 行：${CODE_SOURCE[nextIdx].zh}`;
+    } else {
+        hintArea.style.display = 'block';
+        hintArea.textContent = '所有行都已點擊完畢！';
+    }
 });
 
 function showResult() {

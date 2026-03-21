@@ -3,7 +3,8 @@
     "allow": [
       "Bash(while read:*)",
       "Bash(do if:*)",
-      "Bash(then echo:*)"
+      "Bash(then echo:*)",
+      "Bash(grep -i \"btn.*hint\\\\|button.*hint\\\\|<button.*hint\\\\|id=\"\".*hint\" \"/c/Users/hitea/Claude/Software Design Pratice V1.01/pages\"/*.html)"
     ]
   }
 }

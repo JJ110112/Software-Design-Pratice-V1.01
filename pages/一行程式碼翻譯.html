@@ -376,6 +376,9 @@ h1 em { color:var(--accent); font-style:normal; }
   <div class="btn-row" id="btn-row">
     <button class="btn btn-gold" id="btn-start">▶ 開始測驗</button>
   </div>
+  <div class="btn-row" id="btn-row-game" style="display:none;">
+    <button class="btn btn-ghost" id="btn-hint">💡 提示</button>
+  </div>
 </div>
 
 <!-- complete overlay -->
@@ -437,6 +440,7 @@ let wrongCount  = 0;
 let seconds     = 0;
 let timerID     = null;
 let isPreview   = true;
+let totalHintsUsed = 0;
 
 // ══════════ SOUND ══════════
 const AC = window.AudioContext || window.webkitAudioContext;
@@ -575,8 +579,10 @@ function startGame() {
   document.getElementById('stats-bar').style.display = 'flex';
   document.getElementById('game-instr').style.display = 'block';
   document.getElementById('btn-row').style.display = 'none';
+  document.getElementById('btn-row-game').style.display = 'flex';
   document.getElementById('overlay').classList.remove('show');
-  
+  totalHintsUsed = 0;
+
   document.getElementById('preview-container').style.display = 'none';
   document.getElementById('question-container').style.display = 'flex';
   document.getElementById('question-container').style.flexDirection = 'column';
@@ -617,7 +623,8 @@ function renderQuestion() {
         finishGame();
         return;
     }
-    
+
+    document.getElementById('btn-hint').disabled = false;
     document.getElementById('stat-progress').textContent = `${currentQIdx + 1}/${questions.length}`;
     
     const q = questions[currentQIdx];
@@ -667,6 +674,7 @@ function renderQuestion() {
 function finishGame() {
   clearInterval(timerID);
   playWin();
+  document.getElementById('btn-row-game').style.display = 'none';
   const eff = Math.round(questions.length / (questions.length + wrongCount) * 100);
   document.getElementById('final-score').innerHTML =
     `⏱ 用時 ${seconds} 秒　　❌ 錯誤 ${wrongCount} 次<br>🎯 正確率 ${eff}%`;
@@ -747,6 +755,25 @@ function setupNextLevelButton() {
         nextBtn.onclick = null;
     }
 }
+
+// ══════════ hint button ══════════
+document.getElementById('btn-hint').addEventListener('click', () => {
+    const q = questions[currentQIdx];
+    if (!q) return;
+    const optsContainer = document.getElementById('options-container');
+    const allBtns = Array.from(optsContainer.querySelectorAll('.option-btn'));
+    // Find wrong options that are still enabled
+    const wrongBtns = allBtns.filter(b =>
+        !b.disabled && b.querySelector('.opt-text').textContent !== q.correctAnswer
+    );
+    if (wrongBtns.length > 0) {
+        const target = wrongBtns[Math.floor(Math.random() * wrongBtns.length)];
+        target.disabled = true;
+        target.style.opacity = '0.3';
+        totalHintsUsed++;
+    }
+    document.getElementById('btn-hint').disabled = true;
+});
 
 // ══════════ button bindings ══════════
 document.getElementById('btn-start').addEventListener('click', startGame);

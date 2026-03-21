@@ -228,6 +228,7 @@
             </div>
 
             <div class="feedback-area">
+                <button class="btn btn-ghost" id="btn-hint">💡 提示</button>
                 <button class="btn btn-primary" id="btn-next" style="display:none;">下一題 ➔</button>
             </div>
         </div>
@@ -320,6 +321,7 @@
         let currentQuestionIndex = 0;
         let correctCount = 0;
         let options = [];
+        let totalHintsUsed = 0;
 
         let startTime = 0;
         let seconds = 0;
@@ -395,6 +397,7 @@
         function startQuiz() {
             correctCount = 0;
             currentQuestionIndex = 0;
+            totalHintsUsed = 0;
 
             let pool = [...DICTIONARY];
 
@@ -464,6 +467,8 @@
 
         function loadQuestion() {
             document.getElementById('btn-next').style.display = 'none';
+            document.getElementById('btn-hint').style.display = 'inline-flex';
+            document.getElementById('btn-hint').disabled = false;
             const qData = questions[currentQuestionIndex];
 
             document.getElementById('quiz-progress').textContent = `Question ${currentQuestionIndex + 1} / ${TOTAL_QUESTIONS}`;
@@ -495,6 +500,7 @@
             // Disable all options
             const allBtns = document.querySelectorAll('.option-btn');
             allBtns.forEach(b => b.disabled = true);
+            document.getElementById('btn-hint').style.display = 'none';
 
             if (isCorrect) {
                 btn.classList.add('correct');
@@ -522,6 +528,23 @@
             } else {
                 showResult();
             }
+        });
+
+        document.getElementById('btn-hint').addEventListener('click', () => {
+            const qData = questions[currentQuestionIndex];
+            const allBtns = document.querySelectorAll('.option-btn');
+            // Find wrong options that are still enabled and not yet eliminated
+            const wrongBtns = Array.from(allBtns).filter(b =>
+                !b.disabled && !b.querySelector('.opt-text').textContent.includes(qData.desc)
+            );
+            if (wrongBtns.length > 0) {
+                const target = wrongBtns[Math.floor(Math.random() * wrongBtns.length)];
+                target.disabled = true;
+                target.style.opacity = '0.3';
+                totalHintsUsed++;
+            }
+            // Disable hint button after use for this question
+            document.getElementById('btn-hint').disabled = true;
         });
 
         function showResult() {
