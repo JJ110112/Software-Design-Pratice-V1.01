@@ -92,7 +92,7 @@
         </div>
     </div>
 
-    <!-- 最近 50 筆紀錄明細 -->
+    <!-- 紀錄明細（分頁） -->
     <div class="table-wrapper">
         <table>
             <thead>
@@ -110,13 +110,17 @@
                 <tr><td colspan="7" style="text-align:center;">載入中...</td></tr>
             </tbody>
         </table>
+        <div id="pagination" style="display:flex;justify-content:center;align-items:center;gap:10px;padding:16px;color:var(--muted);font-size:.9rem;">
+        </div>
     </div>
 </div>
 
-<script type="module" src="js/api.js?v=5"></script>
+<script type="module" src="js/api.js?v=9"></script>
 <script>
 let rawData = [];
 let chart1, chart2;
+let currentPage = 1;
+const PAGE_SIZE = 20;
 
 document.addEventListener('DOMContentLoaded', () => {
     // 當按下刷新按鈕
@@ -183,35 +187,73 @@ function renderDashboard() {
     }
     document.getElementById('stat-hardest').textContent = highestFailRate > 0 ? `${hardestQ} (${Math.round(highestFailRate*100)}% 失敗率)` : "目前無特別困難";
 
-    // ========== Table Render ==========
+    // ========== Table Render (分頁) ==========
+    renderTable(data);
+}
+
+function renderTable(data) {
     const tbody = document.getElementById('tb-recent');
+    const pagination = document.getElementById('pagination');
     tbody.innerHTML = '';
-    
+
     if (data.length === 0) {
         tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">目前尚無挑戰紀錄喔！</td></tr>';
-    } else {
-        // 取前 30 筆最新
-        const displayData = data.slice(0, 30);
-        displayData.forEach(r => {
-            const dt = new Date(r.timestamp);
-            const timeStr = `${dt.getMonth()+1}/${dt.getDate()} ${dt.getHours()}:${dt.getMinutes().toString().padStart(2, '0')}`;
-            const statusTag = r.status === 'PASS' ? '<span class="status-pass">過關</span>' : '<span class="status-fail">失敗</span>';
-            tbody.innerHTML += `
-                <tr>
-                    <td>${timeStr}</td>
-                    <td>${r.className || '-'}</td>
-                    <td>${r.userName || '訪客'}</td>
-                    <td>${r.qID}</td>
-                    <td>${r.gameMode}</td>
-                    <td>${r.timeSpent} 秒</td>
-                    <td>${statusTag}</td>
-                </tr>
-            `;
-        });
+        pagination.innerHTML = '';
+        return;
     }
+
+    const totalPages = Math.ceil(data.length / PAGE_SIZE);
+    if (currentPage > totalPages) currentPage = totalPages;
+    const start = (currentPage - 1) * PAGE_SIZE;
+    const pageData = data.slice(start, start + PAGE_SIZE);
+
+    pageData.forEach(r => {
+        const dt = new Date(r.timestamp);
+        const timeStr = `${dt.getMonth()+1}/${dt.getDate()} ${dt.getHours()}:${dt.getMinutes().toString().padStart(2, '0')}`;
+        const statusTag = r.status === 'PASS' ? '<span class="status-pass">過關</span>' : '<span class="status-fail">失敗</span>';
+        tbody.innerHTML += `
+            <tr>
+                <td>${timeStr}</td>
+                <td>${r.className || '-'}</td>
+                <td>${r.userName || '訪客'}</td>
+                <td>${r.qID}</td>
+                <td>${r.gameMode}</td>
+                <td>${r.timeSpent} 秒</td>
+                <td>${statusTag}</td>
+            </tr>
+        `;
+    });
+
+    // 分頁控制
+    const btnStyle = 'padding:6px 14px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);cursor:pointer;font-family:inherit;';
+    const activeStyle = 'padding:6px 14px;border-radius:6px;border:1px solid var(--accent);background:var(--accent);color:#000;font-weight:700;cursor:default;font-family:inherit;';
+
+    let html = '';
+    if (currentPage > 1) html += `<button style="${btnStyle}" onclick="goPage(${currentPage-1})">← 上一頁</button>`;
+
+    const maxShow = 5;
+    let startP = Math.max(1, currentPage - Math.floor(maxShow/2));
+    let endP = Math.min(totalPages, startP + maxShow - 1);
+    if (endP - startP < maxShow - 1) startP = Math.max(1, endP - maxShow + 1);
+
+    for (let p = startP; p <= endP; p++) {
+        html += `<button style="${p === currentPage ? activeStyle : btnStyle}" onclick="goPage(${p})">${p}</button>`;
+    }
+
+    if (currentPage < totalPages) html += `<button style="${btnStyle}" onclick="goPage(${currentPage+1})">下一頁 →</button>`;
+    html += `<span style="margin-left:10px;font-size:.8rem;">共 ${data.length} 筆 / ${totalPages} 頁</span>`;
+    pagination.innerHTML = html;
 
     // ========== Charts Render ==========
     renderCharts(data);
+}
+
+function goPage(p) {
+    currentPage = p;
+    const filterCls = document.getElementById('filter-class').value;
+    const data = filterCls === 'ALL' ? rawData : rawData.filter(d => d.className === filterCls);
+    renderTable(data);
+    document.querySelector('.table-wrapper').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function renderCharts(data) {

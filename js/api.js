@@ -172,7 +172,7 @@ window.saveScore = async function (className, userName, qID, gameMode, timeSpent
 
     // 2. 嘗試寫入 Firestore
     if (!db) {
-        // 無 Firestore 連線，存到 local_scores 備份
+        console.warn("⚠️ saveScore: db 未初始化，成績僅存本地", newRecord.qID, newRecord.gameMode);
         let localScores = JSON.parse(localStorage.getItem('local_scores') || '[]');
         localScores.push(newRecord);
         localStorage.setItem('local_scores', JSON.stringify(localScores));
@@ -182,9 +182,10 @@ window.saveScore = async function (className, userName, qID, gameMode, timeSpent
     try {
         const docRef = await addDoc(collection(db, "scores"), newRecord);
         newRecord.id = docRef.id;
+        console.log("✅ Firestore 寫入成功:", newRecord.qID, newRecord.gameMode, "stars:", newRecord.stars);
         return { success: true, id: docRef.id };
     } catch (e) {
-        console.error("寫入 Firestore 錯誤, 存入離線備份:", e);
+        console.error("❌ Firestore 寫入失敗:", e.code, e.message);
         // Firestore 失敗，存到 local_scores 備份，下次登入時重試
         let localScores = JSON.parse(localStorage.getItem('local_scores') || '[]');
         localScores.push(newRecord);
@@ -233,15 +234,18 @@ window.getAllScoresForDashboard = async function () {
     }
 
     const sysCacheKey = 'fb_cache_dashboard_teacher';
-    const cached = cacheGet(sysCacheKey);
-    if (cached) return cached;
+    const DASH_TTL = 14400000; // 4 小時
+    try {
+        const raw = localStorage.getItem(sysCacheKey);
+        if (raw) { const obj = JSON.parse(raw); if (Date.now() - obj.time < DASH_TTL) return obj.data; }
+    } catch(e) {}
 
     try {
-        // ✅ 從 500 改成 50，大幅減少 reads
+        // 撈最近 500 筆供統計（快取 4 小時）
         const q = query(
             collection(db, "scores"),
             orderBy("timestamp", "desc"),
-            limit(50)
+            limit(500)
         );
         const snapshot = await getDocs(q);
         const results = [];
@@ -337,15 +341,22 @@ window.getOverallRanking = async function (classFilter = "ALL") {
         if (!db) {
             results = JSON.parse(localStorage.getItem('local_scores') || '[]');
         } else {
+            // 排行榜專用快取：4 小時 TTL，無 limit（需要全量資料計算排名）
             const sysCacheKey = 'fb_cache_overall_ranking';
-            const cached = cacheGet(sysCacheKey);
-            if (cached) {
-                results = cached;
-            } else {
+            const RANKING_TTL = 14400000; // 4 小時
+            try {
+                const raw = localStorage.getItem(sysCacheKey);
+                if (raw) {
+                    const obj = JSON.parse(raw);
+                    if (Date.now() - obj.time < RANKING_TTL) {
+                        results = obj.data;
+                    }
+                }
+            } catch(e) {}
+            if (results.length === 0) {
                 const q = query(
                     collection(db, "scores"),
-                    orderBy("timestamp", "desc"),
-                    limit(500)
+                    where("status", "==", "PASS")
                 );
                 const snapshot = await getDocs(q);
                 snapshot.forEach(doc => {
@@ -353,7 +364,7 @@ window.getOverallRanking = async function (classFilter = "ALL") {
                     data.id = doc.id;
                     results.push(data);
                 });
-                cacheSet(sysCacheKey, results);
+                try { localStorage.setItem(sysCacheKey, JSON.stringify({ time: Date.now(), data: results })); } catch(e) {}
             }
         }
 
