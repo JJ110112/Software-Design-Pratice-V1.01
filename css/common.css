@@ -217,8 +217,26 @@ body.stage-bg-5 { background: #211c08; }
   padding: 16px 20px; margin: 20px 0; line-height: 2;
 }
 
-.overlay-card .btn, .win-card .btn, .win-modal .btn {
+.overlay-card .btn, .win-card .btn, .win-modal .btn,
+.all-clear-btn {
   font-family: 'Noto Sans TC', sans-serif; font-weight: 700;
   font-size: 0.95rem; padding: 10px 24px; border-radius: 8px;
   border: none; cursor: pointer; transition: all 0.2s;
+}
+/* 統一按鈕區排版：並排 */
+.overlay-card > div:last-child, .win-card > div:last-child, .win-modal > div:last-child {
+  display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;
+}
+/* 「再挑戰一次」按鈕 */
+#btn-again, #btn-replay, #btn-win-again, #btn-all-clear-back {
+  background: var(--accent, #38bdf8) !important; color: #fff !important;
+  padding: 10px 24px; border-radius: 8px; border: none;
+  font-weight: 700; cursor: pointer; font-family: inherit; font-size: 0.95rem;
+}
+/* 「下一關」按鈕 */
+#btn-next-level, #btn-win-next, #btn-next-mode {
+  background: linear-gradient(90deg, #4ade80, #10b981) !important;
+  color: #fff !important; padding: 10px 24px; border-radius: 8px; border: none;
+  font-weight: 700; cursor: pointer; font-family: inherit; font-size: 0.95rem;
+  white-space: nowrap;
 }

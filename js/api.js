@@ -90,13 +90,19 @@ window.syncOnLogout = function (userName) {
 };
 
 /**
- * 回到 map 頁面時：背景同步（不清除快取，不影響顯示）
- * 先用快取顯示，背景從 Firestore 撈取後合併更新
+ * 回到 map 頁面時：節流背景同步（每 10 分鐘最多一次）
+ * 快取有效時直接用快取，不額外查 Firestore
  */
+const SYNC_COOLDOWN = 600000; // 10 分鐘
 window.syncOnMapLoad = async function (userName) {
     if (!db || !userName) return;
     // 先嘗試上傳離線成績
     await window.syncOfflineScores(userName);
+    // 節流：10 分鐘內不重複查 Firestore
+    const lastSyncKey = `last_sync_${userName}`;
+    const lastSync = parseInt(localStorage.getItem(lastSyncKey) || '0');
+    if (Date.now() - lastSync < SYNC_COOLDOWN) return;
+    localStorage.setItem(lastSyncKey, String(Date.now()));
     // 背景從 Firestore 撈取最新，與快取合併
     try {
         const q = query(collection(db, "scores"), where("userName", "==", userName));
@@ -108,7 +114,6 @@ window.syncOnMapLoad = async function (userName) {
             data.gameMode = normalizeMode(data.gameMode);
             fbResults.push(data);
         });
-        // 合併：以快取為基礎，補上 Firestore 中有但快取沒有的
         const cacheKey = `fb_cache_${userName}`;
         const cached = cacheGet(cacheKey) || [];
         const cachedIds = new Set(cached.filter(r => r.id).map(r => r.id));
@@ -117,14 +122,10 @@ window.syncOnMapLoad = async function (userName) {
         fbResults.forEach(r => {
             if (r.id && !cachedIds.has(r.id)) {
                 const key = `${r.qID}_${r.gameMode}_${r.timestamp}`;
-                if (!cachedKeys.has(key)) {
-                    cached.push(r);
-                    added++;
-                }
+                if (!cachedKeys.has(key)) { cached.push(r); added++; }
             }
         });
         if (added > 0) cacheSet(cacheKey, cached);
-        console.log(`✅ 地圖背景同步: Firestore ${fbResults.length} 筆, 新增 ${added} 筆`);
     } catch (e) {
         console.error("背景同步失敗:", e);
     }
@@ -416,8 +417,8 @@ const MODE_TO_STAGE = {
     '連連看': 1, '記憶翻牌遊戲': 1, '中英選擇題': 1,
     '一行程式碼翻譯': 2, '錯誤找找看': 2, '程式碼朗讀練習': 2,
     '程式碼排列重組': 3, '程式與結果配對': 3, '逐行中文注解填空': 3,
-    '程式填空': 4, '看中文寫程式': 4,
-    '獨立全程式撰寫': 5, '打字練習': 5, '打字-關鍵字': 5, '打字-單行': 5, '打字-完整': 5, '錯誤程式除錯': 5, '模擬考': 5
+    '打字-關鍵字': 4, '打字-單行': 4, '看中文寫程式': 4, '打字-完整': 4, '打字練習': 4,
+    '程式填空': 5, '獨立全程式撰寫': 5, '錯誤程式除錯': 5, '模擬考': 5
 };
 
 /**

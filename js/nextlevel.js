@@ -85,14 +85,14 @@ function wireNextButton() {
             nextBtn.innerHTML = '🎯 進入第三階段 (排列重組)';
             nextBtn.onclick = () => window.location.href = '程式碼排列重組.html?q=SETUP&t=T01';
         } else if (currentFile.includes('逐行中文注解填空')) {
-            nextBtn.innerHTML = '🎯 進入第四階段 (程式填空)';
-            nextBtn.onclick = () => window.location.href = '程式填空.html?q=SETUP&t=T01';
-        } else if (currentFile.includes('程式填空')) {
-            nextBtn.innerHTML = '⏭️ 下一練習 (看中文寫程式)';
-            nextBtn.onclick = () => window.location.href = '看中文寫程式.html?q=SETUP&t=T01';
+            nextBtn.innerHTML = '🎯 進入第四階段 (打字練習)';
+            nextBtn.onclick = () => window.location.href = '打字練習.html?q=SETUP&t=T01&sub=keyword';
         } else if (currentFile.includes('看中文寫程式')) {
-            nextBtn.innerHTML = '🎯 進入第五階段 (打字練習)';
-            nextBtn.onclick = () => window.location.href = '打字練習.html?q=SETUP&t=T01';
+            nextBtn.innerHTML = '⏭️ 下一練習 (打字-完整)';
+            nextBtn.onclick = () => window.location.href = '打字練習.html?q=SETUP&t=T01&sub=full';
+        } else if (currentFile.includes('程式填空')) {
+            nextBtn.innerHTML = '⏭️ 下一練習 (獨立全程式撰寫)';
+            nextBtn.onclick = () => window.location.href = '獨立全程式撰寫.html?q=SETUP&t=T01';
         } else if (currentFile.includes('獨立全程式撰寫')) {
             nextBtn.innerHTML = '⏭️ 下一練習 (錯誤程式除錯)';
             nextBtn.onclick = () => window.location.href = '錯誤程式除錯.html?q=SETUP&t=T01';

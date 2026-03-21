@@ -275,7 +275,7 @@ body::after{
   .tstat-val{font-size:1.1rem}
 }
 </style>
-<link rel="stylesheet" href="../css/common.css?v=3">
+<link rel="stylesheet" href="../css/common.css?v=4">
 </head>
 <body>
 
@@ -410,8 +410,10 @@ body::after{
     <div class="all-clear-title">全部完成！</div>
     <div class="all-clear-sub" id="all-clear-sub"></div>
     <div class="all-clear-stats" id="all-clear-stats"></div>
-    <button class="all-clear-btn" id="btn-all-clear-back">再練一次 →</button>
-    <button class="all-clear-btn" id="btn-next-mode" style="background:linear-gradient(90deg,#4ade80,#10b981);margin-top:8px;">⏭️ 下一練習 (獨立全程式撰寫)</button>
+    <div style="display:flex;justify-content:center;gap:10px;margin-top:20px;">
+      <button class="all-clear-btn" id="btn-all-clear-back">再挑戰一次</button>
+      <button class="all-clear-btn" id="btn-next-mode">⏭️ 下一關</button>
+    </div>
   </div>
 </div>
 
@@ -634,6 +636,12 @@ function startMode(mode) {
 }
 
 document.getElementById('btn-back').addEventListener('click', () => {
+  if (subMode) {
+    // 有 sub 參數時直接回地圖
+    const SUB_TO_MODE = { keyword: '打字-關鍵字', line: '打字-單行', full: '打字-完整' };
+    window.location.href = `map.html?mode=${encodeURIComponent(SUB_TO_MODE[subMode] || '打字-關鍵字')}&tab=map`;
+    return;
+  }
   stopTimer(); hideClearEffect();
   document.getElementById('mode-select').style.display = 'block';
   document.getElementById('typing-area').style.display = 'none';
@@ -717,15 +725,23 @@ promptBox.addEventListener('keydown', () => typingInput.focus());
 typingInput.addEventListener('focus', () => { promptBox.classList.add('focused'); });
 typingInput.addEventListener('blur',  () => { promptBox.classList.remove('focused'); });
 typingInput.addEventListener('keydown', e => {
-  if (!startTime) beginTimer();
+  if (!startTime && e.key.length === 1) beginTimer();
+  // 禁止左右鍵、Home、End 移動游標，強制從末尾打字
+  if (['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End'].includes(e.key)) {
+    e.preventDefault();
+    return;
+  }
   if (e.key === 'Tab') {
     e.preventDefault();
-    const pos = typingInput.selectionStart;
     const val = typingInput.value;
-    typingInput.value = val.slice(0, pos) + '    ' + val.slice(pos);
-    typingInput.selectionStart = typingInput.selectionEnd = pos + 4;
+    typingInput.value = val + '    ';
     typingInput.dispatchEvent(new Event('input'));
   }
+});
+// 確保游標永遠在末尾
+typingInput.addEventListener('click', () => {
+  const len = typingInput.value.length;
+  typingInput.selectionStart = typingInput.selectionEnd = len;
 });
 typingInput.addEventListener('input', onTypingInput);
 
@@ -910,9 +926,15 @@ function showAllClear() {
     btnNext.textContent = '⏭️ 下一關';
     btnNext.onclick = () => { window.location.href = `打字練習.html?q=${next.q}&t=${next.t}&sub=${mode}`; };
   } else {
-    // 全部 19 關都完成，前往獨立全程式撰寫
-    btnNext.textContent = '⏭️ 下一練習 (獨立全程式撰寫)';
-    btnNext.onclick = () => { window.location.href = '獨立全程式撰寫.html?q=SETUP&t=T01'; };
+    // 全部 19 關都完成，跳到下一個練習模式
+    const NEXT_MODE = {
+      keyword: { label: '打字-單行', href: '打字練習.html?q=SETUP&t=T01&sub=line' },
+      line:    { label: '看中文寫程式', href: '看中文寫程式.html?q=SETUP&t=T01' },
+      full:    { label: '程式填空 (第五階段)', href: '程式填空.html?q=SETUP&t=T01' },
+    };
+    const next = NEXT_MODE[mode] || { label: '地圖', href: 'map.html?tab=map' };
+    btnNext.textContent = `⏭️ 下一練習 (${next.label})`;
+    btnNext.onclick = () => { window.location.href = next.href; };
   }
 
   // 將成績送往雲端 (若已登入)

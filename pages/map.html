@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>訓練進程與模式 ── 關卡選擇</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../css/common.css?v=3">
+<link rel="stylesheet" href="../css/common.css?v=4">
 <style>
 :root {
   --bg: #0c1220;
@@ -458,24 +458,24 @@ body::before {
 
         <div class="stage-title stage-4"><span>第四階段</span> 自己動手寫</div>
         <div class="mode-grid">
-            <a href="map.html?mode=程式填空&tab=map" class="mode-item s4">
-                <div class="mode-icon">🔑</div><div class="mode-info"><h3>進階：動態程式填空</h3><p>在隨機挖空的代碼中填入關鍵字與邏輯值</p></div>
+            <a href="map.html?mode=打字-關鍵字&tab=map" class="mode-item s4">
+                <div class="mode-icon">🔤</div><div class="mode-info"><h3>打字練習：關鍵字</h3><p>練習打出 VB.NET 的關鍵指令，熟悉拼寫與大小寫</p></div>
+            </a>
+            <a href="map.html?mode=打字-單行&tab=map" class="mode-item s4">
+                <div class="mode-icon">📄</div><div class="mode-info"><h3>打字練習：單行程式碼</h3><p>一次練習一行，從簡單到複雜，附中文說明輔助</p></div>
             </a>
             <a href="map.html?mode=看中文寫程式&tab=map" class="mode-item s4">
                 <div class="mode-icon">📝</div><div class="mode-info"><h3>實戰：看中文寫程式</h3><p>逐行將中文邏輯翻譯為 VB.NET 代碼並點亮畫布</p></div>
+            </a>
+            <a href="map.html?mode=打字-完整&tab=map" class="mode-item s4">
+                <div class="mode-icon">⌨️</div><div class="mode-info"><h3>打字練習：完整程式碼</h3><p>一口氣打完整個 Sub，測試真實考試手感</p></div>
             </a>
         </div>
 
         <div class="stage-title stage-5"><span>第五階段</span> 模擬考試情境</div>
         <div class="mode-grid">
-            <a href="map.html?mode=打字-關鍵字&tab=map" class="mode-item s5">
-                <div class="mode-icon">🔤</div><div class="mode-info"><h3>打字練習：關鍵字</h3><p>練習打出 VB.NET 的關鍵指令，熟悉拼寫與大小寫</p></div>
-            </a>
-            <a href="map.html?mode=打字-單行&tab=map" class="mode-item s5">
-                <div class="mode-icon">📝</div><div class="mode-info"><h3>打字練習：單行程式碼</h3><p>一次練習一行，從簡單到複雜，附中文說明輔助</p></div>
-            </a>
-            <a href="map.html?mode=打字-完整&tab=map" class="mode-item s5">
-                <div class="mode-icon">⌨️</div><div class="mode-info"><h3>打字練習：完整程式碼</h3><p>一口氣打完整個 Sub，測試真實考試手感</p></div>
+            <a href="map.html?mode=程式填空&tab=map" class="mode-item s5">
+                <div class="mode-icon">🔑</div><div class="mode-info"><h3>進階：動態程式填空</h3><p>在隨機挖空的代碼中填入關鍵字與邏輯值</p></div>
             </a>
             <a href="map.html?mode=獨立全程式撰寫&tab=map" class="mode-item s5">
                 <div class="mode-icon">💎</div><div class="mode-info"><h3>精英：獨立全程式撰寫 <span class="badge-new">推薦</span></h3><p>面對空白 IDE，拼湊出完整的程式碼與標頭註解</p></div>
@@ -552,8 +552,8 @@ const ALL_MODES = [
     '連連看', '記憶翻牌遊戲', '中英選擇題',
     '一行程式碼翻譯', '錯誤找找看', '程式碼朗讀練習',
     '程式碼排列重組', '程式與結果配對', '逐行中文注解填空',
-    '程式填空', '看中文寫程式',
-    '打字-關鍵字', '打字-單行', '打字-完整', '獨立全程式撰寫', '錯誤程式除錯'
+    '打字-關鍵字', '打字-單行', '看中文寫程式', '打字-完整',
+    '程式填空', '獨立全程式撰寫', '錯誤程式除錯'
 ];
 
 const modeSelectorEl = document.getElementById('mode-selector');
@@ -663,7 +663,7 @@ async function initAuthUI() {
         
         // 處理星星解鎖邏輯
         if (stats) {
-            const req = { 2: 57, 3: 57, 4: 57, 5: 38 };
+            const req = { 2: 57, 3: 57, 4: 57, 5: 57 };
             for (let stage = 2; stage <= 5; stage++) {
                 const prevStageStars = stats.stageStars[stage - 1] || 0;
                 const isLocked = DEV_MODE ? false : prevStageStars < req[stage];
