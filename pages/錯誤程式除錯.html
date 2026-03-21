@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>術科練習 ── 錯誤程式除錯</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../css/common.css">
+<link rel="stylesheet" href="../css/common.css?v=2">
 <style>
 .game-section { padding: 0 12px 40px; max-width: 900px; margin: 0 auto; }
 .section-label {
@@ -40,7 +40,7 @@
     line-height: 1.6;
     color: #c9d1d9;
     border: 1px solid #30363d;
-    overflow-x: auto;
+    overflow-x: hidden;
 }
 .code-line {
     display: flex;
@@ -69,7 +69,8 @@
     margin-right: 16px;
 }
 .line-content {
-    white-space: pre;
+    white-space: pre-wrap;
+    word-break: break-all;
 }
 .bug { color: #ff7b72; text-decoration: underline wavy var(--red); }
 
@@ -127,26 +128,49 @@
   </div>
 </div>
 
+<div id="win-overlay" style="display:none;position:fixed;inset:0;background:rgba(12,18,32,0.92);z-index:9000;align-items:center;justify-content:center;backdrop-filter:blur(8px);">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:40px 30px;max-width:420px;width:90%;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,0.5);animation:popIn .4s cubic-bezier(.34,1.56,.64,1);">
+    <span style="font-size:5rem;display:block;margin-bottom:15px;">💎</span>
+    <h2 style="font-size:1.8rem;font-weight:900;margin-bottom:8px;">除錯完成！</h2>
+    <p id="win-desc" style="color:var(--muted);margin-bottom:20px;"></p>
+    <div id="win-stats" style="font-size:1.05rem;line-height:2;color:var(--text);"></div>
+    <div style="display:flex;justify-content:center;gap:10px;margin-top:25px;flex-wrap:wrap;">
+      <button id="btn-win-again" style="padding:10px 24px;border:none;border-radius:8px;background:var(--accent);color:#000;font-weight:700;cursor:pointer;font-family:inherit;font-size:.95rem;">再挑戰一次</button>
+      <button id="btn-win-next" style="padding:10px 24px;border:none;border-radius:8px;background:linear-gradient(90deg,#4ade80,#10b981);color:#fff;font-weight:700;cursor:pointer;font-family:inherit;font-size:.95rem;">⏭️ 下一關</button>
+    </div>
+  </div>
+</div>
+
+<script src="../js/users.js"></script>
+<script type="module" src="../js/api.js?v=7"></script>
 <script src="../js/quiz_data.js"></script>
 <script>
 const urlParams = new URLSearchParams(window.location.search);
 const qID = urlParams.get('q') || 'Q1';
 const tID = urlParams.get('t') || 'T01';
 
-// 預設錯誤題庫
+// 預設錯誤題庫 — 按 qID 再按 tID 索引
 const BUGS = {
-    "T01": [
-        { orig: "For i = 0 To s.Length \\ 2 - 1", bug: "For i = 0 To s.Length / 2 - 1", desc: "字串長度的一半應使用整數除法 '\\'，而非一般除法 '/'" },
-        { orig: "If s(i) <> s(s.Length - i - 1) Then", bug: "If s(i) = s(s.Length - i - 1) Then", desc: "迴文判斷應尋找「不相等」的字元來中斷，使用 <>" }
-    ],
-    "T02": [
-        { orig: "Dim i As Integer = 0", bug: "Dim i As String = 0", desc: "計數器應宣告為整數 Integer" },
-        { orig: "Do While i <= s.Length \\ 2 - 1", bug: "Do While i > s.Length \\ 2 - 1", desc: "Do While 應在 i 小於等於一半長度時「繼續執行」" }
-    ],
-    "T03": [
-        { orig: "Loop While i <= s.Length \\ 2 - 1", bug: "Loop Until i <= s.Length \\ 2 - 1", desc: "如果是 Until，條件為真時會停止，因此應為 Loop While 以繼續執行" },
-        { orig: "Exit Do", bug: "Exit For", desc: "Do 迴圈中應使用 Exit Do 來跳出" }
-    ]
+    "SETUP": {
+        "T01": [
+            { orig: "Q1()", bug: "Q1[]", desc: "VB.NET 呼叫副程式使用小括號 ()，不是中括號 []" },
+            { orig: "Q3()", bug: "Q 3()", desc: "副程式名稱中間不能有空格，應為 Q3()" }
+        ]
+    },
+    "Q1": {
+        "T01": [
+            { orig: "For i = 0 To s.Length \\ 2 - 1", bug: "For i = 0 To s.Length / 2 - 1", desc: "字串長度的一半應使用整數除法 '\\'，而非一般除法 '/'" },
+            { orig: "If s(i) <> s(s.Length - i - 1) Then", bug: "If s(i) = s(s.Length - i - 1) Then", desc: "迴文判斷應尋找「不相等」的字元來中斷，使用 <>" }
+        ],
+        "T02": [
+            { orig: "Dim i As Integer = 0", bug: "Dim i As String = 0", desc: "計數器應宣告為整數 Integer" },
+            { orig: "Do While i <= s.Length \\ 2 - 1", bug: "Do While i > s.Length \\ 2 - 1", desc: "Do While 應在 i 小於等於一半長度時「繼續執行」" }
+        ],
+        "T03": [
+            { orig: "Loop While i <= s.Length \\ 2 - 1", bug: "Loop Until i <= s.Length \\ 2 - 1", desc: "如果是 Until，條件為真時會停止，因此應為 Loop While 以繼續執行" },
+            { orig: "Exit Do", bug: "Exit For", desc: "Do 迴圈中應使用 Exit Do 來跳出" }
+        ]
+    }
 };
 
 let currentBugIndex = 0;
@@ -167,7 +191,7 @@ function loadBug() {
     document.getElementById('feedback').className = 'feedback-box';
     document.getElementById('btn-next').style.display = 'none';
     
-    let bugList = BUGS[tID] || BUGS["T01"];
+    let bugList = (BUGS[qID] && BUGS[qID][tID]) || (BUGS["Q1"] && BUGS["Q1"]["T01"]) || [];
     if (currentBugIndex >= bugList.length) {
         currentBugIndex = 0; // 循環練習
     }
@@ -211,6 +235,7 @@ function loadBug() {
                  document.getElementById('btn-next').style.display = 'inline-block';
              } else {
                  lEl.classList.add('selected');
+                 wrongClicks++;
                  let fb = document.getElementById('feedback');
                  fb.className = 'feedback-box error';
                  fb.innerHTML = `❌ 錯誤！這裡語法沒問題，再找找看！`;
@@ -221,24 +246,75 @@ function loadBug() {
     });
 }
 
+let wrongClicks = 0; // 記錄錯誤點擊次數
+let startTime = Date.now();
+
 document.getElementById('btn-next').addEventListener('click', () => {
     currentBugIndex++;
-    let bugList = BUGS[tID] || BUGS["T01"];
+    let bugList = (BUGS[qID] && BUGS[qID][tID]) || (BUGS["Q1"] && BUGS["Q1"]["T01"]) || [];
     if (currentBugIndex >= bugList.length) {
-        // 所有 bug 都找完了，顯示完成訊息
-        let fb = document.getElementById('feedback');
-        fb.className = 'feedback-box success';
-        fb.innerHTML = '🏆 全部除錯完成！';
-        document.getElementById('btn-next').style.display = 'none';
-
-        let btnBack = document.createElement('button');
-        btnBack.textContent = '🏆 返回闖關地圖';
-        btnBack.style.cssText = 'margin-top:12px;padding:10px 24px;border:none;border-radius:8px;background:linear-gradient(90deg,#38bdf8,#a78bfa);color:#fff;font-size:1rem;font-weight:700;cursor:pointer;';
-        btnBack.onclick = () => { window.location.href = 'map.html?tab=map'; };
-        fb.appendChild(document.createElement('br'));
-        fb.appendChild(btnBack);
+        showWinOverlay();
         return;
     }
+    loadBug();
+});
+
+const LEVEL_SEQUENCE = [
+  { q: 'SETUP', t: 'T01' }, { q: 'Q1', t: 'T01' }, { q: 'Q1', t: 'T02' }, { q: 'Q1', t: 'T03' },
+  { q: 'Q2', t: 'T01' }, { q: 'Q2', t: 'T02' }, { q: 'Q2', t: 'T03' },
+  { q: 'Q3', t: 'T01' }, { q: 'Q3', t: 'T02' }, { q: 'Q3', t: 'T03' },
+  { q: 'Q4', t: 'T01' }, { q: 'Q4', t: 'T02' }, { q: 'Q4', t: 'T03' },
+  { q: 'Q5', t: 'T01' }, { q: 'Q5', t: 'T02' }, { q: 'Q5', t: 'T03' },
+  { q: '1060306', t: 'T01' }, { q: '1060307', t: 'T01' }, { q: '1060308', t: 'T01' }
+];
+
+function showWinOverlay() {
+    const elapsed = Math.round((Date.now() - startTime) / 1000);
+
+    // 星星：0 錯誤 = 3星, 1~2 錯誤 = 2星, >2 錯誤 = 1星
+    let stars = 3;
+    if (wrongClicks > 0 && wrongClicks <= 2) stars = 2;
+    if (wrongClicks > 2) stars = 1;
+
+    const title = QUIZ_DATA[qID] ? `${qID} ${QUIZ_DATA[qID].title} (${tID})` : qID;
+    document.getElementById('win-desc').textContent = `成功修復 ${title} 的所有程式錯誤！`;
+    document.getElementById('win-stats').innerHTML = `
+        用時：${elapsed} 秒<br>
+        錯誤點擊：${wrongClicks} 次
+        <div style="margin-top:16px;display:flex;justify-content:center;gap:12px;">
+            ${Array(3).fill(0).map((_, i) => `<span style="font-size:2.5rem;filter:${i < stars ? 'drop-shadow(0 0 12px rgba(251,191,36,0.8))' : 'grayscale(100%) opacity(20%)'};transform:scale(${i < stars ? 1.1 : 1});transition:all .3s;line-height:1;">⭐</span>`).join('')}
+        </div>`;
+
+    const overlay = document.getElementById('win-overlay');
+    overlay.style.display = 'flex';
+
+    // 下一關按鈕
+    const curIdx = LEVEL_SEQUENCE.findIndex(l => l.q === qID && l.t === tID);
+    const btnNext = document.getElementById('btn-win-next');
+    if (curIdx >= 0 && curIdx < LEVEL_SEQUENCE.length - 1) {
+        const next = LEVEL_SEQUENCE[curIdx + 1];
+        btnNext.textContent = '⏭️ 下一關';
+        btnNext.onclick = () => { window.location.href = `錯誤程式除錯.html?q=${next.q}&t=${next.t}`; };
+    } else {
+        btnNext.textContent = '🏆 返回闖關地圖';
+        btnNext.onclick = () => { window.location.href = 'map.html?mode=錯誤程式除錯&tab=map'; };
+    }
+
+    // 儲存成績
+    if (typeof getCurrentUser === 'function') {
+        const user = getCurrentUser();
+        if (user && typeof window.saveScore === 'function') {
+            window.saveScore(user.className, user.name, qID + '_' + tID, "錯誤程式除錯", elapsed, "PASS", stars)
+              .then(res => console.log("成績上傳完成:", res));
+        }
+    }
+}
+
+document.getElementById('btn-win-again').addEventListener('click', () => {
+    document.getElementById('win-overlay').style.display = 'none';
+    currentBugIndex = 0;
+    wrongClicks = 0;
+    startTime = Date.now();
     loadBug();
 });
 

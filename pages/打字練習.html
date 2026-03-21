@@ -244,7 +244,7 @@ body::after{
 }
 #all-clear-overlay.show{opacity:1;pointer-events:all;}
 .all-clear-burst{position:absolute;inset:0;overflow:hidden;}
-.all-clear-card{position:relative;z-index:1;text-align:center;animation:clearPop .5s cubic-bezier(.34,1.56,.64,1) both;}
+.all-clear-card{position:relative;z-index:1;text-align:center;animation:clearPop .5s cubic-bezier(.34,1.56,.64,1) both;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:40px 30px;max-width:420px;width:90%;box-shadow:0 20px 50px rgba(0,0,0,0.5);}
 .all-clear-icon{font-size:6rem;line-height:1;display:block;animation:clearSpin .8s ease-out both .1s;}
 .all-clear-title{
   font-family:'JetBrains Mono',monospace;
@@ -255,7 +255,7 @@ body::after{
   animation:clearGlow .6s ease both .25s;
 }
 .all-clear-sub{font-size:1rem;color:var(--muted2);margin-top:8px;animation:clearGlow .6s ease both .4s;}
-.all-clear-stats{display:flex;gap:18px;justify-content:center;margin-top:22px;animation:clearGlow .6s ease both .5s;}
+.all-clear-stats{display:flex;gap:18px;justify-content:center;flex-wrap:wrap;margin-top:22px;animation:clearGlow .6s ease both .5s;}
 .all-clear-btn{
   margin-top:30px;display:block;
   animation:clearGlow .6s ease both .6s;
@@ -275,7 +275,7 @@ body::after{
   .tstat-val{font-size:1.1rem}
 }
 </style>
-<link rel="stylesheet" href="../css/common.css">
+<link rel="stylesheet" href="../css/common.css?v=2">
 </head>
 <body>
 
@@ -411,17 +411,28 @@ body::after{
     <div class="all-clear-sub" id="all-clear-sub"></div>
     <div class="all-clear-stats" id="all-clear-stats"></div>
     <button class="all-clear-btn" id="btn-all-clear-back">再練一次 →</button>
-    <button class="all-clear-btn" id="btn-next-mode" style="background:linear-gradient(90deg,#4ade80,#10b981);margin-top:8px;">⏭️ 下一練習 (錯誤程式除錯)</button>
+    <button class="all-clear-btn" id="btn-next-mode" style="background:linear-gradient(90deg,#4ade80,#10b981);margin-top:8px;">⏭️ 下一練習 (獨立全程式撰寫)</button>
   </div>
 </div>
 
 <script src="../js/users.js"></script>
-<script type="module" src="../js/api.js?v=6"></script>
+<script type="module" src="../js/api.js?v=7"></script>
 <script src="../js/quiz_data.js"></script>
 <script>
 const urlParams = new URLSearchParams(window.location.search);
 const qID = urlParams.get('q') || 'Q1';
 const tID = urlParams.get('t') || 'T01';
+const subMode = urlParams.get('sub') || ''; // keyword, line, full
+
+const LEVEL_SEQUENCE = [
+  { q: 'SETUP', t: 'T01' }, { q: 'Q1', t: 'T01' }, { q: 'Q1', t: 'T02' }, { q: 'Q1', t: 'T03' },
+  { q: 'Q2', t: 'T01' }, { q: 'Q2', t: 'T02' }, { q: 'Q2', t: 'T03' },
+  { q: 'Q3', t: 'T01' }, { q: 'Q3', t: 'T02' }, { q: 'Q3', t: 'T03' },
+  { q: 'Q4', t: 'T01' }, { q: 'Q4', t: 'T02' }, { q: 'Q4', t: 'T03' },
+  { q: 'Q5', t: 'T01' }, { q: 'Q5', t: 'T02' }, { q: 'Q5', t: 'T03' },
+  { q: '1060306', t: 'T01' }, { q: '1060307', t: 'T01' }, { q: '1060308', t: 'T01' }
+];
+const SUB_GAME_NAMES = { keyword: '打字-關鍵字', line: '打字-單行', full: '打字-完整' };
 
 // 設定 UI
 window.addEventListener('load', () => {
@@ -549,8 +560,19 @@ let sessionTimeSum = 0;
 //  MODE SELECT
 // ═══════════════════════════════════════════
 document.querySelectorAll('.mode-card').forEach(card => {
-  card.addEventListener('click', () => startMode(card.dataset.mode));
+  card.addEventListener('click', () => {
+    // 更新 URL 加上 sub 參數（不重新載入）
+    const newUrl = new URL(window.location);
+    newUrl.searchParams.set('sub', card.dataset.mode);
+    history.replaceState(null, '', newUrl);
+    startMode(card.dataset.mode);
+  });
 });
+
+// 如果 URL 帶有 sub 參數，自動進入該模式
+if (subMode && ['keyword', 'line', 'full'].includes(subMode)) {
+  window.addEventListener('load', () => startMode(subMode));
+}
 
 function startMode(mode) {
   currentMode = mode;
@@ -825,54 +847,43 @@ function showAllClear() {
     `【${MODE_NAMES[currentMode]||currentMode}】模式全部通關！`;
 
   const avgWpm = sessionCount > 0 ? Math.round(sessionWpmSum / sessionCount) : 0;
+
+  // 計算星星：WPM >= 30 = 3星, >= 20 = 2星, 其他 1星
+  let stars = 3;
+  if (avgWpm < 30) stars = 2;
+  if (avgWpm < 20) stars = 1;
+
   document.getElementById('all-clear-stats').innerHTML = `
     <div class="clear-stat-chip"><span class="cv" style="color:var(--accent2)">${avgWpm}</span><span class="cl">平均 WPM</span></div>
     <div class="clear-stat-chip"><span class="cv" style="color:var(--gold)">${sessionTimeSum}s</span><span class="cl">總用時</span></div>
-    <div class="clear-stat-chip"><span class="cv" style="color:var(--green)">${queue.length}</span><span class="cl">通關題數</span></div>`;
+    <div class="clear-stat-chip"><span class="cv" style="color:var(--green)">${queue.length}</span><span class="cl">通關題數</span></div>
+    <div style="margin-top: 16px; display: flex; justify-content: center; align-items: center; gap: 12px; width: 100%;">
+        ${Array(3).fill(0).map((_, i) => `<span style="font-size: 2.5rem; filter: ${i < stars ? 'drop-shadow(0 0 12px rgba(251,191,36,0.8))' : 'grayscale(100%) opacity(20%)'}; transform: scale(${i < stars ? 1.1 : 1}); transition: all 0.3s ease; line-height: 1;">⭐</span>`).join('')}
+    </div>`;
 
   document.getElementById('all-clear-overlay').classList.add('show');
 
+  // 更新下一關按鈕
+  const btnNext = document.getElementById('btn-next-mode');
+  const curIdx = LEVEL_SEQUENCE.findIndex(l => l.q === qID && l.t === tID);
+  const mode = currentMode || subMode || 'keyword';
+
+  if (curIdx >= 0 && curIdx < LEVEL_SEQUENCE.length - 1) {
+    const next = LEVEL_SEQUENCE[curIdx + 1];
+    btnNext.textContent = '⏭️ 下一關';
+    btnNext.onclick = () => { window.location.href = `打字練習.html?q=${next.q}&t=${next.t}&sub=${mode}`; };
+  } else {
+    // 全部 19 關都完成，前往獨立全程式撰寫
+    btnNext.textContent = '⏭️ 下一練習 (獨立全程式撰寫)';
+    btnNext.onclick = () => { window.location.href = '獨立全程式撰寫.html?q=SETUP&t=T01'; };
+  }
+
   // 將成績送往雲端 (若已登入)
+  const gameModeName = SUB_GAME_NAMES[mode] || '打字練習';
   if (typeof getCurrentUser === 'function') {
       const user = getCurrentUser();
       if (user && typeof window.saveScore === 'function') {
-          
-          let stars = 3;
-          if (typeof totalHintsUsed !== 'undefined') {
-              if (totalHintsUsed > 0 && totalHintsUsed <= 3) stars = 2;
-              if (totalHintsUsed > 3) stars = 1;
-          }
-          let finalScoreSpan = document.getElementById('final-score');
-          if (finalScoreSpan) {
-              finalScoreSpan.style.width = "calc(100% + 40px)";
-              finalScoreSpan.style.marginLeft = "-20px";
-              finalScoreSpan.style.padding = "20px 10px 25px 10px";
-              finalScoreSpan.style.boxSizing = "border-box";
-              const hintsCount = typeof totalHintsUsed !== 'undefined' ? totalHintsUsed : 0;
-              let originHtml = finalScoreSpan.innerHTML;
-              
-              // 移除舊版的星星 UI
-              originHtml = originHtml.replace(/<div class="star-display-container"([\s\S]*?)<\/div>\s*<\/div>/g, '');
-              originHtml = originHtml.replace(/<br>⭐ 提示.*顆/g, '');
-              
-              // 修正折行問題，將各個統計項目包裝在 nowrap 中
-              originHtml = originHtml.replace(/(⏱ 用時.*?秒)/g, '<span style="white-space:nowrap;">$1</span>');
-              originHtml = originHtml.replace(/(❌ 錯誤.*?次)/g, '<span style="white-space:nowrap;">$1</span>');
-              originHtml = originHtml.replace(/(🎯 正確率.*?%)/g, '<span style="white-space:nowrap;">$1</span>');
-              originHtml = originHtml.replace(/　　/g, ' &nbsp;&nbsp; ');
-
-              finalScoreSpan.innerHTML = originHtml + `
-                  <div class="star-display-container" style="margin-top: 20px; width: 100%; display: flex; flex-direction: column; align-items: center;">
-                      <div style="display: flex; justify-content: center; align-items: center; gap: 12px; margin-bottom: 5px; flex-wrap: nowrap;">
-                          ${Array(3).fill(0).map((_, i) => `<span style="font-size: 2.5rem; filter: ${i < stars ? 'drop-shadow(0 0 12px rgba(251,191,36,0.8))' : 'grayscale(100%) opacity(20%)'}; transform: scale(${i < stars ? 1.1 : 1}); transition: all 0.3s ease; line-height: 1;">⭐</span>`).join('')}
-                      </div>
-                      <div style="font-size: 0.85rem; color: #94a3b8; text-align: center; margin-top: 10px;">
-                          ( 使用提示：${hintsCount} 次 )
-                      </div>
-                  </div>
-              `;
-          }
-          window.saveScore(user.className, user.name, qID + '_' + tID, "打字練習", sessionTimeSum, "PASS", stars)
+          window.saveScore(user.className, user.name, qID + '_' + tID, gameModeName, sessionTimeSum, "PASS", stars)
             .then(res => console.log("成績上傳完成:", res));
       }
   }
@@ -884,10 +895,6 @@ document.getElementById('btn-all-clear-back').addEventListener('click', () => {
   document.getElementById('mode-select').style.display = 'block';
   document.getElementById('typing-area').style.display = 'none';
   resetTypingUI();
-});
-
-document.getElementById('btn-next-mode').addEventListener('click', () => {
-  window.location.href = '錯誤程式除錯.html?q=SETUP&t=T01';
 });
 
 // ═══════════════════════════════════════════
@@ -916,8 +923,8 @@ function completeItem() {
   triggerFlash(document.getElementById('prompt-box'));
 
   if (autoAdvance && currentMode !== 'full') {
-    // Show small per-item overlay, then advance (or trigger all-clear)
-    showClearEffect(wpm, acc, time, () => advanceItem());
+    // 直接跳下一題，不顯示過場效果
+    setTimeout(() => advanceItem(), 100);
     return;
   }
 

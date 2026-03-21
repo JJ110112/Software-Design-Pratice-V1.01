@@ -10,8 +10,8 @@ Imports System.IO
 
 Public Class Form1
     Private Sub Form1_Load(sender As Object, e As EventArgs) Handles MyBase.Load
-        RichTextBox1.Text &= "姓名：吳烱賢　　術科測試編號：12345678" + vbCrLf        '結果標題第一行
-        RichTextBox1.Text &= "座號：９９　　　日期：2026/05/18" + vbCrLf        '結果標題第二行   
+        RichTextBox1.Text &= "姓名：吳烱賢　　術科測試編號：12345678" + vbCrLf
+        RichTextBox1.Text &= "座號：９９　　　日期：2026/05/18" + vbCrLf
 
         Q1()
         Q2()

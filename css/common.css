@@ -143,6 +143,7 @@ h1 { font-size: clamp(1.5rem, 5vw, 2.6rem); font-weight: 900; letter-spacing: -.
 
 /* --- NEW LEVEL TOP BAR & BG --- */
 .page-header, .game-header { display: none !important; }
+body { padding-top: 56px !important; }
 
 .level-top-bar {
   position: fixed;

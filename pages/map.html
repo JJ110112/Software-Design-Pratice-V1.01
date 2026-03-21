@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>訓練進程與模式 ── 關卡選擇</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../css/common.css">
+<link rel="stylesheet" href="../css/common.css?v=2">
 <style>
 :root {
   --bg: #0c1220;
@@ -468,11 +468,17 @@ body::before {
 
         <div class="stage-title stage-5"><span>第五階段</span> 模擬考試情境</div>
         <div class="mode-grid">
+            <a href="map.html?mode=打字-關鍵字&tab=map" class="mode-item s5">
+                <div class="mode-icon">🔤</div><div class="mode-info"><h3>打字練習：關鍵字</h3><p>練習打出 VB.NET 的關鍵指令，熟悉拼寫與大小寫</p></div>
+            </a>
+            <a href="map.html?mode=打字-單行&tab=map" class="mode-item s5">
+                <div class="mode-icon">📝</div><div class="mode-info"><h3>打字練習：單行程式碼</h3><p>一次練習一行，從簡單到複雜，附中文說明輔助</p></div>
+            </a>
+            <a href="map.html?mode=打字-完整&tab=map" class="mode-item s5">
+                <div class="mode-icon">⌨️</div><div class="mode-info"><h3>打字練習：完整程式碼</h3><p>一口氣打完整個 Sub，測試真實考試手感</p></div>
+            </a>
             <a href="map.html?mode=獨立全程式撰寫&tab=map" class="mode-item s5">
                 <div class="mode-icon">💎</div><div class="mode-info"><h3>精英：獨立全程式撰寫 <span class="badge-new">推薦</span></h3><p>面對空白 IDE，拼湊出完整的程式碼與標頭註解</p></div>
-            </a>
-            <a href="map.html?mode=打字練習&tab=map" class="mode-item s5">
-                <div class="mode-icon">⌨️</div><div class="mode-info"><h3>打字練習模式</h3><p>純粹的無腦輸入速度訓練以應付檢定</p></div>
             </a>
             <a href="map.html?mode=錯誤程式除錯&tab=map" class="mode-item s5">
                 <div class="mode-icon">💀</div><div class="mode-info"><h3>錯誤程式除錯 <span class="badge-new">NEW</span></h3><p>修復整段會報錯的或是邏輯瑡疵的程式碼</p></div>
@@ -493,12 +499,25 @@ body::before {
 </div>
 
 <script src="../js/users.js"></script>
-<script type="module" src="../js/api.js?v=6"></script>
+<script type="module" src="../js/api.js?v=7"></script>
 <script>
 // ── Parse URL params ──
 const urlParams = new URLSearchParams(window.location.search);
 let GAME_MODE = urlParams.get('mode') || '';
 const initialTab = urlParams.get('tab') || '';
+const DEV_MODE = urlParams.get('dev') === '1';
+
+// 打字子模式對應：mode name → { file, sub }
+const TYPING_SUB_MAP = {
+  '打字-關鍵字': { file: '打字練習', sub: 'keyword' },
+  '打字-單行':   { file: '打字練習', sub: 'line' },
+  '打字-完整':   { file: '打字練習', sub: 'full' },
+};
+function getGameHref(mode, q, t) {
+  const ts = TYPING_SUB_MAP[mode];
+  if (ts) return `${ts.file}.html?q=${q}&t=${t}&sub=${ts.sub}`;
+  return `${mode}.html?q=${q}&t=${t}`;
+}
 
 // ── Tab Logic ──
 const tabBtns = document.querySelectorAll('.tab-btn');
@@ -527,7 +546,7 @@ const ALL_MODES = [
     '一行程式碼翻譯', '錯誤找找看', '程式碼朗讀練習',
     '程式碼排列重組', '程式與結果配對', '逐行中文注解填空',
     '程式填空', '看中文寫程式',
-    '獨立全程式撰寫', '打字練習', '錯誤程式除錯'
+    '打字-關鍵字', '打字-單行', '打字-完整', '獨立全程式撰寫', '錯誤程式除錯'
 ];
 
 const modeSelectorEl = document.getElementById('mode-selector');
@@ -635,7 +654,7 @@ async function initAuthUI() {
             const req = { 2: 57, 3: 57, 4: 57, 5: 38 };
             for (let stage = 2; stage <= 5; stage++) {
                 const prevStageStars = stats.stageStars[stage - 1] || 0;
-                const isLocked = prevStageStars < req[stage];
+                const isLocked = DEV_MODE ? false : prevStageStars < req[stage];
                 
                 const title = document.querySelector(`.stage-title.stage-${stage}`);
                 const grid = title ? title.nextElementSibling : null;
@@ -800,7 +819,7 @@ function renderMap(user) {
         if (matchesQT) furthestIndex = Math.max(furthestIndex, i);
     }
 
-    const unlockIndex = user ? furthestIndex + 1 : LEVEL_SEQUENCE.length;
+    const unlockIndex = DEV_MODE ? LEVEL_SEQUENCE.length : (user ? furthestIndex + 1 : LEVEL_SEQUENCE.length);
     const htmlNodes = [];
 
     LEVEL_SEQUENCE.forEach((lv, index) => {
@@ -822,10 +841,10 @@ function renderMap(user) {
 
         if (isBeaten) {
             stateClass = 'cleared';
-            onClickAction = `window.location.href='${GAME_MODE}.html?q=${lv.q}&t=${lv.t}'`;
+            onClickAction = `window.location.href='${getGameHref(GAME_MODE, lv.q, lv.t)}'`;
         } else if (isUnlocked) {
             stateClass = 'unlocked';
-            onClickAction = `window.location.href='${GAME_MODE}.html?q=${lv.q}&t=${lv.t}'`;
+            onClickAction = `window.location.href='${getGameHref(GAME_MODE, lv.q, lv.t)}'`;
         }
 
         const row = document.createElement('div');

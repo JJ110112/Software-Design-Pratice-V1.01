@@ -313,7 +313,7 @@ const MODE_TO_STAGE = {
     '一行程式碼翻譯': 2, '錯誤找找看': 2, '程式碼朗讀練習': 2,
     '程式碼排列重組': 3, '程式與結果配對': 3, '逐行中文注解填空': 3,
     '程式填空': 4, '看中文寫程式': 4,
-    '獨立全程式撰寫': 5, '打字練習': 5, '錯誤程式除錯': 5
+    '獨立全程式撰寫': 5, '打字練習': 5, '打字-關鍵字': 5, '打字-單行': 5, '打字-完整': 5, '錯誤程式除錯': 5
 };
 
 /**
@@ -346,7 +346,7 @@ window.getUserStarStats = async function (userName) {
 
     return {
         currentStars,
-        totalPossibleStars: 798,
+        totalPossibleStars: 912,
         stageStars,
         modeStars
     };

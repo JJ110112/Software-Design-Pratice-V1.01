@@ -350,7 +350,7 @@ h1 {
 
 <script src="js/users.js"></script>
 <script src="js/quotes.js"></script>
-<script type="module" src="js/api.js?v=6"></script>
+<script type="module" src="js/api.js?v=7"></script>
 <script>
 // ── Particles ──
 (function createParticles() {
@@ -500,13 +500,20 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                     }
                     if (!foundUnbeaten) {
+                        // 打字子模式也要用正確的 mode 名稱跳到 map
                         window.location.href = `pages/map.html?mode=${encodeURIComponent(mode)}&tab=map`;
                         return;
                     }
                 }
             }
         } catch(e) { console.error(e); }
-        window.location.href = `pages/${mode}.html?q=${nextQ}&t=${nextT}`;
+        // 打字子模式需要轉換為正確的檔名 + sub 參數
+        const TYPING_SUB = { '打字-關鍵字': 'keyword', '打字-單行': 'line', '打字-完整': 'full' };
+        if (TYPING_SUB[mode]) {
+            window.location.href = `pages/打字練習.html?q=${nextQ}&t=${nextT}&sub=${TYPING_SUB[mode]}`;
+        } else {
+            window.location.href = `pages/${mode}.html?q=${nextQ}&t=${nextT}`;
+        }
     }
 
     document.getElementById('btn-logout').addEventListener('click', () => {
