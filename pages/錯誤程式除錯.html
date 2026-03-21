@@ -1,0 +1,250 @@
+﻿<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>術科練習 ── 錯誤程式除錯</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/common.css">
+<style>
+.game-section { padding: 0 12px 40px; max-width: 900px; margin: 0 auto; }
+.section-label {
+  display: flex; align-items: center; gap: 10px;
+  font-size: .75rem; font-weight: 700; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--muted);
+  padding: 0 20px; margin-bottom: 20px;
+}
+.section-label::before, .section-label::after {
+  content:''; flex:1; height:1px; background:var(--border);
+}
+
+.bug-container {
+    background: var(--surface);
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 24px;
+}
+.scenario-desc {
+    font-size: 1.1rem; color: var(--gold);
+    margin-bottom: 16px; font-weight: 700;
+}
+
+.code-editor {
+    background: #0d1117;
+    border-radius: 8px;
+    padding: 20px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.1rem;
+    line-height: 1.6;
+    color: #c9d1d9;
+    border: 1px solid #30363d;
+    overflow-x: auto;
+}
+.code-line {
+    display: flex;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: background 0.2s;
+    cursor: pointer;
+}
+.code-line:hover {
+    background: rgba(56, 189, 248, 0.1);
+}
+.code-line.selected {
+    background: rgba(248, 113, 113, 0.2);
+    border: 1px solid var(--red);
+}
+.code-line.correct {
+    background: rgba(74, 222, 128, 0.2);
+    border: 1px solid var(--green);
+}
+
+.line-num {
+    color: #484f58;
+    min-width: 40px;
+    user-select: none;
+    text-align: right;
+    margin-right: 16px;
+}
+.line-content {
+    white-space: pre;
+}
+.bug { color: #ff7b72; text-decoration: underline wavy var(--red); }
+
+.feedback-box {
+    margin-top: 20px;
+    padding: 16px;
+    border-radius: 8px;
+    display: none;
+    font-weight: 700;
+    text-align: center;
+}
+.feedback-box.error {
+    display: block;
+    background: rgba(248, 113, 113, 0.1);
+    color: var(--red);
+    border: 1px solid var(--red);
+}
+.feedback-box.success {
+    display: block;
+    background: rgba(74, 222, 128, 0.1);
+    color: var(--green);
+    border: 1px solid var(--green);
+}
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <div class="badge-row">
+    <span class="badge badge-blue">軟體設計丙級 · VB.NET</span>
+    <span class="badge badge-gold" id="topic-badge">檢定題庫</span>
+  </div>
+  <h1>錯誤程式除錯<br><em>修復無法執行的代碼</em></h1>
+  <p class="subtitle">找出隱藏在程式碼中的語法錯誤或邏輯錯誤並修正它。</p>
+</div>
+
+<div class="game-section">
+  <div class="game-header" style="justify-content: flex-start; margin-bottom: 12px;">
+    <a href="#" class="back-btn" id="btn-back">← 返回</a>
+    <div class="mode-pill lvl-hard" id="mode-pill">錯誤程式除錯</div>
+  </div>
+
+  <div class="section-label">除錯實戰區</div>
+
+  <div class="bug-container">
+      <div class="scenario-desc">⚠️ 系統發現一個錯誤！請點選「有錯誤的那一行」程式碼：</div>
+      <div class="code-editor" id="code-editor">
+          <!-- 程式碼會在這裡產生 -->
+      </div>
+      <div class="feedback-box" id="feedback"></div>
+  </div>
+
+  <div class="btn-row">
+      <button class="btn btn-primary" id="btn-next" style="display:none;">下一題 ➔</button>
+  </div>
+</div>
+
+<script src="../js/quiz_data.js"></script>
+<script>
+const urlParams = new URLSearchParams(window.location.search);
+const qID = urlParams.get('q') || 'Q1';
+const tID = urlParams.get('t') || 'T01';
+
+// 預設錯誤題庫
+const BUGS = {
+    "T01": [
+        { orig: "For i = 0 To s.Length \\ 2 - 1", bug: "For i = 0 To s.Length / 2 - 1", desc: "字串長度的一半應使用整數除法 '\\'，而非一般除法 '/'" },
+        { orig: "If s(i) <> s(s.Length - i - 1) Then", bug: "If s(i) = s(s.Length - i - 1) Then", desc: "迴文判斷應尋找「不相等」的字元來中斷，使用 <>" }
+    ],
+    "T02": [
+        { orig: "Dim i As Integer = 0", bug: "Dim i As String = 0", desc: "計數器應宣告為整數 Integer" },
+        { orig: "Do While i <= s.Length \\ 2 - 1", bug: "Do While i > s.Length \\ 2 - 1", desc: "Do While 應在 i 小於等於一半長度時「繼續執行」" }
+    ],
+    "T03": [
+        { orig: "Loop While i <= s.Length \\ 2 - 1", bug: "Loop Until i <= s.Length \\ 2 - 1", desc: "如果是 Until，條件為真時會停止，因此應為 Loop While 以繼續執行" },
+        { orig: "Exit Do", bug: "Exit For", desc: "Do 迴圈中應使用 Exit Do 來跳出" }
+    ]
+};
+
+let currentBugIndex = 0;
+let baseSteps = [];
+
+window.addEventListener('load', () => {
+    baseSteps = generateSteps(qID, tID);
+    document.getElementById('mode-pill').textContent = `${qID} 除錯 (${tID})`;
+    loadBug();
+});
+
+document.getElementById('btn-back').addEventListener('click', (e) => {
+    e.preventDefault();
+    window.location.href = `../index.html?q=${qID}&t=${tID}`;
+});
+
+function loadBug() {
+    document.getElementById('feedback').className = 'feedback-box';
+    document.getElementById('btn-next').style.display = 'none';
+    
+    let bugList = BUGS[tID] || BUGS["T01"];
+    if (currentBugIndex >= bugList.length) {
+        currentBugIndex = 0; // 循環練習
+    }
+    
+    let targetBug = bugList[currentBugIndex];
+    let editor = document.getElementById('code-editor');
+    editor.innerHTML = '';
+    
+    let currentIndent = 0;
+    
+    baseSteps.forEach((step, idx) => {
+        let raw = step.code.trim();
+        if (raw.startsWith("End ") || raw.startsWith("Next") || raw.startsWith("Loop")) {
+            currentIndent = Math.max(0, currentIndent - 4);
+        }
+        
+        let displayCode = " ".repeat(currentIndent) + raw;
+        let isBugLine = (raw === targetBug.orig);
+        if (isBugLine) {
+            displayCode = " ".repeat(currentIndent) + targetBug.bug;
+        }
+        
+        if (raw.startsWith("Private Sub") || raw.startsWith("For ") || raw.startsWith("If ") || raw.startsWith("Do")) {
+            currentIndent += 4;
+        }
+
+        let lEl = document.createElement('div');
+        lEl.className = 'code-line';
+        lEl.innerHTML = `<div class="line-num">${idx+1}</div><div class="line-content">${escHtml(displayCode)}</div>`;
+        
+        lEl.addEventListener('click', () => {
+             // 重置其他選取
+             document.querySelectorAll('.code-line').forEach(el => {
+                 el.classList.remove('selected', 'correct');
+             });
+             if (isBugLine) {
+                 lEl.classList.add('correct');
+                 let fb = document.getElementById('feedback');
+                 fb.className = 'feedback-box success';
+                 fb.innerHTML = `✅ 抓到蟲了！<br><span style="font-weight:normal; margin-top:8px; display:inline-block">${targetBug.desc}</span>`;
+                 document.getElementById('btn-next').style.display = 'inline-block';
+             } else {
+                 lEl.classList.add('selected');
+                 let fb = document.getElementById('feedback');
+                 fb.className = 'feedback-box error';
+                 fb.innerHTML = `❌ 錯誤！這裡語法沒問題，再找找看！`;
+             }
+        });
+        
+        editor.appendChild(lEl);
+    });
+}
+
+document.getElementById('btn-next').addEventListener('click', () => {
+    currentBugIndex++;
+    let bugList = BUGS[tID] || BUGS["T01"];
+    if (currentBugIndex >= bugList.length) {
+        // 所有 bug 都找完了，顯示完成訊息
+        let fb = document.getElementById('feedback');
+        fb.className = 'feedback-box success';
+        fb.innerHTML = '🏆 全部除錯完成！';
+        document.getElementById('btn-next').style.display = 'none';
+
+        let btnBack = document.createElement('button');
+        btnBack.textContent = '🏆 返回闖關地圖';
+        btnBack.style.cssText = 'margin-top:12px;padding:10px 24px;border:none;border-radius:8px;background:linear-gradient(90deg,#38bdf8,#a78bfa);color:#fff;font-size:1rem;font-weight:700;cursor:pointer;';
+        btnBack.onclick = () => { window.location.href = 'map.html?tab=map'; };
+        fb.appendChild(document.createElement('br'));
+        fb.appendChild(btnBack);
+        return;
+    }
+    loadBug();
+});
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+</script>
+<script src="../js/game-toolbar.js"></script>
+</body>
+</html>

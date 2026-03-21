@@ -1,0 +1,142 @@
+T02
+
+
+
+
+'姓名：吳烱賢　　術科測試編號：12345678
+'座號：９９　　　日期：2026/05/18
+
+Imports System.IO
+
+Public Class Form1
+    Private Sub Form1_Load(sender As Object, e As EventArgs) Handles MyBase.Load
+        RichTextBox1.Text &= "姓名：吳烱賢　　術科測試編號：12345678" + vbCrLf        '結果標題第一行
+        RichTextBox1.Text &= "座號：９９　　　日期：2026/05/18" + vbCrLf        '結果標題第二行   
+
+        Q1()
+        Q2()
+        Q3()
+        Q4()
+        Q5()
+    End Sub
+
+    '*******************************
+    '* 11900-1060301 Program Start *
+    '*******************************
+    Private Sub Q1()
+        Dim f As New StreamReader("c:\test\1060301.T02")
+        Dim s As String = f.ReadLine()
+
+        Dim ans As String = ""
+        Dim i As Integer = 0
+        Do While i <= s.Length \ 2 - 1
+            If s(i) <> s(s.Length - i - 1) Then
+                ans = "not"
+                Exit Do
+            End If
+            i += 1
+        Loop
+
+        RichTextBox1.Text &= "第一題結果：" & s & " is " & ans & " a palindrome." & vbCrLf
+    End Sub
+
+
+
+    '*******************************
+    '* 11900-1060302 Program Start *
+    '*******************************
+    Private Sub Q2()
+        Dim f As New StreamReader("c:\test\1060302.T02")
+        Dim n As Integer = f.ReadLine()
+
+        RichTextBox1.Text &= "第二題結果：" & vbCrLf
+        Dim i As Integer = 1
+        Do While i <= n
+            Dim j As Integer = 1
+            Do While j <= i
+                RichTextBox1.Text &= j
+                j += 1
+            Loop
+            RichTextBox1.Text &= vbCrLf
+            i += 1
+        Loop
+    End Sub
+
+    '*******************************
+    '* 11900-1060303 Program Start *
+    '*******************************
+    Private Sub Q3()
+        Dim f As New StreamReader("c:\test\1060303.T02")
+        Dim n As Integer = f.ReadLine()
+
+        Dim ans As String = ""
+        Dim i As Integer = 2
+        Do While i <= n - 1
+            If n Mod i = 0 Then
+                ans = "not"
+                Exit Do
+            End If
+            i += 1
+        Loop
+
+        RichTextBox1.Text &= "第三題結果：" & n & " is " & ans & " a prime number." & vbCrLf
+    End Sub
+
+
+
+    '*******************************
+    '* 11900-1060304 Program Start *
+    '*******************************
+    Private Sub Q4()
+        Dim f As New StreamReader("c:\test\1060304.T02")
+        Dim min As Integer = 99
+        Dim i As Integer
+        Do While i < 3
+            Dim data As String() = f.ReadLine().Split(",")
+            Dim bmi As Integer = data(1) / (data(0) / 100) ^ 2
+            If bmi < min Then min = bmi
+            i += 1
+        Loop
+
+        Dim ans As String = "不正常"
+        If min >= 20 And min <= 25 Then ans = "正常"
+        RichTextBox1.Text &= "第四題結果：最小 BMI 值=" & min & "，" & ans & vbCrLf
+
+    End Sub
+
+    '*******************************
+    '* 11900-1060305 Program Start *
+    '*******************************
+    Private Sub Q5()
+        Dim f As New StreamReader("c:\test\1060305.T02")
+        Dim a(2, 2), b(2, 2), c(2, 2) As Integer            '宣告 a, b, c 為二維整數陣列，大小為 2 * 2
+        Dim data As String()
+        data = f.ReadLine().Split(",") : a(1, 1) = data(0) : a(1, 2) = data(1)  '讀取 a 第 1 行資料
+        data = f.ReadLine().Split(",") : a(2, 1) = data(0) : a(2, 2) = data(1)  '讀取 a 第 2 行資料
+        data = f.ReadLine().Split(",") : b(1, 1) = data(0) : b(1, 2) = data(1)  '讀取 b 第 1 行資料
+        data = f.ReadLine().Split(",") : b(2, 1) = data(0) : b(2, 2) = data(1)  '讀取 b 第 2 行資料
+
+        Dim i As Integer = 1                                 '宣告整數變數外迴圈 i 與內迴圈 j 作為迴圈計數使用
+        Do While i <= 2                                      '外迴圈 i 從 1 到 2
+            Dim j As Integer = 1
+            Do While j <= 2                                  '內迴圈 j 從 1 到 2    
+                c(i, j) = a(i, j) + b(i, j)                 '矩陣 a 加 b 放到 c
+                j += 1
+            Loop
+            i += 1
+        Loop                                              '外迴圈 i 加 1
+
+        RichTextBox1.Text &= "第五題結果：" & vbCrLf              '顯示陣列 c
+        RichTextBox1.Text &= "[" & c(1, 1) & "   " & c(1, 2) & "]" & vbCrLf
+        RichTextBox1.Text &= "[" & c(2, 1) & "   " & c(2, 2) & "]" & vbCrLf
+
+    End Sub
+
+ Private Sub Button1_Click(sender As Object, e As EventArgs) Handles Button1.Click
+        PrintDocument1.Print()
+    End Sub
+
+    Private Sub PrintDocument1_PrintPage(sender As Object, e As PrintPageEventArgs) Handles PrintDocument1.PrintPage
+        e.Graphics.DrawString(RichTextBox1.Text, Font, Brushes.Black, 100, 100)
+    End Sub
+End Class

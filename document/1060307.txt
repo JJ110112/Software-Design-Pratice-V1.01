@@ -1,0 +1,59 @@
+
+'*******************************
+'* 11900-1060307 Program Start *
+'*******************************
+
+Imports System.IO
+Imports System.Text
+
+Public Class Form1
+
+    Private Sub Form1_Load(sender As Object, e As EventArgs) Handles Me.Load
+
+        Dim f As New StreamReader("c:\test\1060307.T01")
+        Dim n As Integer = f.ReadLine
+        Dim s(3) As String
+        s(0) = Encoding.UTF8.GetString({226, 153, 160}) : s(1) = Encoding.UTF8.GetString({226, 153, 165})
+        s(2) = Encoding.UTF8.GetString({226, 153, 166}) : s(3) = Encoding.UTF8.GetString({226, 153, 163})
+        Dim p() = {"A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"}
+        Dim v() = {14, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13}
+        Dim cards(51) As Integer
+        Dim i As Integer
+        Dim a, b As Integer
+        Dim dt As New DataTable
+        dt.Columns.Add("序號") : dt.Columns.Add("玩家") : dt.Columns.Add("莊家") : dt.Columns.Add("結果")
+        While Not f.EndOfStream
+            Dim no As Integer
+            Do
+                no = Int(f.ReadLine * 52)
+            Loop While cards(no) = 1
+            cards(no) = 1
+            i += 1
+
+            If i Mod 2 = 1 Then
+                a = no
+            Else
+                b = no
+                Dim r As DataRow = dt.NewRow
+                r(0) = i / 2
+                r(1) = s(a \ 13) & p(a Mod 13)
+                r(2) = s(b \ 13) & p(b Mod 13)
+                If v(a Mod 13) > v(b Mod 13) Then
+                    r(3) = "玩家贏"
+                ElseIf v(a Mod 13) < v(b Mod 13) Then
+                    r(3) = "莊家贏"
+                Else
+                    r(3) = "平手"
+                End If
+
+                dt.Rows.Add(r)
+            End If
+
+            If i = n * 2 Then Exit While
+        End While
+        DataGridView1.DataSource = dt
+    End Sub
+End Class
+
+
+

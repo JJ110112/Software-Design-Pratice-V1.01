@@ -1,0 +1,53 @@
+‘'*******************************
+'* 11900-1060306 Program Start *
+'*******************************
+
+Imports System.IO
+
+Public Class Form1
+    Private Sub Form1_Load(sender As Object, e As EventArgs) Handles MyBase.Load
+
+        Dim f As New StreamReader("c:\test\1060306.T01")  
+        Dim data As New List(Of String())                           
+        Dim i As Integer
+
+        Do While Not f.EndOfStream                                
+            data.Add((f.ReadLine() & ",").Split(","))             
+            Dim ID As String = data(i)(0)                               
+            If data(i)(3) = "" And Not ID Like "[A-Z]#########" Then     
+                data(i)(3) = "FORMAT ERROR"                              
+            End If
+
+            '若錯誤狀況為空白且性別號碼與性別英文不匹配
+            If data(i)(3) = "" And ((ID(1) = "1" And data(i)(2) <> "M") Or (ID(1) = "2" And data(i)(2) <> "F")) Then
+                data(i)(3) = "SEX CODE ERROR"                      
+            End If
+
+            Dim X As Integer = InStr("ABCDEFGHJKLMNPQRSTUVXYWZIO", ID(0)) + 9
+            Dim y As Integer = X \ 10 + 9 * (X Mod 10) + 8 * Val(ID(1)) + 7 * Val(ID(2)) +
+                6 * Val(ID(3)) + 5 * Val(ID(4)) + 4 * Val(ID(5)) + 3 * Val(ID(6)) + 2 * Val(ID(7)) +
+                Val(ID(8)) + Val(ID(9))
+            If data(i)(3) = "" And y Mod 10 <> 0 Then
+                data(i)(3) = "CHECK SUM ERROR"
+            End If
+
+            i += 1
+        Loop
+
+        Dim t As New DataTable                                  
+        t.Columns.Add("ID_NO") : t.Columns.Add("NAME") : t.Columns.Add("SEX") : t.Columns.Add("ERROR") '加入欄位名稱
+        For i = 0 To data.Count - 1                         
+            Dim r As DataRow = t.NewRow                         
+            r(0) = data(i)(0) : r(1) = data(i)(1) : r(2) = data(i)(2) : r(3) = data(i)(3)
+            t.Rows.Add(r)                                       
+        Next i                                                   
+        DataGridView1.DataSource = t                            
+        DataGridView1.Sort(DataGridView1.Columns(0), 0)         
+        DataGridView1.Columns(3).Width = 150                    
+
+    End Sub
+End Class
+
+
+
+

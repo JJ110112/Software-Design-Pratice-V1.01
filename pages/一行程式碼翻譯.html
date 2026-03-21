@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>術科練習 ── 一行程式碼翻譯</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:        #0b0f1a;
+  --bg2:       #111827;
+  --surface:   #1a2035;
+  --border:    #2a3550;
+  --accent:    #38bdf8;
+  --gold:      #fbbf24;
+  --green:     #4ade80;
+  --red:       #f87171;
+  --purple:    #c084fc;
+  --text:      #e2e8f0;
+  --muted:     #64748b;
+  --line-matched: #4ade80;
+  --line-wrong:   #f87171;
+  --line-active:  #38bdf8;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Noto Sans TC', sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ═══ grid bg ═══ */
+body::before {
+  content:'';
+  position:fixed; inset:0;
+  background-image:
+    linear-gradient(rgba(56,189,248,.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(56,189,248,.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events:none;
+}
+
+/* ═══ HEADER ═══ */
+.page-header {
+  text-align: center;
+  padding: 32px 20px 20px;
+  position: relative;
+}
+.badge-row { display:flex; gap:8px; justify-content:center; margin-bottom:10px; flex-wrap:wrap; }
+.badge {
+  font-size:.68rem; font-weight:900; letter-spacing:.1em; text-transform:uppercase;
+  padding:3px 12px; border-radius:2px;
+}
+.badge-blue  { background:rgba(56,189,248,.15); color:var(--accent); border:1px solid rgba(56,189,248,.3); }
+.badge-gold  { background:rgba(251,191,36,.12); color:var(--gold);   border:1px solid rgba(251,191,36,.3); }
+
+/* GAME HEADER */
+.game-header { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; flex-wrap: wrap; justify-content: center; }
+.back-btn { background: transparent; border: 1px solid var(--border); color: var(--muted2, #94a3b8); border-radius: 6px; padding: 6px 14px; font-size: .82rem; cursor: pointer; text-decoration: none; font-family: inherit; transition: all .2s; }
+.back-btn:hover { color: var(--text); border-color: var(--muted2, #94a3b8); }
+.mode-pill { font-size: .72rem; font-weight: 900; padding: 4px 12px; border-radius: 4px; text-transform: uppercase; letter-spacing: .08em; background: rgba(74, 222, 128, .15); color: var(--green); border: 1px solid rgba(74, 222, 128, .3); }
+
+h1 {
+  font-size: clamp(1.5rem, 5vw, 2.4rem);
+  font-weight: 900;
+  letter-spacing: -.02em;
+  line-height: 1.15;
+}
+h1 em { color:var(--accent); font-style:normal; }
+.subtitle { color:var(--muted); font-size:.88rem; margin-top:8px; }
+
+/* ═══ GAME SECTION ═══ */
+.game-section { padding: 0 12px 40px; max-width: 800px; margin: 0 auto; }
+
+/* ═══ SECTION LABEL ═══ */
+.section-label {
+  display: flex; align-items: center; gap: 10px;
+  font-size: .75rem; font-weight: 700; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--muted);
+  padding: 0 20px; margin-bottom: 10px;
+}
+.section-label::before, .section-label::after {
+  content:''; flex:1; height:1px; background:var(--border);
+}
+
+/* stats */
+.stats-bar {
+  display: flex; gap: 12px; flex-wrap: wrap;
+  justify-content: center; margin-bottom: 20px;
+}
+.stat-chip {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 6px; padding: 8px 18px; text-align: center;
+  min-width: 80px;
+}
+.stat-val {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1.3rem; font-weight: 700; color: var(--accent);
+  display: block;
+}
+.stat-lbl { font-size: .65rem; color: var(--muted); margin-top: 1px; display:block; }
+
+/* instruction */
+.instr {
+  text-align:center; font-size:.9rem; color:var(--muted);
+  margin-bottom:20px; line-height:1.6;
+}
+.instr strong { color:var(--accent); }
+
+/* ── PREVIEW PHASE BANNER ── */
+#preview-banner {
+  background: rgba(251,191,36,.08);
+  border: 1px solid rgba(251,191,36,.3);
+  border-radius: 10px;
+  padding: 16px 24px;
+  text-align: center;
+  margin-bottom: 20px;
+  color: var(--gold);
+  font-size: .88rem;
+  line-height: 1.6;
+}
+#preview-banner strong { font-size: 1rem; display:block; margin-bottom:4px; }
+#preview-banner.hidden { display: none; }
+
+/* ── ARENA ── */
+.arena {
+  position: relative;
+  width: 100%;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* question container */
+.question-container {
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  padding: 24px 20px;
+  text-align: center;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+}
+.question-label {
+    font-size: .75rem; font-weight: 700; letter-spacing: .1em; 
+    color: var(--muted); margin-bottom: 12px;
+    text-transform: uppercase;
+}
+.question-code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: clamp(1.1rem, 3vw, 1.4rem);
+  font-weight: 700;
+  color: var(--text);
+  word-break: break-all;
+  line-height: 1.4;
+}
+.question-note {
+  font-size: .85rem; color: var(--muted);
+  margin-top: 8px; font-family: 'JetBrains Mono', monospace;
+  display: inline-block;
+  background: var(--bg2);
+  padding: 4px 10px;
+  border-radius: 4px;
+}
+
+/* options grid */
+.options-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+@media(max-width: 600px) {
+  .options-grid { grid-template-columns: 1fr; }
+}
+
+.option-btn {
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  padding: 16px 20px;
+  cursor: pointer;
+  transition: all .2s cubic-bezier(.4,0,.2,1);
+  user-select: none;
+  text-align: left;
+  font-size: clamp(.85rem, 2.2vw, 1rem);
+  font-weight: 500;
+  color: #cbd5e1;
+  display: flex;
+  align-items: center;
+  -webkit-tap-highlight-color: transparent;
+  min-height: 80px;
+}
+.option-btn .opt-letter {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: var(--accent);
+    margin-right: 14px;
+    opacity: 0.8;
+}
+
+.option-btn:hover:not(:disabled):not(.correct):not(.wrong-flash) {
+  border-color: var(--accent);
+  background: rgba(56,189,248,.06);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+}
+.option-btn:disabled { cursor: default; }
+
+.option-btn.correct {
+  border-color: var(--green);
+  background: rgba(74,222,128,.1);
+  color: #fff;
+}
+.option-btn.correct .opt-letter { color: var(--green); }
+.option-btn.wrong-flash {
+  border-color: var(--red);
+  background: rgba(248,113,113,.12);
+  animation: wrongShake .4s ease;
+  color: #fff;
+}
+.option-btn.wrong-flash .opt-letter { color: var(--red); }
+
+@keyframes wrongShake {
+  0%,100%{transform:translateX(0)} 20%{transform:translateX(-6px)}
+  60%{transform:translateX(6px)} 80%{transform:translateX(-3px)}
+}
+
+/* ═══ BUTTONS ═══ */
+.btn-row { display:flex; gap:12px; justify-content:center; margin-top:32px; flex-wrap:wrap; }
+.btn {
+  font-family:'Noto Sans TC',sans-serif; font-weight:700; font-size:.88rem;
+  padding:12px 32px; border-radius:6px; border:none; cursor:pointer;
+  transition:all .2s;
+}
+.btn-primary { background:var(--accent); color:#000; }
+.btn-primary:hover { background:#7dd3fc; transform:translateY(-2px); }
+.btn-ghost {
+  background:transparent; color:var(--muted);
+  border:1px solid var(--border);
+}
+.btn-ghost:hover { color:var(--text); border-color:var(--muted); }
+.btn-gold { background:var(--gold); color:#000; font-size: 1rem; }
+.btn-gold:hover { background:#fcd34d; transform:translateY(-2px); }
+
+/* ═══ PREVIEW LIST ═══ */
+.preview-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.preview-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    display: flex;
+    gap: 20px;
+    align-items: center;
+}
+@media(max-width:600px) {
+    .preview-item { flex-direction: column; align-items: flex-start; gap: 10px; }
+}
+.preview-code-box {
+    flex: 1;
+}
+.preview-zh-box {
+    flex: 1.2;
+    color: #cbd5e1;
+    font-size: .9rem;
+    font-weight: 500;
+}
+.preview-code-txt {
+     font-family: 'JetBrains Mono', monospace;
+     font-size: .9rem; font-weight: 700; color: var(--accent);
+}
+.preview-note-txt {
+    font-size: .7rem; color: var(--muted); margin-top: 4px;
+    font-family: 'JetBrains Mono', monospace;
+}
+.preview-arrow {
+    color: var(--muted);
+}
+@media(max-width:600px) { .preview-arrow { display: none; } }
+
+/* ═══ COMPLETE OVERLAY ═══ */
+#overlay {
+  display:none; position:fixed; inset:0;
+  background:rgba(11,15,26,.88); backdrop-filter:blur(6px);
+  z-index:100; align-items:center; justify-content:center;
+}
+#overlay.show { display:flex; }
+.overlay-card {
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:14px; padding:44px 52px; text-align:center;
+  max-width:400px; width:90%;
+  box-shadow:0 20px 60px rgba(0,0,0,.5);
+  animation:popIn .4s cubic-bezier(.4,0,.2,1);
+}
+@keyframes popIn {
+  from{transform:scale(.8);opacity:0} to{transform:scale(1);opacity:1}
+}
+.overlay-card .big-emoji { font-size:3.2rem; margin-bottom:12px; }
+.overlay-card h2 { font-size:1.7rem; font-weight:900; margin-bottom:8px; }
+.overlay-card p  { color:var(--muted); margin-bottom:6px; font-size:.9rem; }
+.score-display {
+  font-family:'JetBrains Mono',monospace; color:var(--green);
+  font-size:1rem; margin:16px 0 24px;
+  background:rgba(74,222,128,.08); border:1px solid rgba(74,222,128,.2);
+  border-radius:6px; padding:12px;
+}
+</style>
+<link rel="stylesheet" href="../css/common.css">
+</head>
+<body>
+
+<!-- ═══ HEADER ═══ -->
+<div class="page-header">
+  <div class="badge-row">
+    <span class="badge badge-blue">軟體設計丙級 · VB.NET</span>
+    <span class="badge badge-gold" id="topic-badge">檢定題庫</span>
+  </div>
+  <h1>一行程式碼翻譯<br><em>程式碼 × 中文意思</em></h1>
+  <p class="subtitle">從四個選項中，選出最符合上方程式碼涵義的中文說明。</p>
+</div>
+
+<!-- ═══ GAME SECTION ═══ -->
+<div class="game-section">
+  <div class="game-header" style="justify-content: flex-start; margin-bottom: 12px;">
+    <a href="#" class="back-btn" id="btn-back">← 返回</a>
+    <div class="mode-pill lvl-easy" id="mode-pill">一行程式碼翻譯</div>
+  </div>
+
+  <div class="section-label">翻譯測驗區</div>
+
+  <!-- Preview banner -->
+  <div id="preview-banner">
+    <strong>📖 預覽對照</strong>
+    先熟悉程式碼與中文說明的對應關係，準備好後按下「開始遊戲」，將會隨機出題！
+  </div>
+
+  <p class="instr" id="game-instr" style="display:none;">
+    <strong>請仔細閱讀程式碼</strong>，並點選下方最正確的 <strong>中文說明</strong>。
+  </p>
+
+  <!-- stats (hidden during preview) -->
+  <div class="stats-bar" id="stats-bar" style="display:none;">
+    <div class="stat-chip"><span class="stat-val" id="stat-progress">1/10</span><span class="stat-lbl">進度</span></div>
+    <div class="stat-chip"><span class="stat-val" id="stat-wrong">0</span><span class="stat-lbl">錯誤次數</span></div>
+    <div class="stat-chip"><span class="stat-val" id="stat-timer">0s</span><span class="stat-lbl">時間</span></div>
+  </div>
+
+  <div class="arena" id="arena">
+    <!-- Preview List (Shown initially) -->
+    <div id="preview-container" class="preview-list"></div>
+
+    <!-- Question Container (Shown during game) -->
+    <div id="question-container" style="display: none;">
+        <div class="question-container">
+            <div class="question-label">🖥️ 程式碼</div>
+            <div class="question-code" id="q-code">...</div>
+            <div class="question-note" id="q-note">...</div>
+        </div>
+        <div class="options-grid" id="options-container">
+            <!-- Option buttons injected here -->
+        </div>
+    </div>
+  </div>
+
+  <div class="btn-row" id="btn-row">
+    <button class="btn btn-gold" id="btn-start">▶ 開始測驗</button>
+  </div>
+</div>
+
+<!-- complete overlay -->
+<div id="overlay">
+  <div class="overlay-card">
+    <div class="big-emoji">🎉</div>
+    <h2>全部測試完成！</h2>
+    <p>你已經完全掌握 Q1 迴文判斷的程式邏輯！</p>
+    <div class="score-display" id="final-score"></div>
+    <div style="display:flex; justify-content:center; gap:10px; margin-top:20px;">
+        <button class="btn btn-primary" id="btn-again">再挑戰一次</button>
+        <button class="btn btn-primary" id="btn-next-level" style="background: linear-gradient(90deg, #4ade80, #10b981); display:none;">⏭️ 下一關</button>
+    </div>
+  </div>
+</div>
+
+<script src="../js/users.js"></script>
+<script type="module" src="../js/api.js?v=6"></script>
+<script src="../js/quiz_data.js"></script>
+<script>
+const urlParams = new URLSearchParams(window.location.search);
+const qID = urlParams.get('q') || 'Q1';
+const tID = urlParams.get('t') || 'T01';
+
+// ══════════════════════════════
+//  題庫：程式碼片段 ↔ 中文說明
+// ══════════════════════════════
+const ALL_PAIRS = generateSteps(qID, tID).map((step, index) => ({
+    code: step.code,
+    note: `第 ${index + 1} 行`,
+    zh: step.zh
+}));
+
+// 設定 UI
+window.addEventListener('load', () => {
+    if (QUIZ_DATA[qID]) {
+        let labelText = `${qID} ${QUIZ_DATA[qID].title} (${tID})`;
+        if (qID === 'SETUP') {
+             document.querySelector('h1').innerHTML = `Form1_Load 練習<br><em>翻譯通用考生資訊</em>`;
+             labelText = 'Form1_Load (通用考生資訊)';
+        } else {
+             document.querySelector('h1').innerHTML = `${qID} ${QUIZ_DATA[qID].title}<br><em>一行程式碼翻譯 (${tID})</em>`;
+        }
+        document.getElementById('mode-pill').textContent = labelText;
+        if(document.getElementById('topic-badge')) document.getElementById('topic-badge').textContent = `${qID} · ${QUIZ_DATA[qID].title}`;
+    }
+});
+
+// BACK
+document.getElementById('btn-back').addEventListener('click', (e) => {
+    e.preventDefault();
+    window.location.href = `../index.html?q=${qID}&t=${tID}`;
+});
+
+// ══════════ state ══════════
+let questions = [];     // Array of randomized question objects
+let currentQIdx = 0;
+let wrongCount  = 0;
+let seconds     = 0;
+let timerID     = null;
+let isPreview   = true;
+
+// ══════════ SOUND ══════════
+const AC = window.AudioContext || window.webkitAudioContext;
+let audioCtx = null;
+
+function getAC() {
+  if (!audioCtx) audioCtx = new AC();
+  return audioCtx;
+}
+
+function playCorrect() {
+  try {
+    const ctx = getAC();
+    [[523.25, 0], [783.99, 0.13]].forEach(([freq, when]) => {
+      const osc  = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      const t = ctx.currentTime + when;
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(0.28, t + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.32);
+      osc.start(t); osc.stop(t + 0.33);
+    });
+  } catch(e) {}
+}
+
+function playWrong() {
+  try {
+    const ctx = getAC();
+    [[220, 0], [180, 0.1]].forEach(([freq, when]) => {
+      const osc  = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.type = 'sawtooth';
+      osc.frequency.value = freq;
+      const t = ctx.currentTime + when;
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(0.18, t + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+      osc.start(t); osc.stop(t + 0.23);
+    });
+  } catch(e) {}
+}
+
+function playWin() {
+  try {
+    const ctx = getAC();
+    [[523.25,0],[659.25,0.15],[783.99,0.30],[1046.50,0.45]].forEach(([freq, when]) => {
+      const osc  = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      const t = ctx.currentTime + when;
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(0.30, t + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.45);
+      osc.start(t); osc.stop(t + 0.46);
+    });
+    const shimmer = ctx.createOscillator();
+    const sGain   = ctx.createGain();
+    shimmer.connect(sGain); sGain.connect(ctx.destination);
+    shimmer.type = 'sine';
+    shimmer.frequency.value = 2093;
+    const st = ctx.currentTime + 0.70;
+    sGain.gain.setValueAtTime(0, st);
+    sGain.gain.linearRampToValueAtTime(0.15, st + 0.02);
+    sGain.gain.exponentialRampToValueAtTime(0.001, st + 0.6);
+    shimmer.start(st); shimmer.stop(st + 0.61);
+  } catch(e) {}
+}
+
+// ══════════ helpers ══════════
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i+1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ══════════ PREVIEW MODE ══════════
+function showPreview() {
+  isPreview = true;
+  clearInterval(timerID);
+
+  document.getElementById('preview-banner').classList.remove('hidden');
+  document.getElementById('stats-bar').style.display = 'none';
+  document.getElementById('game-instr').style.display = 'none';
+  document.getElementById('btn-row').style.display = 'flex';
+  document.getElementById('btn-row-game').style.display = 'none';
+  document.getElementById('overlay').classList.remove('show');
+  
+  document.getElementById('preview-container').style.display = 'flex';
+  document.getElementById('question-container').style.display = 'none';
+
+  renderPreview();
+}
+
+function renderPreview() {
+  const container = document.getElementById('preview-container');
+  container.innerHTML = '';
+  
+  ALL_PAIRS.forEach((p, idx) => {
+    const el = document.createElement('div');
+    el.className = 'preview-item';
+    el.innerHTML = `
+        <div class="preview-code-box">
+            <div class="preview-code-txt">${escHtml(p.code)}</div>
+            <div class="preview-note-txt">${p.note}</div>
+        </div>
+        <div class="preview-arrow">➔</div>
+        <div class="preview-zh-box">
+            ${escHtml(p.zh)}
+        </div>
+    `;
+    container.appendChild(el);
+  });
+}
+
+// ══════════ GAME MODE ══════════
+function startGame() {
+  window.scrollTo(0, 0);
+  isPreview = false;
+  clearInterval(timerID);
+  seconds = 0; wrongCount = 0; currentQIdx = 0;
+
+  document.getElementById('preview-banner').classList.add('hidden');
+  document.getElementById('stats-bar').style.display = 'flex';
+  document.getElementById('game-instr').style.display = 'block';
+  document.getElementById('btn-row').style.display = 'none';
+  document.getElementById('overlay').classList.remove('show');
+  
+  document.getElementById('preview-container').style.display = 'none';
+  document.getElementById('question-container').style.display = 'flex';
+  document.getElementById('question-container').style.flexDirection = 'column';
+  document.getElementById('question-container').style.gap = '24px';
+
+  document.getElementById('stat-wrong').textContent = '0';
+  document.getElementById('stat-timer').textContent = '0s';
+
+  prepareQuestions();
+  renderQuestion();
+
+  timerID = setInterval(() => {
+    seconds++;
+    document.getElementById('stat-timer').textContent = seconds + 's';
+  }, 1000);
+}
+
+function prepareQuestions() {
+    questions = shuffle([...ALL_PAIRS]).map(correctPair => {
+        // Find 3 false options
+        let allOptions = [correctPair.zh];
+        let remainingZhs = ALL_PAIRS.filter(p => p.zh !== correctPair.zh).map(p => p.zh);
+        remainingZhs = shuffle(remainingZhs);
+        
+        allOptions.push(remainingZhs[0], remainingZhs[1], remainingZhs[2]);
+        
+        return {
+            code: correctPair.code,
+            note: correctPair.note,
+            correctAnswer: correctPair.zh,
+            options: shuffle(allOptions)
+        };
+    });
+}
+
+function renderQuestion() {
+    if (currentQIdx >= questions.length) {
+        finishGame();
+        return;
+    }
+    
+    document.getElementById('stat-progress').textContent = `${currentQIdx + 1}/${questions.length}`;
+    
+    const q = questions[currentQIdx];
+    document.getElementById('q-code').innerHTML = escHtml(q.code);
+    document.getElementById('q-note').textContent = q.note;
+    
+    const optsContainer = document.getElementById('options-container');
+    optsContainer.innerHTML = '';
+    
+    const letters = ['A', 'B', 'C', 'D'];
+    
+    q.options.forEach((optText, index) => {
+        const btn = document.createElement('button');
+        btn.className = 'option-btn';
+        btn.innerHTML = `<span class="opt-letter">${letters[index]}</span><span class="opt-text">${escHtml(optText)}</span>`;
+        
+        btn.addEventListener('click', () => {
+             // Disable all buttons immediately to prevent double click
+             const allBtns = optsContainer.querySelectorAll('.option-btn');
+             allBtns.forEach(b => b.disabled = true);
+             
+             if (optText === q.correctAnswer) {
+                 btn.classList.add('correct');
+                 playCorrect();
+                 setTimeout(() => {
+                     currentQIdx++;
+                     renderQuestion();
+                 }, 600);
+             } else {
+                 btn.classList.add('wrong-flash');
+                 playWrong();
+                 wrongCount++;
+                 document.getElementById('stat-wrong').textContent = wrongCount;
+                 
+                 setTimeout(() => {
+                     btn.classList.remove('wrong-flash');
+                     // Re-enable buttons so user can try again
+                     allBtns.forEach(b => b.disabled = false);
+                 }, 600);
+             }
+        });
+        optsContainer.appendChild(btn);
+    });
+}
+
+// ══════════ win ══════════
+function finishGame() {
+  clearInterval(timerID);
+  playWin();
+  const eff = Math.round(questions.length / (questions.length + wrongCount) * 100);
+  document.getElementById('final-score').innerHTML =
+    `⏱ 用時 ${seconds} 秒　　❌ 錯誤 ${wrongCount} 次<br>🎯 正確率 ${eff}%`;
+  document.getElementById('overlay').classList.add('show');
+
+  // 將成績送往雲端 (若已登入且及格)
+  if (typeof getCurrentUser === 'function') {
+      const user = getCurrentUser();
+      if (user && eff >= 60 && typeof window.saveScore === 'function') {
+          
+          let stars = 3;
+          if (typeof totalHintsUsed !== 'undefined') {
+              if (totalHintsUsed > 0 && totalHintsUsed <= 3) stars = 2;
+              if (totalHintsUsed > 3) stars = 1;
+          }
+          let finalScoreSpan = document.getElementById('final-score');
+          if (finalScoreSpan) {
+              finalScoreSpan.style.width = "calc(100% + 40px)";
+              finalScoreSpan.style.marginLeft = "-20px";
+              finalScoreSpan.style.padding = "20px 10px 25px 10px";
+              finalScoreSpan.style.boxSizing = "border-box";
+              const hintsCount = typeof totalHintsUsed !== 'undefined' ? totalHintsUsed : 0;
+              let originHtml = finalScoreSpan.innerHTML;
+              
+              // 移除舊版的星星 UI
+              originHtml = originHtml.replace(/<div class="star-display-container"([\s\S]*?)<\/div>\s*<\/div>/g, '');
+              originHtml = originHtml.replace(/<br>⭐ 提示.*顆/g, '');
+              
+              // 修正折行問題，將各個統計項目包裝在 nowrap 中
+              originHtml = originHtml.replace(/(⏱ 用時.*?秒)/g, '<span style="white-space:nowrap;">$1</span>');
+              originHtml = originHtml.replace(/(❌ 錯誤.*?次)/g, '<span style="white-space:nowrap;">$1</span>');
+              originHtml = originHtml.replace(/(🎯 正確率.*?%)/g, '<span style="white-space:nowrap;">$1</span>');
+              originHtml = originHtml.replace(/　　/g, ' &nbsp;&nbsp; ');
+
+              finalScoreSpan.innerHTML = originHtml + `
+                  <div class="star-display-container" style="margin-top: 20px; width: 100%; display: flex; flex-direction: column; align-items: center;">
+                      <div style="display: flex; justify-content: center; align-items: center; gap: 12px; margin-bottom: 5px; flex-wrap: nowrap;">
+                          ${Array(3).fill(0).map((_, i) => `<span style="font-size: 2.5rem; filter: ${i < stars ? 'drop-shadow(0 0 12px rgba(251,191,36,0.8))' : 'grayscale(100%) opacity(20%)'}; transform: scale(${i < stars ? 1.1 : 1}); transition: all 0.3s ease; line-height: 1;">⭐</span>`).join('')}
+                      </div>
+                      <div style="font-size: 0.85rem; color: #94a3b8; text-align: center; margin-top: 10px;">
+                          ( 使用提示：${hintsCount} 次 )
+                      </div>
+                  </div>
+              `;
+          }
+          window.saveScore(user.className, user.name, qID + '_' + tID, "一行程式碼翻譯", seconds, "PASS", stars)
+            .then(res => console.log("成績上傳完成:", res));
+      }
+  }
+  setupNextLevelButton();
+}
+
+function setupNextLevelButton() {
+    const LEVEL_SEQUENCE = [
+      { q: 'SETUP', t: 'T01' }, { q: 'Q1', t: 'T01' }, { q: 'Q1', t: 'T02' }, { q: 'Q1', t: 'T03' },
+      { q: 'Q2', t: 'T01' }, { q: 'Q2', t: 'T02' }, { q: 'Q2', t: 'T03' }, { q: 'Q3', t: 'T01' },
+      { q: 'Q3', t: 'T02' }, { q: 'Q3', t: 'T03' }, { q: 'Q4', t: 'T01' }, { q: 'Q4', t: 'T02' },
+      { q: 'Q4', t: 'T03' }, { q: 'Q5', t: 'T01' }, { q: 'Q5', t: 'T02' }, { q: 'Q5', t: 'T03' },
+      { q: '1060306', t: 'T01' }, { q: '1060307', t: 'T01' }, { q: '1060308', t: 'T01' }
+    ];
+    let currentIndex = LEVEL_SEQUENCE.findIndex(l => l.q === qID && l.t === tID);
+    const nextBtn = document.getElementById('btn-next-level');
+    if (currentIndex >= 0 && currentIndex < LEVEL_SEQUENCE.length - 1) {
+        const nextLv = LEVEL_SEQUENCE[currentIndex + 1];
+        nextBtn.style.display = 'block';
+        nextBtn.innerHTML = '⏭️ 下一關';
+        nextBtn.onclick = () => {
+            window.location.href = `一行程式碼翻譯.html?q=${nextLv.q}&t=${nextLv.t}`;
+        };
+    } else if (currentIndex === LEVEL_SEQUENCE.length - 1) {
+        nextBtn.style.display = 'block';
+        nextBtn.innerHTML = '挑戰下一主題 ⏭️';
+        nextBtn.onclick = () => {
+            window.location.href = '錯誤找找看.html?q=SETUP&t=T01';
+        };
+    } else {
+        nextBtn.style.display = 'none';
+        nextBtn.onclick = null;
+    }
+}
+
+// ══════════ button bindings ══════════
+document.getElementById('btn-start').addEventListener('click', startGame);
+document.getElementById('btn-again').addEventListener('click', () => showPreview());
+
+// ══════════ boot ══════════
+showPreview();
+</script>
+<script src="../js/game-toolbar.js"></script>
+<script src="../js/nextlevel.js"></script>
+</body>
+</html>

@@ -1,0 +1,113 @@
+軟體設計丙級
+T01 結果與程式碼
+
+
+
+'姓名：吳烱賢　　術科測試編號：12345678
+'座號：９９　　　日期：2026/05/18
+
+Imports System.IO
+
+Public Class Form1
+    Private Sub Form1_Load(sender As Object, e As EventArgs) Handles MyBase.Load
+        RichTextBox1.Text &= "姓名：吳烱賢　　術科測試編號：12345678" + vbCrLf
+        RichTextBox1.Text &= "座號：９９　　　日期：2026/05/18" + vbCrLf
+
+        Q1()
+        Q2()
+        Q3()
+        Q4()
+        Q5()
+    End Sub
+
+    '*******************************
+    '* 11900-1060301 Program Start *
+    '*******************************
+    Private Sub Q1()
+        Dim f As New StreamReader("c:\test\1060301.T01")
+        Dim s As String = f.ReadLine()
+        Dim ans As String = ""
+        For i = 0 To s.Length \ 2 - 1
+            If s(i) <> s(s.Length - i - 1) Then
+                ans = "not"
+                Exit For
+            End If
+        Next i
+        RichTextBox1.Text &= "第一題結果：" & s & " is " & ans & " a palindrome." & vbCrLf
+    End Sub
+
+    '*******************************
+    '* 11900-1060302 Program Start *
+    '*******************************
+    Private Sub Q2()
+        Dim f As New StreamReader("c:\test\1060302.T01")
+        Dim n As Integer = f.ReadLine()
+        RichTextBox1.Text &= "第二題結果：" & vbCrLf
+        For i = 1 To n
+            For j = 1 To i
+                RichTextBox1.Text &= j
+            Next
+            RichTextBox1.Text &= vbCrLf
+        Next i
+    End Sub
+
+    '*******************************
+    '* 11900-1060303 Program Start *
+    '*******************************
+    Private Sub Q3()
+        Dim f As New StreamReader("c:\test\1060303.T01")
+        Dim n As Integer = f.ReadLine()
+        Dim ans As String = ""
+        For i = 2 To n - 1
+            If n Mod i = 0 Then
+                ans = "not"
+                Exit For
+            End If
+        Next i
+        RichTextBox1.Text &= "第三題結果：" & n & " is " & ans & " a prime number." & vbCrLf
+    End Sub
+
+
+    '*******************************
+    '* 11900-1060304 Program Start *
+    '*******************************
+    Private Sub Q4()
+        Dim f As New StreamReader("c:\test\1060304.T01")
+        Dim min As Integer = 99
+        For i = 1 To 3
+            Dim data As String() = f.ReadLine().Split(",")
+            Dim bmi As Integer = data(1) / (data(0) / 100) ^ 2
+            If bmi < min Then min = bmi
+        Next i
+
+        Dim ans As String = "不正常"
+        If min >= 20 And min <= 25 Then ans = "正常"
+        RichTextBox1.Text &= "第四題結果：最小 BMI 值=" & min & "，" & ans & vbCrLf
+    End Sub
+
+    '*******************************
+    '* 11900-1060305 Program Start *
+    '*******************************
+    Private Sub Q5()
+        Dim f As New StreamReader("c:\test\1060305.T01")
+        Dim a(2, 2), b(2, 2), c(2, 2) As Integer
+        Dim data As String()
+        data = f.ReadLine().Split(",") : a(1, 1) = data(0) : a(1, 2) = data(1)
+        data = f.ReadLine().Split(",") : a(2, 1) = data(0) : a(2, 2) = data(1)
+        data = f.ReadLine().Split(",") : b(1, 1) = data(0) : b(1, 2) = data(1)
+        data = f.ReadLine().Split(",") : b(2, 1) = data(0) : b(2, 2) = data(1)
+
+        Dim i, j As Integer
+        For i = 1 To 2
+            For j = 1 To 2
+                c(i, j) = a(i, j) + b(i, j)
+            Next j
+        Next i
+
+        RichTextBox1.Text &= "第五題結果：" & vbCrLf
+        RichTextBox1.Text &= "[" & c(1, 1) & "     " & c(1, 2) & "]" & vbCrLf
+        RichTextBox1.Text &= "[" & c(2, 1) & "     " & c(2, 2) & "]" & vbCrLf
+    End Sub
+
+End Class
+

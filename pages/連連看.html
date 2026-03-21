@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>術科練習 ── 連連看</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:        #0b0f1a;
+  --bg2:       #111827;
+  --surface:   #1a2035;
+  --border:    #2a3550;
+  --accent:    #38bdf8;
+  --gold:      #fbbf24;
+  --green:     #4ade80;
+  --red:       #f87171;
+  --purple:    #c084fc;
+  --text:      #e2e8f0;
+  --muted:     #64748b;
+  --line-matched: #4ade80;
+  --line-wrong:   #f87171;
+  --line-active:  #38bdf8;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Noto Sans TC', sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ═══ grid bg ═══ */
+body::before {
+  content:'';
+  position:fixed; inset:0;
+  background-image:
+    linear-gradient(rgba(56,189,248,.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(56,189,248,.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events:none;
+}
+
+/* ═══ HEADER ═══ */
+.page-header {
+  text-align: center;
+  padding: 32px 20px 20px;
+  position: relative;
+}
+.badge-row { display:flex; gap:8px; justify-content:center; margin-bottom:10px; flex-wrap:wrap; }
+.badge {
+  font-size:.68rem; font-weight:900; letter-spacing:.1em; text-transform:uppercase;
+  padding:3px 12px; border-radius:2px;
+}
+.badge-blue  { background:rgba(56,189,248,.15); color:var(--accent); border:1px solid rgba(56,189,248,.3); }
+.badge-gold  { background:rgba(251,191,36,.12); color:var(--gold);   border:1px solid rgba(251,191,36,.3); }
+
+/* GAME HEADER */
+.game-header { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; flex-wrap: wrap; justify-content: center; }
+.back-btn { background: transparent; border: 1px solid var(--border); color: var(--muted2, #94a3b8); border-radius: 6px; padding: 6px 14px; font-size: .82rem; cursor: pointer; text-decoration: none; font-family: inherit; transition: all .2s; }
+.back-btn:hover { color: var(--text); border-color: var(--muted2, #94a3b8); }
+.mode-pill { font-size: .72rem; font-weight: 900; padding: 4px 12px; border-radius: 4px; text-transform: uppercase; letter-spacing: .08em; background: rgba(74, 222, 128, .15); color: var(--green); border: 1px solid rgba(74, 222, 128, .3); }
+
+h1 {
+  font-size: clamp(1.5rem, 5vw, 2.4rem);
+  font-weight: 900;
+  letter-spacing: -.02em;
+  line-height: 1.15;
+}
+h1 em { color:var(--accent); font-style:normal; }
+.subtitle { color:var(--muted); font-size:.88rem; margin-top:8px; }
+
+/* ═══ GAME SECTION ═══ */
+.game-section { padding: 0 12px 40px; max-width: 1100px; margin: 0 auto; }
+
+/* ═══ SECTION LABEL ═══ */
+.section-label {
+  display: flex; align-items: center; gap: 10px;
+  font-size: .75rem; font-weight: 700; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--muted);
+  padding: 0 20px; margin-bottom: 10px;
+}
+.section-label::before, .section-label::after {
+  content:''; flex:1; height:1px; background:var(--border);
+}
+
+/* stats */
+.stats-bar {
+  display: flex; gap: 12px; flex-wrap: wrap;
+  justify-content: center; margin-bottom: 20px;
+}
+.stat-chip {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 6px; padding: 8px 18px; text-align: center;
+  min-width: 80px;
+}
+.stat-val {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1.3rem; font-weight: 700; color: var(--accent);
+  display: block;
+}
+.stat-lbl { font-size: .65rem; color: var(--muted); margin-top: 1px; display:block; }
+
+/* instruction */
+.instr {
+  text-align:center; font-size:.82rem; color:var(--muted);
+  margin-bottom:20px; line-height:1.6;
+}
+.instr strong { color:var(--accent); }
+
+/* ── PREVIEW PHASE BANNER ── */
+#preview-banner {
+  background: rgba(251,191,36,.08);
+  border: 1px solid rgba(251,191,36,.3);
+  border-radius: 10px;
+  padding: 16px 24px;
+  text-align: center;
+  margin-bottom: 20px;
+  color: var(--gold);
+  font-size: .88rem;
+  line-height: 1.6;
+}
+#preview-banner strong { font-size: 1rem; display:block; margin-bottom:4px; }
+#preview-banner.hidden { display: none; }
+
+/* ── MATCHING ARENA ── */
+.arena {
+  position: relative;
+  width: 100%;
+}
+
+svg#lines-canvas {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+  z-index: 5;
+  overflow: visible;
+}
+
+.columns {
+  display: grid;
+  /* Wider gap between the two columns so connecting lines have more room */
+  grid-template-columns: 1fr 120px 1fr;
+  position: relative;
+  z-index: 10;
+}
+
+/* middle spacer column – just empty space for the lines */
+
+@media(max-width:600px) {
+  .columns { grid-template-columns: 1fr 60px 1fr; }
+}
+
+.col { display: flex; flex-direction: column; gap: 10px; }
+.col-label {
+  text-align:center; font-size:.7rem; font-weight:700;
+  letter-spacing:.1em; text-transform:uppercase;
+  color:var(--muted); margin-bottom:4px;
+}
+
+/* item chips */
+.item {
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: border-color .18s, background .18s, transform .15s;
+  user-select: none;
+  position: relative;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Preview mode: ordered, non-interactive */
+.item.preview-mode {
+  cursor: default;
+  opacity: .85;
+}
+.item.preview-mode:hover { transform: none; border-color: var(--border); background: var(--surface); }
+
+.item:hover:not(.matched):not(.wrong-flash):not(.preview-mode) {
+  border-color: var(--accent);
+  background: rgba(56,189,248,.06);
+  transform: translateX(2px);
+}
+.item.selected {
+  border-color: var(--accent);
+  background: rgba(56,189,248,.12);
+  box-shadow: 0 0 0 3px rgba(56,189,248,.2);
+}
+.item.matched {
+  border-color: var(--green);
+  background: rgba(74,222,128,.08);
+  cursor: default;
+  opacity: .75;
+}
+.item.wrong-flash {
+  border-color: var(--red);
+  background: rgba(248,113,113,.12);
+  animation: wrongShake .4s ease;
+}
+@keyframes wrongShake {
+  0%,100%{transform:translateX(0)} 20%{transform:translateX(-6px)}
+  60%{transform:translateX(6px)} 80%{transform:translateX(-3px)}
+}
+.item.matched::after {
+  content:'✓';
+  position:absolute; top:6px; right:8px;
+  font-size:.75rem; color:var(--green); font-weight:900;
+}
+
+/* dot connector */
+.dot-port {
+  position:absolute; top:50%;
+  width:10px; height:10px; border-radius:50%;
+  background:var(--border); border:2px solid var(--bg2);
+  transform:translateY(-50%);
+  transition:background .2s;
+  z-index:20;
+}
+.col:first-child .item .dot-port { right:-6px; }
+.col:last-child  .item .dot-port { left:-6px; }
+.item.selected .dot-port, .item:hover:not(.matched):not(.preview-mode) .dot-port { background:var(--accent); }
+.item.matched .dot-port { background:var(--green); }
+
+/* Preview connector line between ordered pairs */
+.preview-line {
+  stroke: rgba(56,189,248,.35);
+  stroke-width: 1.5;
+  stroke-dasharray: 5,4;
+  fill: none;
+}
+
+/* code text in left col */
+.item-code {
+  font-family:'JetBrains Mono',monospace;
+  font-size:clamp(.7rem,2.2vw,.85rem);
+  font-weight:700;
+  word-break:break-all;
+  line-height:1.4;
+}
+/* zh text in right col */
+.item-zh {
+  font-size:clamp(.72rem,2.2vw,.88rem);
+  font-weight:500;
+  line-height:1.5;
+  color:#cbd5e1;
+}
+
+/* context note */
+.item-note {
+  font-size:.62rem; color:var(--muted);
+  margin-top:4px; font-family:'JetBrains Mono',monospace;
+}
+
+/* ═══ BUTTONS ═══ */
+.btn-row { display:flex; gap:12px; justify-content:center; margin-top:22px; flex-wrap:wrap; }
+.btn {
+  font-family:'Noto Sans TC',sans-serif; font-weight:700; font-size:.88rem;
+  padding:10px 28px; border-radius:6px; border:none; cursor:pointer;
+  transition:all .2s;
+}
+.btn-primary { background:var(--accent); color:#000; }
+.btn-primary:hover { background:#7dd3fc; transform:translateY(-2px); }
+.btn-ghost {
+  background:transparent; color:var(--muted);
+  border:1px solid var(--border);
+}
+.btn-ghost:hover { color:var(--text); border-color:var(--muted); }
+.btn-gold { background:var(--gold); color:#000; }
+.btn-gold:hover { background:#fcd34d; transform:translateY(-2px); }
+
+/* ═══ COMPLETE OVERLAY ═══ */
+#overlay {
+  display:none; position:fixed; inset:0;
+  background:rgba(11,15,26,.88); backdrop-filter:blur(6px);
+  z-index:100; align-items:center; justify-content:center;
+}
+#overlay.show { display:flex; }
+.overlay-card {
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:14px; padding:44px 52px; text-align:center;
+  max-width:400px; width:90%;
+  box-shadow:0 20px 60px rgba(0,0,0,.5);
+  animation:popIn .4s cubic-bezier(.4,0,.2,1);
+}
+@keyframes popIn {
+  from{transform:scale(.8);opacity:0} to{transform:scale(1);opacity:1}
+}
+.overlay-card .big-emoji { font-size:3.2rem; margin-bottom:12px; }
+.overlay-card h2 { font-size:1.7rem; font-weight:900; margin-bottom:8px; }
+.overlay-card p  { color:var(--muted); margin-bottom:6px; font-size:.9rem; }
+.score-display {
+  font-family:'JetBrains Mono',monospace; color:var(--green);
+  font-size:1rem; margin:16px 0 24px;
+  background:rgba(74,222,128,.08); border:1px solid rgba(74,222,128,.2);
+  border-radius:6px; padding:12px;
+}
+</style>
+<link rel="stylesheet" href="../css/common.css">
+</head>
+<body>
+
+<!-- ═══ HEADER ═══ -->
+<div class="page-header">
+  <div class="badge-row">
+    <span class="badge badge-blue">軟體設計丙級 · VB.NET</span>
+    <span class="badge badge-gold" id="topic-badge">檢定題庫</span>
+  </div>
+  <h1>連連看<br><em>程式碼 × 中文意思</em></h1>
+  <p class="subtitle">先記住對照關係，按下「開始遊戲」後順序會打亂，再完成所有配對！</p>
+</div>
+
+<!-- ═══ GAME SECTION ═══ -->
+<div class="game-section">
+  <div class="game-header" style="justify-content: flex-start; margin-bottom: 12px;">
+    <a href="#" class="back-btn" id="btn-back">← 返回</a>
+    <div class="mode-pill lvl-easy" id="mode-pill">連連看</div>
+  </div>
+
+  <div class="section-label">連連看遊戲區</div>
+
+  <!-- stats (hidden during preview) -->
+  <div class="stats-bar" id="stats-bar" style="display:none;">
+    <div class="stat-chip"><span class="stat-val" id="stat-matched">0</span><span class="stat-lbl">已配對</span></div>
+    <div class="stat-chip"><span class="stat-val" id="stat-total">0</span><span class="stat-lbl">總題數</span></div>
+    <div class="stat-chip"><span class="stat-val" id="stat-wrong">0</span><span class="stat-lbl">錯誤次數</span></div>
+    <div class="stat-chip"><span class="stat-val" id="stat-timer">0s</span><span class="stat-lbl">時間</span></div>
+  </div>
+
+  <!-- Preview banner -->
+  <div id="preview-banner">
+    <strong>📖 預覽對照</strong>
+    先熟悉程式碼與中文說明的對應關係，準備好後按下「開始遊戲」，順序將會打亂！
+  </div>
+
+  <p class="instr" id="game-instr" style="display:none;">
+    <strong>① 點選</strong>左側程式碼片段 &nbsp;→&nbsp; <strong>② 點選</strong>右側中文說明 &nbsp;→&nbsp; 配對成功會畫線連起來！
+  </p>
+
+  <!-- arena -->
+  <div class="arena" id="arena">
+    <svg id="lines-canvas" xmlns="http://www.w3.org/2000/svg"></svg>
+    <div class="columns">
+      <!-- Left col: code -->
+      <div class="col" id="col-left">
+        <div class="col-label">🖥️ 程式碼</div>
+      </div>
+      <!-- Spacer so lines have room -->
+      <div class="col-spacer"></div>
+      <!-- Right col: chinese -->
+      <div class="col" id="col-right">
+        <div class="col-label">📖 中文說明</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="btn-row" id="btn-row">
+    <button class="btn btn-gold" id="btn-start">▶ 開始遊戲</button>
+  </div>
+  <div class="btn-row" id="btn-row-game" style="display:none;">
+    <button class="btn btn-primary" id="btn-restart">🔄 重新開始</button>
+    <button class="btn btn-ghost"   id="btn-hint">💡 提示</button>
+  </div>
+</div>
+
+<!-- complete overlay -->
+<div id="overlay">
+  <div class="overlay-card">
+    <div class="big-emoji">🎉</div>
+    <h2>全部配對完成！</h2>
+    <p>你已經完全掌握 Q1 迴文判斷的程式邏輯！</p>
+    <div class="score-display" id="final-score"></div>
+    <div style="display:flex; gap:10px; justify-content:center; margin-top:20px;">
+        <button class="btn btn-primary" id="btn-again">再挑戰一次</button>
+        <button class="btn btn-primary" id="btn-next-level" style="background: linear-gradient(90deg, #4ade80, #10b981); display:none;">進入下一關 ⏭️</button>
+    </div>
+  </div>
+</div>
+
+<script src="../js/users.js"></script>
+<script type="module" src="../js/api.js?v=6"></script>
+<script src="../js/quiz_data.js"></script>
+<script>
+// ══════════════════════════════
+//  題庫：程式碼片段 ↔ 中文說明
+// ══════════════════════════════
+const urlParams = new URLSearchParams(window.location.search);
+const qID = urlParams.get('q') || 'Q1';
+const tID = urlParams.get('t') || 'T01';
+
+const ALL_PAIRS = generateSteps(qID, tID).map((step, index) => ({
+    code: step.code,
+    note: `第 ${index + 1} 行`,
+    zh: step.zh
+}));
+
+// 設定 UI
+window.addEventListener('load', () => {
+    if (QUIZ_DATA[qID]) {
+        let labelText = `${qID} ${QUIZ_DATA[qID].title} (${tID})`;
+        if (qID === 'SETUP') {
+             document.querySelector('h1').innerHTML = `Form1_Load 練習<br><em>翻譯通用考生資訊</em>`;
+             labelText = 'Form1_Load (通用考生資訊)';
+        } else {
+             document.querySelector('h1').innerHTML = `${qID} ${QUIZ_DATA[qID].title}<br><em>連連看 (${tID})</em>`;
+        }
+        document.getElementById('mode-pill').textContent = labelText;
+        if(document.getElementById('topic-badge')) document.getElementById('topic-badge').textContent = `${qID} · ${QUIZ_DATA[qID].title}`;
+    }
+});
+
+// BACK
+document.getElementById('btn-back').addEventListener('click', (e) => {
+    e.preventDefault();
+    window.location.href = `../index.html?q=${qID}&t=${tID}`;
+});
+
+// ══════════ state ══════════
+let pairs = [];
+let selectedLeft  = null;
+let selectedRight = null;
+let matchedCount  = 0;
+let wrongCount    = 0;
+let seconds       = 0;
+let timerID       = null;
+let lines         = [];
+let isPreview     = true;
+
+// ══════════ SOUND ══════════
+const AC = window.AudioContext || window.webkitAudioContext;
+let audioCtx = null;
+
+function getAC() {
+  if (!audioCtx) audioCtx = new AC();
+  return audioCtx;
+}
+
+function playCorrect() {
+  try {
+    const ctx = getAC();
+    // Two ascending tones: ding-ding
+    [[523.25, 0], [783.99, 0.13]].forEach(([freq, when]) => {
+      const osc  = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      const t = ctx.currentTime + when;
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(0.28, t + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.32);
+      osc.start(t); osc.stop(t + 0.33);
+    });
+  } catch(e) {}
+}
+
+function playWrong() {
+  try {
+    const ctx = getAC();
+    // Low buzz: descending
+    [[220, 0], [180, 0.1]].forEach(([freq, when]) => {
+      const osc  = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.type = 'sawtooth';
+      osc.frequency.value = freq;
+      const t = ctx.currentTime + when;
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(0.18, t + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+      osc.start(t); osc.stop(t + 0.23);
+    });
+  } catch(e) {}
+}
+
+function playWin() {
+  try {
+    const ctx = getAC();
+    // Happy fanfare: C-E-G-C
+    [[523.25,0],[659.25,0.15],[783.99,0.30],[1046.50,0.45]].forEach(([freq, when]) => {
+      const osc  = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      const t = ctx.currentTime + when;
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(0.30, t + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.45);
+      osc.start(t); osc.stop(t + 0.46);
+    });
+    // Extra shimmer on the last note
+    const shimmer = ctx.createOscillator();
+    const sGain   = ctx.createGain();
+    shimmer.connect(sGain); sGain.connect(ctx.destination);
+    shimmer.type = 'sine';
+    shimmer.frequency.value = 2093;
+    const st = ctx.currentTime + 0.70;
+    sGain.gain.setValueAtTime(0, st);
+    sGain.gain.linearRampToValueAtTime(0.15, st + 0.02);
+    sGain.gain.exponentialRampToValueAtTime(0.001, st + 0.6);
+    shimmer.start(st); shimmer.stop(st + 0.61);
+  } catch(e) {}
+}
+
+// ══════════ helpers ══════════
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i+1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ══════════ PREVIEW MODE ══════════
+function showPreview() {
+  isPreview = true;
+  clearInterval(timerID);
+
+  const count = window.innerWidth < 420 ? 6 : 8;
+  pairs = ALL_PAIRS.slice(0, count); // ordered, not shuffled
+
+  // UI toggles
+  document.getElementById('preview-banner').classList.remove('hidden');
+  document.getElementById('stats-bar').style.display = 'none';
+  document.getElementById('game-instr').style.display = 'none';
+  document.getElementById('btn-row').style.display = 'flex';
+  document.getElementById('btn-row-game').style.display = 'none';
+  document.getElementById('overlay').classList.remove('show');
+
+  renderPreview();
+}
+
+function renderPreview() {
+  const colL = document.getElementById('col-left');
+  const colR = document.getElementById('col-right');
+
+  colL.innerHTML = '<div class="col-label">🖥️ 程式碼</div>';
+  colR.innerHTML = '<div class="col-label">📖 中文說明</div>';
+
+  // clear SVG
+  const svg = document.getElementById('lines-canvas');
+  while (svg.firstChild) svg.removeChild(svg.firstChild);
+  lines = [];
+
+  pairs.forEach((p, idx) => {
+    // LEFT item
+    const lEl = document.createElement('div');
+    lEl.className = 'item preview-mode';
+    lEl.dataset.idx = idx;
+    lEl.dataset.side = 'left';
+    lEl.innerHTML = `
+      <div class="item-code">${escHtml(p.code)}</div>
+      <div class="item-note">${p.note}</div>
+      <div class="dot-port"></div>`;
+    colL.appendChild(lEl);
+
+    // RIGHT item (same order as left)
+    const rEl = document.createElement('div');
+    rEl.className = 'item preview-mode';
+    rEl.dataset.idx = idx;
+    rEl.dataset.side = 'right';
+    rEl.innerHTML = `
+      <div class="item-zh">${escHtml(p.zh)}</div>
+      <div class="dot-port"></div>`;
+    colR.appendChild(rEl);
+  });
+
+  // draw dashed preview lines after layout
+  requestAnimationFrame(() => drawPreviewLines());
+}
+
+function drawPreviewLines() {
+  const svg = document.getElementById('lines-canvas');
+  while (svg.firstChild) svg.removeChild(svg.firstChild);
+
+  pairs.forEach((_, idx) => {
+    const lEl = document.querySelector(`#col-left .item[data-idx="${idx}"]`);
+    const rEl = document.querySelector(`#col-right .item[data-idx="${idx}"]`);
+    if (!lEl || !rEl) return;
+
+    const lPos = getPortPos(lEl, 'left');
+    const rPos = getPortPos(rEl, 'right');
+    const cx = (lPos.x + rPos.x) / 2;
+    const d = `M${lPos.x},${lPos.y} C${cx},${lPos.y} ${cx},${rPos.y} ${rPos.x},${rPos.y}`;
+
+    const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+    path.setAttribute('d', d);
+    path.setAttribute('fill','none');
+    path.setAttribute('stroke','rgba(56,189,248,.3)');
+    path.setAttribute('stroke-width','1.5');
+    path.setAttribute('stroke-dasharray','6,4');
+    path.setAttribute('stroke-linecap','round');
+    svg.appendChild(path);
+  });
+}
+
+// ══════════ GAME MODE ══════════
+function startGame() {
+  window.scrollTo(0, 0);
+  isPreview = false;
+  clearInterval(timerID);
+  seconds = 0; wrongCount = 0; matchedCount = 0;
+  selectedLeft = null; selectedRight = null;
+
+  // clear SVG
+  const svg = document.getElementById('lines-canvas');
+  while (svg.firstChild) svg.removeChild(svg.firstChild);
+  lines = [];
+
+  // UI toggles
+  document.getElementById('preview-banner').classList.add('hidden');
+  document.getElementById('stats-bar').style.display = 'flex';
+  document.getElementById('game-instr').style.display = 'block';
+  document.getElementById('btn-row').style.display = 'none';
+  document.getElementById('btn-row-game').style.display = 'flex';
+  document.getElementById('overlay').classList.remove('show');
+
+  document.getElementById('stat-wrong').textContent = '0';
+  document.getElementById('stat-matched').textContent = '0';
+  document.getElementById('stat-timer').textContent = '0s';
+
+  const count = window.innerWidth < 420 ? 6 : 8;
+  pairs = shuffle([...ALL_PAIRS]).slice(0, count);
+  document.getElementById('stat-total').textContent = pairs.length;
+
+  renderColumns();
+
+  timerID = setInterval(() => {
+    seconds++;
+    document.getElementById('stat-timer').textContent = seconds + 's';
+  }, 1000);
+}
+
+// ══════════ render (game) ══════════
+function renderColumns() {
+  const colL = document.getElementById('col-left');
+  const colR = document.getElementById('col-right');
+
+  colL.innerHTML = '<div class="col-label">🖥️ 程式碼</div>';
+  colR.innerHTML = '<div class="col-label">📖 中文說明</div>';
+
+  // left column: same order as pairs array (shuffled)
+  // right column: independently shuffled
+  const rightOrder = shuffle(pairs.map((_,i)=>i));
+
+  pairs.forEach((p, idx) => {
+    const lEl = document.createElement('div');
+    lEl.className = 'item';
+    lEl.dataset.idx = idx;
+    lEl.dataset.side = 'left';
+    lEl.innerHTML = `
+      <div class="item-code">${escHtml(p.code)}</div>
+      <div class="item-note">${p.note}</div>
+      <div class="dot-port"></div>`;
+    lEl.addEventListener('click', () => onItemClick(lEl));
+    colL.appendChild(lEl);
+  });
+
+  rightOrder.forEach(idx => {
+    const p = pairs[idx];
+    const rEl = document.createElement('div');
+    rEl.className = 'item';
+    rEl.dataset.idx = idx;
+    rEl.dataset.side = 'right';
+    rEl.innerHTML = `
+      <div class="item-zh">${escHtml(p.zh)}</div>
+      <div class="dot-port"></div>`;
+    rEl.addEventListener('click', () => onItemClick(rEl));
+    colR.appendChild(rEl);
+  });
+}
+
+// ══════════ interaction ══════════
+function onItemClick(el) {
+  if (el.classList.contains('matched')) return;
+  if (el.classList.contains('preview-mode')) return;
+  const side = el.dataset.side;
+
+  if (side === 'left') {
+    if (selectedLeft) selectedLeft.classList.remove('selected');
+    if (selectedLeft === el) { selectedLeft = null; return; }
+    selectedLeft = el;
+    el.classList.add('selected');
+  } else {
+    if (selectedRight) selectedRight.classList.remove('selected');
+    if (selectedRight === el) { selectedRight = null; return; }
+    selectedRight = el;
+    el.classList.add('selected');
+  }
+
+  if (selectedLeft && selectedRight) {
+    checkMatch();
+  }
+}
+
+function checkMatch() {
+  const lIdx = parseInt(selectedLeft.dataset.idx);
+  const rIdx = parseInt(selectedRight.dataset.idx);
+  const isMatch = lIdx === rIdx;
+
+  if (isMatch) {
+    selectedLeft.classList.remove('selected');
+    selectedRight.classList.remove('selected');
+    selectedLeft.classList.add('matched');
+    selectedRight.classList.add('matched');
+
+    drawLine(selectedLeft, selectedRight, 'matched');
+    playCorrect();
+
+    matchedCount++;
+    document.getElementById('stat-matched').textContent = matchedCount;
+
+    selectedLeft = null;
+    selectedRight = null;
+
+    if (matchedCount === pairs.length) {
+      clearInterval(timerID);
+      setTimeout(showWin, 600);
+    }
+  } else {
+    const lRef = selectedLeft, rRef = selectedRight;
+    lRef.classList.add('wrong-flash');
+    rRef.classList.add('wrong-flash');
+    const tmpLine = drawLine(lRef, rRef, 'wrong');
+    playWrong();
+
+    wrongCount++;
+    document.getElementById('stat-wrong').textContent = wrongCount;
+
+    setTimeout(() => {
+      lRef.classList.remove('selected','wrong-flash');
+      rRef.classList.remove('selected','wrong-flash');
+      if (tmpLine && tmpLine.parentNode) tmpLine.parentNode.removeChild(tmpLine);
+    }, 700);
+
+    selectedLeft = null;
+    selectedRight = null;
+  }
+}
+
+// ══════════ SVG lines ══════════
+function getPortPos(item, side) {
+  const arena = document.getElementById('arena');
+  const aRect = arena.getBoundingClientRect();
+  const iRect = item.getBoundingClientRect();
+  const y = iRect.top - aRect.top + iRect.height / 2;
+  const x = side === 'left'
+    ? iRect.right - aRect.left - 4
+    : iRect.left  - aRect.left + 4;
+  return { x, y };
+}
+
+function drawLine(leftEl, rightEl, type) {
+  const svg = document.getElementById('lines-canvas');
+  const lPos = getPortPos(leftEl,  'left');
+  const rPos = getPortPos(rightEl, 'right');
+
+  const cx = (lPos.x + rPos.x) / 2;
+  const d  = `M${lPos.x},${lPos.y} C${cx},${lPos.y} ${cx},${rPos.y} ${rPos.x},${rPos.y}`;
+
+  const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+  path.setAttribute('d', d);
+  path.setAttribute('fill','none');
+  path.setAttribute('stroke-width','2.5');
+  path.setAttribute('stroke-linecap','round');
+
+  if (type === 'matched') {
+    path.setAttribute('stroke','var(--line-matched)');
+    path.setAttribute('opacity','0.8');
+    const len = path.getTotalLength ? path.getTotalLength() : 300;
+    path.style.strokeDasharray  = len;
+    path.style.strokeDashoffset = len;
+    path.style.transition = 'stroke-dashoffset .4s ease';
+    svg.appendChild(path);
+    requestAnimationFrame(() => { path.style.strokeDashoffset = '0'; });
+    lines.push(path);
+  } else {
+    path.setAttribute('stroke','var(--line-wrong)');
+    path.setAttribute('opacity','0.6');
+    path.setAttribute('stroke-dasharray','6,4');
+    svg.appendChild(path);
+    return path;
+  }
+  return path;
+}
+
+function redrawLines() {
+  if (isPreview) {
+    drawPreviewLines();
+    return;
+  }
+  const svg = document.getElementById('lines-canvas');
+  while (svg.firstChild) svg.removeChild(svg.firstChild);
+  lines = [];
+  const matchedLefts = document.querySelectorAll('#col-left .item.matched');
+  matchedLefts.forEach(lEl => {
+    const idx = lEl.dataset.idx;
+    const rEl = document.querySelector(`#col-right .item.matched[data-idx="${idx}"]`);
+    if (rEl) drawLine(lEl, rEl, 'matched');
+  });
+}
+
+window.addEventListener('resize', redrawLines);
+
+// ══════════ hint ══════════
+document.getElementById('btn-hint').addEventListener('click', () => {
+  const unL = document.querySelector('#col-left .item:not(.matched)');
+  if (!unL) return;
+  const idx = unL.dataset.idx;
+  const unR = document.querySelector(`#col-right .item:not(.matched)[data-idx="${idx}"]`);
+  if (!unR) return;
+
+  [unL, unR].forEach(el => {
+    el.style.transition = 'background .3s';
+    el.style.background = 'rgba(251,191,36,.18)';
+    el.style.borderColor = 'var(--gold)';
+  });
+  setTimeout(() => {
+    [unL, unR].forEach(el => {
+      el.style.background = '';
+      el.style.borderColor = '';
+    });
+  }, 1400);
+});
+
+// ══════════ win ══════════
+function showWin() {
+  playWin();
+  const eff = Math.round(pairs.length / (pairs.length + wrongCount) * 100);
+  document.getElementById('final-score').innerHTML =
+    `⏱ 用時 ${seconds} 秒　　❌ 錯誤 ${wrongCount} 次<br>🎯 正確率 ${eff}%`;
+  document.getElementById('overlay').classList.add('show');
+
+  // 將成績送往雲端 (若已登入且及格)
+  if (typeof getCurrentUser === 'function') {
+      const user = getCurrentUser();
+      if (user && eff >= 60 && typeof window.saveScore === 'function') {
+          
+          let stars = 3;
+          if (typeof totalHintsUsed !== 'undefined') {
+              if (totalHintsUsed > 0 && totalHintsUsed <= 3) stars = 2;
+              if (totalHintsUsed > 3) stars = 1;
+          }
+          let finalScoreSpan = document.getElementById('final-score');
+          if (finalScoreSpan) {
+              finalScoreSpan.style.width = "calc(100% + 40px)";
+              finalScoreSpan.style.marginLeft = "-20px";
+              finalScoreSpan.style.padding = "20px 10px 25px 10px";
+              finalScoreSpan.style.boxSizing = "border-box";
+              const hintsCount = typeof totalHintsUsed !== 'undefined' ? totalHintsUsed : 0;
+              let originHtml = finalScoreSpan.innerHTML;
+              
+              // 移除舊版的星星 UI
+              originHtml = originHtml.replace(/<div class="star-display-container"([\s\S]*?)<\/div>\s*<\/div>/g, '');
+              originHtml = originHtml.replace(/<br>⭐ 提示.*顆/g, '');
+              
+              // 修正折行問題，將各個統計項目包裝在 nowrap 中
+              originHtml = originHtml.replace(/(⏱ 用時.*?秒)/g, '<span style="white-space:nowrap;">$1</span>');
+              originHtml = originHtml.replace(/(❌ 錯誤.*?次)/g, '<span style="white-space:nowrap;">$1</span>');
+              originHtml = originHtml.replace(/(🎯 正確率.*?%)/g, '<span style="white-space:nowrap;">$1</span>');
+              originHtml = originHtml.replace(/　　/g, ' &nbsp;&nbsp; ');
+
+              finalScoreSpan.innerHTML = originHtml + `
+                  <div class="star-display-container" style="margin-top: 20px; width: 100%; display: flex; flex-direction: column; align-items: center;">
+                      <div style="display: flex; justify-content: center; align-items: center; gap: 12px; margin-bottom: 5px; flex-wrap: nowrap;">
+                          ${Array(3).fill(0).map((_, i) => `<span style="font-size: 2.5rem; filter: ${i < stars ? 'drop-shadow(0 0 12px rgba(251,191,36,0.8))' : 'grayscale(100%) opacity(20%)'}; transform: scale(${i < stars ? 1.1 : 1}); transition: all 0.3s ease; line-height: 1;">⭐</span>`).join('')}
+                      </div>
+                      <div style="font-size: 0.85rem; color: #94a3b8; text-align: center; margin-top: 10px;">
+                          ( 使用提示：${hintsCount} 次 )
+                      </div>
+                  </div>
+              `;
+          }
+          window.saveScore(user.className, user.name, qID + '_' + tID, "英中單字配對", seconds, "PASS", stars)
+            .then(res => console.log("連連看成績上傳完成:", res));
+      }
+  }
+
+  // 設置下一關按鈕
+  setupNextLevelButton();
+}
+
+function setupNextLevelButton() {
+    const LEVEL_SEQUENCE = [
+      { q: 'SETUP', t: 'T01' }, { q: 'Q1', t: 'T01' }, { q: 'Q1', t: 'T02' }, { q: 'Q1', t: 'T03' },
+      { q: 'Q2', t: 'T01' }, { q: 'Q2', t: 'T02' }, { q: 'Q2', t: 'T03' }, { q: 'Q3', t: 'T01' },
+      { q: 'Q3', t: 'T02' }, { q: 'Q3', t: 'T03' }, { q: 'Q4', t: 'T01' }, { q: 'Q4', t: 'T02' },
+      { q: 'Q4', t: 'T03' }, { q: 'Q5', t: 'T01' }, { q: 'Q5', t: 'T02' }, { q: 'Q5', t: 'T03' },
+      { q: '1060306', t: 'T01' }, { q: '1060307', t: 'T01' }, { q: '1060308', t: 'T01' }
+    ];
+    let currentIndex = LEVEL_SEQUENCE.findIndex(l => l.q === qID && l.t === tID);
+    const nextBtn = document.getElementById('btn-next-level');
+    if (currentIndex >= 0 && currentIndex < LEVEL_SEQUENCE.length - 1) {
+        const nextLv = LEVEL_SEQUENCE[currentIndex + 1];
+        nextBtn.style.display = 'block';
+        nextBtn.onclick = () => {
+            window.location.href = `連連看.html?q=${nextLv.q}&t=${nextLv.t}`;
+        };
+    } else if (currentIndex === LEVEL_SEQUENCE.length - 1) {
+        // 最後一關完成，跳轉至下一遊戲模式的起始關卡
+        nextBtn.style.display = 'block';
+        nextBtn.innerHTML = '挑戰下一主題 ⏭️';
+        nextBtn.onclick = () => {
+            window.location.href = '記憶翻牌遊戲.html?q=SETUP&t=T01';
+        };
+    } else {
+        nextBtn.style.display = 'none';
+        nextBtn.onclick = null;
+    }
+}
+
+// ══════════ button bindings ══════════
+document.getElementById('btn-start').addEventListener('click', startGame);
+document.getElementById('btn-restart').addEventListener('click', () => showPreview());
+document.getElementById('btn-again').addEventListener('click', () => {
+  document.getElementById('overlay').classList.remove('show');
+  showPreview();
+});
+
+// ══════════ boot ══════════
+showPreview();
+</script>
+<script src="../js/game-toolbar.js"></script>
+<script src="../js/nextlevel.js"></script>
+</body>
+</html>
+

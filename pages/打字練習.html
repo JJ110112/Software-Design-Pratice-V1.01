@@ -1,0 +1,975 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VB.NET 打字練習 ── Q1 迴文判斷</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:       #0c1220;
+  --bg2:      #111827;
+  --surface:  #1a2236;
+  --surface2: #212d45;
+  --border:   #2e3f5c;
+  --accent:   #38bdf8;
+  --accent2:  #818cf8;
+  --green:    #4ade80;
+  --gold:     #fbbf24;
+  --red:      #f87171;
+  --orange:   #fb923c;
+  --text:     #e2e8f0;
+  --muted:    #64748b;
+  --muted2:   #94a3b8;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:'Noto Sans TC',sans-serif;
+  min-height:100vh;
+  overflow-x:hidden;
+}
+body::after{
+  content:'';position:fixed;inset:0;
+  background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,.04) 3px,rgba(0,0,0,.04) 4px);
+  pointer-events:none;z-index:9999;
+}
+
+/* ══ PAGE HEADER ══ */
+.page-header{
+  text-align:center;
+  padding:32px 20px 20px;
+  position:relative;
+}
+.badge-row{display:flex;gap:8px;justify-content:center;margin-bottom:10px;flex-wrap:wrap;}
+.badge{
+  font-size:.68rem;font-weight:900;letter-spacing:.1em;text-transform:uppercase;
+  padding:3px 12px;border-radius:2px;
+}
+.badge-blue{background:rgba(56,189,248,.15);color:var(--accent);border:1px solid rgba(56,189,248,.3);}
+.badge-gold{background:rgba(251,191,36,.12);color:var(--gold);border:1px solid rgba(251,191,36,.3);}
+.page-header h1{
+  font-size:clamp(1.5rem,5vw,2.4rem);
+  font-weight:900;
+  letter-spacing:-.02em;
+  line-height:1.15;
+}
+.page-header h1 em{color:var(--accent);font-style:normal;}
+.page-subtitle{color:var(--muted);font-size:.88rem;margin-top:8px;}
+
+/* GAME HEADER */
+.game-header { width: 100%; max-width: 1000px; margin: 0 auto 24px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: center; }
+.back-btn { background: transparent; border: 1px solid var(--border); color: var(--muted2); border-radius: 6px; padding: 6px 14px; font-size: .82rem; cursor: pointer; text-decoration: none; font-family: inherit; transition: all .2s; }
+.back-btn:hover { color: var(--text); border-color: var(--muted2); }
+.mode-pill { font-size: .72rem; font-weight: 900; padding: 4px 12px; border-radius: 4px; text-transform: uppercase; letter-spacing: .08em; background: rgba(56, 189, 248, .15); color: var(--accent); border: 1px solid rgba(56, 189, 248, .3); }
+
+
+/* ══ BTN ══ */
+.btn{
+  font-family:'Noto Sans TC',sans-serif;font-weight:700;
+  padding:12px 28px;border-radius:8px;border:none;cursor:pointer;
+  transition:all .2s;font-size:.95rem;
+}
+.btn-primary{background:var(--accent);color:#000}
+.btn-primary:hover{background:#7dd3fc;transform:translateY(-1px)}
+.btn-ghost{
+  background:transparent;color:var(--muted2);
+  border:1px solid var(--border);padding:9px 22px;
+}
+.btn-ghost:hover{color:var(--text);border-color:var(--muted2)}
+.btn-sm{padding:7px 16px;font-size:.82rem}
+
+/* ══ CONTENT ══ */
+.content{flex:1;padding:24px 20px 40px;max-width:900px;margin:0 auto;width:100%}
+
+/* ══ MODE CARDS ══ */
+.mode-header{margin-bottom:24px}
+.mode-header h2{font-size:1.3rem;font-weight:900;margin-bottom:4px}
+.mode-header p{color:var(--muted2);font-size:.85rem}
+.mode-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}
+.mode-card{
+  background:var(--surface);border:1.5px solid var(--border);
+  border-radius:12px;padding:24px;cursor:pointer;
+  transition:all .2s;position:relative;overflow:hidden;
+}
+.mode-card:hover{border-color:var(--accent);transform:translateY(-2px);background:var(--surface2)}
+.mode-card-icon{font-size:1.8rem;margin-bottom:12px}
+.mode-card-level{
+  position:absolute;top:14px;right:14px;
+  font-size:.65rem;font-weight:900;padding:3px 8px;border-radius:4px;
+  letter-spacing:.08em;text-transform:uppercase;
+}
+.lvl-easy{background:rgba(74,222,128,.15);color:var(--green);border:1px solid rgba(74,222,128,.3)}
+.lvl-mid {background:rgba(251,191,36,.12);color:var(--gold); border:1px solid rgba(251,191,36,.3)}
+.lvl-hard{background:rgba(248,113,113,.12);color:var(--red);  border:1px solid rgba(248,113,113,.3)}
+.mode-card h3{font-size:1.05rem;font-weight:900;margin-bottom:6px}
+.mode-card p {font-size:.82rem;color:var(--muted2);line-height:1.6}
+.mode-card .count{margin-top:14px;font-size:.75rem;color:var(--muted);font-family:'JetBrains Mono',monospace;}
+
+/* ══ TYPING HEADER ══ */
+.typing-header{display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap;}
+.typing-mode-label{font-size:.78rem;font-weight:700;padding:4px 12px;border-radius:4px;text-transform:uppercase;letter-spacing:.08em;}
+.typing-back-btn{
+  background:transparent;border:1px solid var(--border);
+  color:var(--muted2);border-radius:6px;padding:6px 14px;
+  font-size:.82rem;cursor:pointer;font-family:inherit;transition:all .2s;
+}
+.typing-back-btn:hover{color:var(--text);border-color:var(--muted2)}
+
+/* stats bar */
+.typing-stats{display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;}
+.tstat{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 18px;text-align:center;flex:1;min-width:70px;}
+.tstat-val{font-family:'JetBrains Mono',monospace;font-size:1.4rem;font-weight:700;display:block;}
+.tstat-lbl{font-size:.65rem;color:var(--muted);margin-top:1px;display:block}
+#stat-wpm  .tstat-val{color:var(--accent2)}
+#stat-acc  .tstat-val{color:var(--green)}
+#stat-time .tstat-val{color:var(--gold)}
+
+/* progress */
+.progress-bar-wrap{background:var(--surface);border-radius:4px;height:4px;margin-bottom:20px;overflow:hidden;}
+.progress-bar-inner{height:100%;background:var(--accent);transition:width .3s;border-radius:4px}
+
+/* ══ PROMPT BOX ══ */
+.prompt-box{
+  background:var(--bg2);border:2px solid var(--border);
+  border-radius:12px;padding:28px 28px 20px;margin-bottom:8px;
+  font-family:'JetBrains Mono',monospace;
+  font-size:clamp(.82rem,2.2vw,1rem);
+  line-height:2.1;letter-spacing:.02em;
+  position:relative;cursor:text;
+  transition:border-color .2s;
+  min-height:100px;white-space:pre-wrap;word-break:break-all;
+}
+.prompt-box:focus-within,.prompt-box.focused{border-color:var(--accent);box-shadow:0 0 0 3px rgba(56,189,248,.1);}
+.prompt-box.input-correct{border-color:var(--green);box-shadow:0 0 0 3px rgba(74,222,128,.1);}
+.prompt-box.input-error  {border-color:var(--red);  box-shadow:0 0 0 3px rgba(248,113,113,.1);}
+.prompt-box.mode-full{height:480px;overflow-y:auto;scroll-behavior:auto;}
+
+/* context note */
+.prompt-box .context-note{font-family:'Noto Sans TC',sans-serif;font-size:.72rem;color:var(--muted);margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:6px;}
+.context-note-left{display:flex;align-items:center;gap:6px;}
+.context-note-badge{background:rgba(129,140,248,.12);color:var(--accent2);border:1px solid rgba(129,140,248,.25);border-radius:3px;font-size:.65rem;padding:1px 7px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;}
+.click-hint{font-size:.68rem;color:var(--muted);display:flex;align-items:center;gap:4px;}
+.click-hint-dot{width:6px;height:6px;border-radius:50%;background:var(--accent);opacity:.5;animation:pulse 1.4s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:.3;transform:scale(1)}50%{opacity:1;transform:scale(1.3)}}
+.prompt-box.focused .click-hint{display:none}
+
+/* chars */
+.char{position:relative;white-space:pre}
+.char.correct{color:var(--green)}
+.char.wrong  {color:var(--red);background:rgba(248,113,113,.15);border-radius:2px}
+.char.pending{color:var(--muted)}
+.char.cursor::before{content:'';position:absolute;left:0;top:8%;width:2px;height:84%;background:var(--accent);animation:blink .55s step-start infinite;border-radius:1px;}
+@keyframes blink{50%{opacity:0}}
+
+.typing-input{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none;font-size:16px;top:0;left:0;}
+
+/* hint */
+.input-area{margin-bottom:16px}
+.input-hint{font-size:.72rem;color:var(--muted);margin-top:8px;padding:0 4px;font-family:'JetBrains Mono',monospace;display:flex;align-items:center;gap:8px;}
+.hint-icon{color:var(--gold)}
+
+/* result panel */
+.result-panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:28px 24px;text-align:center;display:none;}
+.result-panel.show{display:block}
+.result-big{font-size:3rem;font-weight:900;font-family:'JetBrains Mono',monospace}
+.result-big.gold{color:var(--gold)}
+.result-row{display:flex;gap:20px;justify-content:center;flex-wrap:wrap;margin:16px 0}
+.result-chip{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px 20px;text-align:center;min-width:90px;}
+.result-chip .val{font-size:1.4rem;font-weight:700;font-family:'JetBrains Mono',monospace;display:block}
+.result-chip .lbl{font-size:.68rem;color:var(--muted);margin-top:2px;display:block}
+.result-actions{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:20px}
+
+/* zh hint */
+.zh-hint{background:rgba(129,140,248,.07);border:1px solid rgba(129,140,248,.2);border-radius:8px;padding:10px 16px;margin-bottom:16px;font-size:.82rem;color:var(--accent2);line-height:1.6;}
+.zh-hint span{font-weight:700}
+
+/* toggle */
+.auto-advance-wrap{display:flex;align-items:center;gap:9px;background:rgba(74,222,128,.07);border:1px solid rgba(74,222,128,.35);border-radius:8px;padding:7px 13px;transition:border-color .2s,background .2s;cursor:pointer;}
+.auto-advance-wrap.off{background:var(--surface);border-color:var(--border);}
+.auto-advance-label{font-size:.8rem;font-weight:700;color:var(--green);user-select:none;white-space:nowrap;transition:color .2s;}
+.auto-advance-wrap.off .auto-advance-label{color:var(--muted2)}
+.toggle-switch{position:relative;width:36px;height:20px;flex-shrink:0;}
+.toggle-switch input{opacity:0;width:0;height:0;position:absolute}
+.toggle-track{position:absolute;inset:0;background:var(--green);border-radius:999px;transition:background .2s;}
+.auto-advance-wrap.off .toggle-track{background:var(--surface2);border:1.5px solid var(--border)}
+.toggle-thumb{position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:50%;background:#fff;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.35);}
+.toggle-switch input:checked ~ .toggle-thumb{transform:translateX(16px)}
+.auto-advance-wrap.off .toggle-thumb{transform:translateX(0)}
+
+/* ══ SINGLE-CORRECT FLASH ══ */
+@keyframes correctFlash {
+  0%   { box-shadow: 0 0 0 0 rgba(74,222,128,0); }
+  35%  { box-shadow: 0 0 0 10px rgba(74,222,128,.4); background: rgba(74,222,128,.04); }
+  100% { box-shadow: 0 0 0 3px rgba(74,222,128,.1); background: var(--bg2); }
+}
+.prompt-box.flash-correct { animation: correctFlash .5s ease-out both; }
+
+/* ══ SINGLE-ITEM CLEAR OVERLAY ══ */
+#clear-overlay{
+  position:fixed;inset:0;z-index:5000;
+  pointer-events:none;
+  display:flex;align-items:center;justify-content:center;
+  opacity:0;transition:opacity .18s;
+}
+#clear-overlay.show{opacity:1}
+.clear-burst{position:absolute;inset:0;overflow:hidden;}
+.clear-card{position:relative;z-index:1;text-align:center;animation:clearPop .35s cubic-bezier(.34,1.56,.64,1) both;}
+@keyframes clearPop{from{transform:scale(.5) translateY(30px);opacity:0}to{transform:scale(1) translateY(0);opacity:1}}
+.clear-icon{font-size:4rem;line-height:1;display:block;animation:clearSpin .6s ease-out both .1s}
+@keyframes clearSpin{from{transform:rotate(-20deg) scale(.7);opacity:0}to{transform:rotate(0deg) scale(1);opacity:1}}
+.clear-text{font-family:'JetBrains Mono',monospace;font-size:2.2rem;font-weight:900;background:linear-gradient(135deg,var(--green) 0%,#86efac 50%,var(--accent) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:.04em;margin-top:6px;animation:clearGlow .5s ease both .2s;}
+@keyframes clearGlow{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.clear-sub{font-size:.88rem;color:var(--muted2);margin-top:5px;animation:clearGlow .5s ease both .3s;}
+.clear-stats{display:flex;gap:12px;justify-content:center;margin-top:12px;animation:clearGlow .5s ease both .4s;}
+.clear-stat-chip{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:8px 14px;}
+.clear-stat-chip .cv{font-family:'JetBrains Mono',monospace;font-size:1.1rem;font-weight:700;display:block;}
+.clear-stat-chip .cl{font-size:.65rem;color:var(--muted);margin-top:2px;display:block}
+
+/* confetti */
+.confetti-particle{position:absolute;border-radius:2px;animation:confettiFall linear forwards;pointer-events:none;}
+@keyframes confettiFall{0%{transform:translateY(-20px) rotate(0deg);opacity:1}100%{transform:translateY(110vh) rotate(720deg);opacity:0}}
+
+/* ══ ALL-CLEAR OVERLAY ══ */
+#all-clear-overlay{
+  position:fixed;inset:0;z-index:6000;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(12,18,32,.85);
+  backdrop-filter:blur(8px);
+  opacity:0;pointer-events:none;
+  transition:opacity .3s;
+}
+#all-clear-overlay.show{opacity:1;pointer-events:all;}
+.all-clear-burst{position:absolute;inset:0;overflow:hidden;}
+.all-clear-card{position:relative;z-index:1;text-align:center;animation:clearPop .5s cubic-bezier(.34,1.56,.64,1) both;}
+.all-clear-icon{font-size:6rem;line-height:1;display:block;animation:clearSpin .8s ease-out both .1s;}
+.all-clear-title{
+  font-family:'JetBrains Mono',monospace;
+  font-size:3.2rem;font-weight:900;
+  background:linear-gradient(135deg,var(--gold) 0%,#fde68a 40%,var(--orange) 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  margin-top:12px;letter-spacing:.06em;
+  animation:clearGlow .6s ease both .25s;
+}
+.all-clear-sub{font-size:1rem;color:var(--muted2);margin-top:8px;animation:clearGlow .6s ease both .4s;}
+.all-clear-stats{display:flex;gap:18px;justify-content:center;margin-top:22px;animation:clearGlow .6s ease both .5s;}
+.all-clear-btn{
+  margin-top:30px;display:block;
+  animation:clearGlow .6s ease both .6s;
+  background:var(--accent);color:#000;
+  border:none;border-radius:8px;
+  padding:13px 40px;font-size:1rem;font-weight:900;
+  cursor:pointer;font-family:inherit;
+  transition:background .2s,transform .15s;
+}
+.all-clear-btn:hover{background:#7dd3fc;transform:translateY(-2px);}
+
+/* ══ RESPONSIVE ══ */
+@media(max-width:520px){
+  .content{padding:16px 14px 32px}
+  .typing-stats{gap:8px}
+  .tstat{padding:8px 10px}
+  .tstat-val{font-size:1.1rem}
+}
+</style>
+<link rel="stylesheet" href="../css/common.css">
+</head>
+<body>
+
+<div style="display:flex;flex-direction:column;min-height:100vh">
+  <div class="page-header">
+    <div class="badge-row">
+      <span class="badge badge-blue">軟體設計丙級 · VB.NET</span>
+      <span class="badge badge-gold" id="topic-badge">檢定題庫</span>
+    </div>
+    <h1>打字練習<br><em>鍛鍊肌肉上的記憶</em></h1>
+  <p class="page-subtitle">熟悉程式碼每個單字的位置，在實戰中爭取速度！</p>
+</div>
+
+<div class="game-header" style="justify-content: flex-start; margin-bottom: 24px; padding: 0 20px;">
+  <a href="#" class="back-btn" id="btn-head-back">← 返回</a>
+  <div class="mode-pill lvl-easy" id="mode-pill-header">打字練習</div>
+</div>
+
+<!-- ======================= -->
+
+  <div class="content">
+
+    <!-- Mode select -->
+    <div id="mode-select">
+      <div class="mode-header">
+        <h2>選擇練習模式</h2>
+      </div>
+      <div class="mode-grid">
+        <div class="mode-card" data-mode="keyword">
+          <span class="mode-card-level lvl-easy">入門</span>
+          <div class="mode-card-icon">🔤</div>
+          <h3>關鍵字單字練習</h3>
+          <p>練習打出 VB.NET 的關鍵指令，熟悉拼寫與大小寫</p>
+          <div class="count">10 個關鍵字</div>
+        </div>
+        <div class="mode-card" data-mode="line">
+          <span class="mode-card-level lvl-mid">進階</span>
+          <div class="mode-card-icon">📝</div>
+          <h3>單行程式碼練習</h3>
+          <p>一次練習一行，從簡單到複雜，附中文說明輔助</p>
+          <div class="count">11 行程式碼</div>
+        </div>
+        <div class="mode-card" data-mode="full">
+          <span class="mode-card-level lvl-hard">挑戰</span>
+          <div class="mode-card-icon">🏃</div>
+          <h3>完整程式碼挑戰</h3>
+          <p>一口氣打完整個 Q1 Sub，測試真實考試手感</p>
+          <div class="count">12 行完整程式</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Typing area -->
+    <div id="typing-area" style="display:none">
+      <div class="typing-header">
+        <button class="typing-back-btn" id="btn-back">← 返回</button>
+        <div class="typing-mode-label" id="mode-label"></div>
+        <div style="flex:1"></div>
+        <button class="btn btn-ghost btn-sm" id="btn-skip">跳過此題</button>
+        <label class="auto-advance-wrap" id="auto-advance-wrap" title="完成後自動跳下一題">
+          <span class="toggle-switch">
+            <input type="checkbox" id="toggle-auto-advance" checked>
+            <div class="toggle-track"></div>
+            <div class="toggle-thumb"></div>
+          </span>
+          <span class="auto-advance-label">自動跳題</span>
+        </label>
+      </div>
+
+      <!-- Per-item clear overlay -->
+      <div id="clear-overlay">
+        <div class="clear-burst" id="clear-burst"></div>
+        <div class="clear-card">
+          <span class="clear-icon" id="clear-icon">✅</span>
+          <div class="clear-text" id="clear-text">CLEAR!</div>
+          <div class="clear-sub" id="clear-sub"></div>
+          <div class="clear-stats" id="clear-stats"></div>
+        </div>
+      </div>
+
+      <div class="typing-stats">
+        <div class="tstat" id="stat-wpm"><span class="tstat-val" id="val-wpm">0</span><span class="tstat-lbl">WPM</span></div>
+        <div class="tstat" id="stat-acc"><span class="tstat-val" id="val-acc">100%</span><span class="tstat-lbl">正確率</span></div>
+        <div class="tstat" id="stat-time"><span class="tstat-val" id="val-time">0s</span><span class="tstat-lbl">時間</span></div>
+        <div class="tstat"><span class="tstat-val" id="val-progress">1/1</span><span class="tstat-lbl">進度</span></div>
+      </div>
+
+      <div class="progress-bar-wrap"><div class="progress-bar-inner" id="progress-bar" style="width:0%"></div></div>
+
+      <div class="zh-hint" id="zh-hint"><span>說明：</span><span id="zh-hint-text"></span></div>
+
+      <div class="prompt-box" id="prompt-box" tabindex="0">
+        <div class="context-note" id="context-note">
+          <div class="context-note-left"></div>
+          <div class="click-hint"><div class="click-hint-dot"></div>點此開始打字</div>
+        </div>
+        <div id="prompt-chars"></div>
+        <textarea class="typing-input" id="typing-input"
+          spellcheck="false" autocomplete="off" autocorrect="off"
+          autocapitalize="off" tabindex="-1" aria-hidden="true"></textarea>
+      </div>
+
+      <div class="input-area">
+        <div class="input-hint">
+          <span class="hint-icon">⚠</span>
+          注意大小寫、空格與符號，與 VB.NET 考試完全一致 &nbsp;|&nbsp; 點擊程式碼區域開始打字
+        </div>
+      </div>
+
+      <div class="result-panel" id="result-panel">
+        <div class="result-big gold" id="result-wpm-big">0</div>
+        <div style="color:var(--muted);font-size:.85rem;margin-bottom:4px">WPM（每分鐘字元數）</div>
+        <div class="result-row">
+          <div class="result-chip"><span class="val" id="res-acc" style="color:var(--green)">100%</span><span class="lbl">正確率</span></div>
+          <div class="result-chip"><span class="val" id="res-time" style="color:var(--gold)">0s</span><span class="lbl">用時</span></div>
+          <div class="result-chip"><span class="val" id="res-errors" style="color:var(--red)">0</span><span class="lbl">錯誤字元</span></div>
+        </div>
+        <div class="result-actions">
+          <button class="btn btn-primary" style="width:auto" id="btn-next-item">下一題 →</button>
+          <button class="btn btn-ghost" id="btn-retry">重試此題</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- All-clear overlay -->
+<div id="all-clear-overlay">
+  <div class="all-clear-burst" id="all-clear-burst"></div>
+  <div class="all-clear-card">
+    <span class="all-clear-icon" id="all-clear-icon">🏆</span>
+    <div class="all-clear-title">全部完成！</div>
+    <div class="all-clear-sub" id="all-clear-sub"></div>
+    <div class="all-clear-stats" id="all-clear-stats"></div>
+    <button class="all-clear-btn" id="btn-all-clear-back">再練一次 →</button>
+    <button class="all-clear-btn" id="btn-next-mode" style="background:linear-gradient(90deg,#4ade80,#10b981);margin-top:8px;">⏭️ 下一練習 (錯誤程式除錯)</button>
+  </div>
+</div>
+
+<script src="../js/users.js"></script>
+<script type="module" src="../js/api.js?v=6"></script>
+<script src="../js/quiz_data.js"></script>
+<script>
+const urlParams = new URLSearchParams(window.location.search);
+const qID = urlParams.get('q') || 'Q1';
+const tID = urlParams.get('t') || 'T01';
+
+// 設定 UI
+window.addEventListener('load', () => {
+    if (QUIZ_DATA[qID]) {
+        let labelText = `${qID} ${QUIZ_DATA[qID].title} (${tID})`;
+        if (qID === 'SETUP') {
+            document.querySelector('.page-header h1').innerHTML = `Form1_Load 練習<br><em>打字練習</em>`;
+            labelText = 'Form1_Load (通用考生資訊)';
+        } else {
+            document.querySelector('.page-header h1').innerHTML = `${qID} ${QUIZ_DATA[qID].title}<br><em>打字練習 (${tID})</em>`;
+        }
+        document.getElementById('mode-pill-header').textContent = labelText;
+        if(document.querySelector('.badge-gold')) document.querySelector('.badge-gold').textContent = `${qID} · ${QUIZ_DATA[qID].title}`;
+    }
+});
+
+// BACK
+document.getElementById('btn-head-back').addEventListener('click', (e) => {
+    e.preventDefault();
+    window.location.href = `../index.html?q=${qID}&t=${tID}`;
+});
+
+// ═══════════════════════════════════════════
+//  AUDIO ENGINE  (Web Audio API)
+// ═══════════════════════════════════════════
+let _audioCtx = null;
+function getAudioCtx() {
+  if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return _audioCtx;
+}
+
+function playTone(freq, type, duration, vol, startDelay = 0) {
+  try {
+    const ctx  = getAudioCtx();
+    if (ctx.state === 'suspended') ctx.resume();
+    const osc  = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, ctx.currentTime + startDelay);
+    gain.gain.setValueAtTime(vol, ctx.currentTime + startDelay);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + startDelay + duration);
+    osc.start(ctx.currentTime + startDelay);
+    osc.stop(ctx.currentTime + startDelay + duration);
+  } catch(e) {}
+}
+
+// 單題答對：清脆上揚雙音
+function playSingleCorrect() {
+  playTone(880,  'sine', 0.07, 0.13, 0);
+  playTone(1320, 'sine', 0.10, 0.10, 0.06);
+}
+
+// 全部完成：勝利和弦 + 星光點綴
+function playAllClear() {
+  // 上行和弦 C-E-G-C'
+  [523, 659, 784, 1047].forEach((f, i) => playTone(f, 'triangle', 0.5, 0.20, i * 0.09));
+  // 星光高音
+  [1600, 1900, 2200, 2600].forEach((f, i) => playTone(f, 'sine', 0.15, 0.07, 0.42 + i * 0.06));
+}
+
+// ═══════════════════════════════════════════
+//  DATA
+// ═══════════════════════════════════════════
+const KEYWORDS = [
+  { text:'StreamReader',      zh:'讀取文字檔的工具類別' },
+  { text:'ReadLine()',         zh:'讀取檔案的一行文字' },
+  { text:'Dim',                zh:'宣告（定義）變數' },
+  { text:'As String',          zh:'指定變數型別為字串' },
+  { text:'As Integer',         zh:'指定變數型別為整數' },
+  { text:'As New',             zh:'宣告並建立新物件' },
+  { text:'Exit For',           zh:'立即跳出 For 迴圈' },
+  { text:'End If',             zh:'結束 If 條件區塊' },
+  { text:'RichTextBox1.Text',  zh:'文字方塊的文字內容屬性' },
+  { text:'vbCrLf',             zh:'換行符號常數' },
+];
+
+let currentIndent = 0;
+const LINES = generateSteps(qID, tID).map((step, idx) => {
+    let raw = step.code.trim();
+    if (raw.startsWith("End ") || raw.startsWith("Next") || raw.startsWith("Loop")) {
+        currentIndent = Math.max(0, currentIndent - 4);
+    } else if (raw.startsWith("Else")) {
+        currentIndent = Math.max(0, currentIndent - 4);
+    }
+    const txt = " ".repeat(currentIndent) + raw;
+    const obj = { text: txt, zh: step.zh, note: `第 ${idx+1} 行` };
+    if (raw.startsWith("Private Sub") || raw.startsWith("For ") || raw.startsWith("If ") || raw.startsWith("Do")) {
+        currentIndent += 4;
+    } else if (raw.startsWith("Else")) {
+        currentIndent += 4;
+    }
+    return obj;
+});
+
+const FULL_CODE = LINES.map(x => x.text).join('\n');
+
+const MODE_META = {
+  keyword:{ label:'🔤 關鍵字', labelClass:'lvl-easy' },
+  line:   { label:'📝 單行',   labelClass:'lvl-mid'  },
+  full:   { label:'🏃 完整',   labelClass:'lvl-hard' },
+};
+
+// ═══════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════
+let currentMode      = null;
+let queue            = [];
+let qIdx             = 0;
+let typingTimer      = null;
+let startTime        = null;
+let elapsed          = 0;
+let totalChars       = 0;
+let errorChars       = 0;
+let autoAdvance      = true;
+let autoAdvanceTimer = null;
+let isCompleting     = false;
+
+let sessionWpmSum  = 0;
+let sessionCount   = 0;
+let sessionTimeSum = 0;
+
+// ═══════════════════════════════════════════
+//  MODE SELECT
+// ═══════════════════════════════════════════
+document.querySelectorAll('.mode-card').forEach(card => {
+  card.addEventListener('click', () => startMode(card.dataset.mode));
+});
+
+function startMode(mode) {
+  currentMode = mode;
+  stopTimer();
+  errorChars = 0; totalChars = 0; elapsed = 0;
+  sessionWpmSum = 0; sessionCount = 0; sessionTimeSum = 0;
+
+  queue = mode === 'keyword' ? shuffle([...KEYWORDS])
+        : mode === 'line'    ? [...LINES]
+        : [{ text: FULL_CODE, zh:'完整 Q1 迴文判斷 Sub', note:'完整程式碼' }];
+  qIdx = 0;
+
+  document.getElementById('mode-select').style.display  = 'none';
+  document.getElementById('typing-area').style.display  = 'block';
+
+  const meta = MODE_META[mode];
+  const lbl  = document.getElementById('mode-label');
+  lbl.textContent = meta.label;
+  lbl.className   = 'typing-mode-label ' + meta.labelClass;
+
+  loadItem(0);
+}
+
+document.getElementById('btn-back').addEventListener('click', () => {
+  stopTimer(); hideClearEffect();
+  document.getElementById('mode-select').style.display = 'block';
+  document.getElementById('typing-area').style.display = 'none';
+  document.getElementById('result-panel').classList.remove('show');
+  resetTypingUI();
+});
+document.getElementById('btn-skip').addEventListener('click', () => advanceItem());
+
+// toggle
+const toggleAutoAdvance = document.getElementById('toggle-auto-advance');
+const autoAdvanceWrap   = document.getElementById('auto-advance-wrap');
+autoAdvanceWrap.classList.toggle('off', !autoAdvance);
+toggleAutoAdvance.addEventListener('change', () => {
+  autoAdvance = toggleAutoAdvance.checked;
+  autoAdvanceWrap.classList.toggle('off', !autoAdvance);
+});
+
+// ═══════════════════════════════════════════
+//  LOAD ITEM
+// ═══════════════════════════════════════════
+function loadItem(idx) {
+  stopTimer();
+  isCompleting = false;
+  elapsed = 0; startTime = null;
+  totalChars = 0; errorChars = 0;
+
+  document.getElementById('result-panel').classList.remove('show');
+  document.getElementById('typing-input').value    = '';
+  document.getElementById('typing-input').disabled = false;
+
+  const item = queue[idx];
+  document.getElementById('val-progress').textContent = (idx+1)+'/'+queue.length;
+  document.getElementById('progress-bar').style.width = (idx / queue.length * 100) + '%';
+  document.getElementById('zh-hint-text').textContent = item.zh || '';
+  document.getElementById('zh-hint').style.display = currentMode === 'full' ? 'none' : 'block';
+
+  const noteEl = document.getElementById('context-note');
+  const leftEl = noteEl.querySelector('.context-note-left');
+  if (item.note) {
+    leftEl.innerHTML = `<span class="context-note-badge">Q1</span> ${item.note}`;
+    noteEl.style.display = 'flex';
+  } else {
+    leftEl.innerHTML = '';
+    noteEl.style.display = currentMode === 'full' ? 'none' : 'flex';
+  }
+
+  renderPrompt(item.text);
+  resetStats();
+
+  const pb  = document.getElementById('prompt-box');
+  const inp = document.getElementById('typing-input');
+  pb.classList.remove('mode-full','input-correct','input-error','focused','flash-correct');
+  if (currentMode === 'full') pb.classList.add('mode-full');
+
+  setTimeout(() => { inp.focus(); pb.classList.add('focused'); }, 50);
+}
+
+function renderPrompt(text) {
+  const box = document.getElementById('prompt-chars');
+  box.innerHTML = '';
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    const span = document.createElement('span');
+    span.className     = 'char pending' + (i === 0 ? ' cursor' : '');
+    span.dataset.idx   = i;
+    span.dataset.real  = ch;
+    span.textContent   = ch === ' ' ? '·' : ch === '\n' ? '↵' : ch;
+    box.appendChild(span);
+    if (ch === '\n') box.appendChild(document.createElement('br'));
+  }
+}
+
+// ═══════════════════════════════════════════
+//  TYPING
+// ═══════════════════════════════════════════
+const typingInput = document.getElementById('typing-input');
+const promptBox   = document.getElementById('prompt-box');
+
+promptBox.addEventListener('click', () => { typingInput.focus(); promptBox.classList.add('focused'); requestAnimationFrame(scrollToCursor); });
+promptBox.addEventListener('keydown', () => typingInput.focus());
+typingInput.addEventListener('focus', () => { promptBox.classList.add('focused'); });
+typingInput.addEventListener('blur',  () => { promptBox.classList.remove('focused'); });
+typingInput.addEventListener('keydown', e => {
+  if (!startTime) beginTimer();
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    const pos = typingInput.selectionStart;
+    const val = typingInput.value;
+    typingInput.value = val.slice(0, pos) + '    ' + val.slice(pos);
+    typingInput.selectionStart = typingInput.selectionEnd = pos + 4;
+    typingInput.dispatchEvent(new Event('input'));
+  }
+});
+typingInput.addEventListener('input', onTypingInput);
+
+function onTypingInput() {
+  if (!queue[qIdx] || isCompleting) return;
+  const target = queue[qIdx].text;
+  const typed  = typingInput.value;
+  if (!startTime && typed.length > 0) beginTimer();
+
+  const chars = Array.from(document.querySelectorAll('#prompt-chars .char'));
+  let cursorSet = false, errCount = 0, allCorrect = true;
+
+  chars.forEach(span => {
+    const i    = parseInt(span.dataset.idx);
+    const real = span.dataset.real;
+    span.classList.remove('correct','wrong','cursor','pending');
+    if (i < typed.length) {
+      span.classList.add(typed[i] === real ? 'correct' : 'wrong');
+      if (typed[i] !== real) { errCount++; allCorrect = false; }
+    } else if (i === typed.length && !cursorSet) {
+      span.classList.add('cursor'); cursorSet = true; allCorrect = false;
+    } else {
+      span.classList.add('pending'); allCorrect = false;
+    }
+  });
+
+  if (currentMode === 'full') requestAnimationFrame(scrollToCursor);
+
+  errorChars = errCount;
+  totalChars = typed.length;
+  updateAccuracy(typed.length, errCount);
+
+  const pb = document.getElementById('prompt-box');
+  pb.classList.remove('input-correct','input-error');
+  if (typed.length > 0) pb.classList.add(errCount > 0 ? 'input-error' : 'input-correct');
+
+  if (allCorrect && typed.length === target.length && errCount === 0) completeItem();
+}
+
+function scrollToCursor() {
+  if (currentMode !== 'full') return;
+  const cur = document.querySelector('#prompt-chars .char.cursor');
+  const box = document.getElementById('prompt-box');
+  if (!cur || !box) return;
+  let el = cur, y = 0;
+  while (el && el !== box) { y += el.offsetTop; el = el.offsetParent; }
+  const h = box.clientHeight;
+  const v = y - box.scrollTop;
+  if (v > h * .65) box.scrollTop = Math.max(0, y - h * .4);
+  else if (v < h * .1) box.scrollTop = Math.max(0, y - h * .25);
+}
+
+function updateAccuracy(total, errors) {
+  const correct = total - errors;
+  document.getElementById('val-acc').textContent = (total === 0 ? 100 : Math.round(correct / total * 100)) + '%';
+  document.getElementById('val-wpm').textContent = calcWPM(correct);
+}
+function calcWPM(correctChars) {
+  if (!startTime) return 0;
+  const mins = (Date.now() - startTime) / 60000;
+  return mins < 0.001 ? 0 : Math.round(correctChars / 5 / mins);
+}
+
+// ═══════════════════════════════════════════
+//  TIMER
+// ═══════════════════════════════════════════
+function beginTimer() {
+  if (startTime) return;
+  startTime = Date.now();
+  typingTimer = setInterval(() => {
+    elapsed = Math.floor((Date.now() - startTime) / 1000);
+    document.getElementById('val-time').textContent = elapsed + 's';
+  }, 200);
+}
+function stopTimer() { clearInterval(typingTimer); typingTimer = null; }
+function resetStats() {
+  document.getElementById('val-wpm').textContent  = '0';
+  document.getElementById('val-acc').textContent  = '100%';
+  document.getElementById('val-time').textContent = '0s';
+  startTime = null;
+}
+
+// ═══════════════════════════════════════════
+//  SINGLE-ITEM CLEAR EFFECT
+// ═══════════════════════════════════════════
+const SMALL_ICONS = ['✅','⚡','✨','🎯','💡'];
+const CONFETTI_COLORS = ['#4ade80','#38bdf8','#818cf8','#fbbf24','#fb923c','#f472b6','#fff'];
+
+function triggerFlash(pb) {
+  pb.classList.remove('flash-correct');
+  void pb.offsetWidth;
+  pb.classList.add('flash-correct');
+  pb.addEventListener('animationend', () => pb.classList.remove('flash-correct'), { once: true });
+}
+
+function spawnConfetti(n, containerId) {
+  const burst = document.getElementById(containerId);
+  burst.innerHTML = '';
+  for (let i = 0; i < n; i++) {
+    const el    = document.createElement('div');
+    el.className = 'confetti-particle';
+    const size  = 6 + Math.random() * 8;
+    const color = CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)];
+    el.style.cssText = `
+      width:${size}px;height:${size*(Math.random()<.5?1:2.5)}px;
+      left:${Math.random()*100}%;top:-10px;
+      background:${color};
+      animation-duration:${1.2+Math.random()*1.4}s;
+      animation-delay:${Math.random()*.5}s;
+      opacity:0;`;
+    burst.appendChild(el);
+  }
+}
+
+function showClearEffect(wpm, acc, time, onDone) {
+  const overlay = document.getElementById('clear-overlay');
+  document.getElementById('clear-icon').textContent = SMALL_ICONS[Math.floor(Math.random()*SMALL_ICONS.length)];
+
+  const cheers = acc >= 100 ? ['完美無誤！','神乎其技！','零失誤！']
+               : acc >= 95  ? ['幾乎完美！','超強發揮！','非常棒！']
+               :               ['答對了！','繼續加油！','不錯喔！'];
+  document.getElementById('clear-sub').textContent = cheers[Math.floor(Math.random()*cheers.length)];
+  document.getElementById('clear-stats').innerHTML = `
+    <div class="clear-stat-chip"><span class="cv" style="color:var(--accent2)">${wpm}</span><span class="cl">WPM</span></div>
+    <div class="clear-stat-chip"><span class="cv" style="color:var(--green)">${acc}%</span><span class="cl">正確率</span></div>
+    <div class="clear-stat-chip"><span class="cv" style="color:var(--gold)">${time}s</span><span class="cl">用時</span></div>`;
+
+  spawnConfetti(28, 'clear-burst');
+  overlay.classList.add('show');
+
+  autoAdvanceTimer = setTimeout(() => {
+    overlay.classList.remove('show');
+    autoAdvanceTimer = setTimeout(() => { autoAdvanceTimer = null; onDone(); }, 150);
+  }, 950);
+}
+
+function hideClearEffect() {
+  document.getElementById('clear-overlay').classList.remove('show');
+  document.getElementById('clear-burst').innerHTML = '';
+  if (autoAdvanceTimer) { clearTimeout(autoAdvanceTimer); autoAdvanceTimer = null; }
+}
+
+// ═══════════════════════════════════════════
+//  ALL-CLEAR
+// ═══════════════════════════════════════════
+const ALL_CLEAR_ICONS = ['🏆','🥇','🎓','🌟','💎'];
+const MODE_NAMES      = { keyword:'關鍵字', line:'單行程式碼', full:'完整程式碼' };
+
+function showAllClear() {
+  playAllClear();
+  spawnConfetti(130, 'all-clear-burst');
+
+  document.getElementById('all-clear-icon').textContent =
+    ALL_CLEAR_ICONS[Math.floor(Math.random()*ALL_CLEAR_ICONS.length)];
+  document.getElementById('all-clear-sub').textContent =
+    `【${MODE_NAMES[currentMode]||currentMode}】模式全部通關！`;
+
+  const avgWpm = sessionCount > 0 ? Math.round(sessionWpmSum / sessionCount) : 0;
+  document.getElementById('all-clear-stats').innerHTML = `
+    <div class="clear-stat-chip"><span class="cv" style="color:var(--accent2)">${avgWpm}</span><span class="cl">平均 WPM</span></div>
+    <div class="clear-stat-chip"><span class="cv" style="color:var(--gold)">${sessionTimeSum}s</span><span class="cl">總用時</span></div>
+    <div class="clear-stat-chip"><span class="cv" style="color:var(--green)">${queue.length}</span><span class="cl">通關題數</span></div>`;
+
+  document.getElementById('all-clear-overlay').classList.add('show');
+
+  // 將成績送往雲端 (若已登入)
+  if (typeof getCurrentUser === 'function') {
+      const user = getCurrentUser();
+      if (user && typeof window.saveScore === 'function') {
+          
+          let stars = 3;
+          if (typeof totalHintsUsed !== 'undefined') {
+              if (totalHintsUsed > 0 && totalHintsUsed <= 3) stars = 2;
+              if (totalHintsUsed > 3) stars = 1;
+          }
+          let finalScoreSpan = document.getElementById('final-score');
+          if (finalScoreSpan) {
+              finalScoreSpan.style.width = "calc(100% + 40px)";
+              finalScoreSpan.style.marginLeft = "-20px";
+              finalScoreSpan.style.padding = "20px 10px 25px 10px";
+              finalScoreSpan.style.boxSizing = "border-box";
+              const hintsCount = typeof totalHintsUsed !== 'undefined' ? totalHintsUsed : 0;
+              let originHtml = finalScoreSpan.innerHTML;
+              
+              // 移除舊版的星星 UI
+              originHtml = originHtml.replace(/<div class="star-display-container"([\s\S]*?)<\/div>\s*<\/div>/g, '');
+              originHtml = originHtml.replace(/<br>⭐ 提示.*顆/g, '');
+              
+              // 修正折行問題，將各個統計項目包裝在 nowrap 中
+              originHtml = originHtml.replace(/(⏱ 用時.*?秒)/g, '<span style="white-space:nowrap;">$1</span>');
+              originHtml = originHtml.replace(/(❌ 錯誤.*?次)/g, '<span style="white-space:nowrap;">$1</span>');
+              originHtml = originHtml.replace(/(🎯 正確率.*?%)/g, '<span style="white-space:nowrap;">$1</span>');
+              originHtml = originHtml.replace(/　　/g, ' &nbsp;&nbsp; ');
+
+              finalScoreSpan.innerHTML = originHtml + `
+                  <div class="star-display-container" style="margin-top: 20px; width: 100%; display: flex; flex-direction: column; align-items: center;">
+                      <div style="display: flex; justify-content: center; align-items: center; gap: 12px; margin-bottom: 5px; flex-wrap: nowrap;">
+                          ${Array(3).fill(0).map((_, i) => `<span style="font-size: 2.5rem; filter: ${i < stars ? 'drop-shadow(0 0 12px rgba(251,191,36,0.8))' : 'grayscale(100%) opacity(20%)'}; transform: scale(${i < stars ? 1.1 : 1}); transition: all 0.3s ease; line-height: 1;">⭐</span>`).join('')}
+                      </div>
+                      <div style="font-size: 0.85rem; color: #94a3b8; text-align: center; margin-top: 10px;">
+                          ( 使用提示：${hintsCount} 次 )
+                      </div>
+                  </div>
+              `;
+          }
+          window.saveScore(user.className, user.name, qID + '_' + tID, "打字練習", sessionTimeSum, "PASS", stars)
+            .then(res => console.log("成績上傳完成:", res));
+      }
+  }
+}
+
+document.getElementById('btn-all-clear-back').addEventListener('click', () => {
+  document.getElementById('all-clear-overlay').classList.remove('show');
+  document.getElementById('all-clear-burst').innerHTML = '';
+  document.getElementById('mode-select').style.display = 'block';
+  document.getElementById('typing-area').style.display = 'none';
+  resetTypingUI();
+});
+
+document.getElementById('btn-next-mode').addEventListener('click', () => {
+  window.location.href = '錯誤程式除錯.html?q=SETUP&t=T01';
+});
+
+// ═══════════════════════════════════════════
+//  COMPLETE ITEM
+// ═══════════════════════════════════════════
+function completeItem() {
+  if (isCompleting) return;
+  isCompleting = true;
+  stopTimer();
+  typingInput.disabled = true;
+
+  const target       = queue[qIdx].text;
+  const len          = target.replace(/\n/g,'').length;
+  const mins         = startTime ? (Date.now() - startTime) / 60000 : 0.01;
+  const correctChars = len - errorChars;
+  const wpm          = Math.round(correctChars / 5 / mins);
+  const acc          = Math.round(correctChars / len * 100);
+  const time         = elapsed;
+
+  sessionWpmSum  += wpm;
+  sessionTimeSum += time;
+  sessionCount++;
+
+  // Always: play chime + flash
+  playSingleCorrect();
+  triggerFlash(document.getElementById('prompt-box'));
+
+  if (autoAdvance && currentMode !== 'full') {
+    // Show small per-item overlay, then advance (or trigger all-clear)
+    showClearEffect(wpm, acc, time, () => advanceItem());
+    return;
+  }
+
+  // full mode or auto-advance OFF: result panel
+  document.getElementById('result-panel').classList.add('show');
+  document.getElementById('result-wpm-big').textContent = wpm;
+  document.getElementById('res-acc').textContent        = acc + '%';
+  document.getElementById('res-time').textContent       = time + 's';
+  document.getElementById('res-errors').textContent     = errorChars;
+}
+
+document.getElementById('btn-next-item').addEventListener('click', () => advanceItem());
+document.getElementById('btn-retry').addEventListener('click', () => {
+  hideClearEffect();
+  document.getElementById('result-panel').classList.remove('show');
+  loadItem(qIdx);
+});
+
+function advanceItem() {
+  document.getElementById('result-panel').classList.remove('show');
+  qIdx++;
+  if (qIdx >= queue.length) {
+    qIdx = queue.length - 1;
+    // Small delay so per-item overlay finishes fading before big one appears
+    setTimeout(() => showAllClear(), 200);
+  } else {
+    loadItem(qIdx);
+  }
+}
+
+function resetTypingUI() {
+  stopTimer(); hideClearEffect();
+  typingInput.value = ''; typingInput.disabled = false;
+  const pb = document.getElementById('prompt-box');
+  pb.classList.remove('mode-full','input-correct','input-error','focused','flash-correct');
+  document.getElementById('prompt-chars').innerHTML = '';
+  document.getElementById('zh-hint').style.display  = 'block';
+  resetStats();
+  sessionWpmSum = 0; sessionCount = 0; sessionTimeSum = 0;
+}
+
+// ═══════════════════════════════════════════
+//  UTILS
+// ═══════════════════════════════════════════
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length-1; i > 0; i--) {
+    const j = Math.floor(Math.random()*(i+1));
+    [a[i],a[j]] = [a[j],a[i]];
+  }
+  return a;
+}
+</script>
+<script src="../js/game-toolbar.js"></script>
+</body>
+</html>

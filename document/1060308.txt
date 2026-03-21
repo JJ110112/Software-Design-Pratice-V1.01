@@ -1,0 +1,60 @@
+'*******************************
+'* 11900-1060308 Program Start *
+'*******************************
+
+Imports System.IO
+
+Public Class Form1
+    Private Sub Form1_Load(sender As Object, e As EventArgs) Handles Me.Load
+        Dim f As New StreamReader("c:\test\1060308.T01")
+        Dim a, b, op, x, y As New ArrayList
+        Dim i As Integer
+        Dim dt As New DataTable
+        dt.Columns.Add("VALUE1") : dt.Columns.Add("OP") : dt.Columns.Add("VALUE2") : dt.Columns.Add("ANSWER")
+
+        While Not f.EndOfStream
+            Dim data As String() = f.ReadLine.Split(",")
+            b.Add(data(0)) : a.Add(data(1)) : op.Add(data(2)) : y.Add(data(3)) : x.Add(data(4))
+            Dim dr As DataRow = dt.NewRow
+            dr(0) = b(i) & "/" & a(i) : dr(1) = op(i) : dr(2) = y(i) & "/" & x(i) : dt.Rows.Add(dr)
+
+            Dim m1, m2, cf As Integer
+            Select Case op(i)
+                Case "+"
+                    m1 = b(i) * x(i) + a(i) * y(i) : m2 = a(i) * x(i)
+                Case "-"
+                    m1 = b(i) * x(i) - a(i) * y(i) : m2 = a(i) * x(i)
+                Case "*"
+                    m1 = b(i) * y(i) : m2 = a(i) * x(i)
+                Case "/"
+                    m1 = b(i) * x(i) : m2 = a(i) * y(i)
+            End Select
+
+            cf = 2
+            While cf <= Math.Abs(m1) And cf <= Math.Abs(m2)
+                While m1 Mod cf = 0 And m2 Mod cf = 0
+                    m1 \= cf : m2 \= cf
+                End While
+                cf += 1
+            End While
+
+            If m1 = 0 Then
+                dr(3) = 0
+            ElseIf m2 = 1 Then
+                dr(3) = m1
+            Else
+                dr(3) = m1 & "/" & m2
+            End If
+
+            i += 1
+        End While
+
+        DataGridView1.DataSource = dt
+        DataGridView1.ColumnHeadersDefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter '欄位名稱置中
+        DataGridView1.RowsDefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter '欄位內容置中
+
+    End Sub
+End Class
+
+
+

@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>術科練習 ── 程式碼朗讀</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:        #0b0f1a;
+  --bg2:       #111827;
+  --surface:   #1a2035;
+  --border:    #2a3550;
+  --accent:    #38bdf8;
+  --gold:      #fbbf24;
+  --green:     #4ade80;
+  --red:       #f87171;
+  --purple:    #c084fc;
+  --text:      #e2e8f0;
+  --muted:     #64748b;
+  --line-active:  #38bdf8;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Noto Sans TC', sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+  padding-bottom: 60px;
+}
+
+/* ═══ grid bg ═══ */
+body::before {
+  content:'';
+  position:fixed; inset:0;
+  background-image:
+    linear-gradient(rgba(56,189,248,.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(56,189,248,.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events:none;
+  z-index: -1;
+}
+
+/* ═══ HEADER ═══ */
+.page-header {
+  text-align: center;
+  padding: 40px 20px 20px;
+  position: relative;
+}
+.badge-row { display:flex; gap:8px; justify-content:center; margin-bottom:12px; flex-wrap:wrap; }
+.badge {
+  font-size:.68rem; font-weight:900; letter-spacing:.1em; text-transform:uppercase;
+  padding:4px 14px; border-radius:4px;
+}
+.badge-blue  { background:rgba(56,189,248,.15); color:var(--accent); border:1px solid rgba(56,189,248,.3); }
+.badge-gold  { background:rgba(251,191,36,.12); color:var(--gold);   border:1px solid rgba(251,191,36,.3); }
+
+/* GAME HEADER */
+.game-header { width: 100%; max-width: 1300px; margin: 0 auto 24px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: center; }
+.back-btn { background: transparent; border: 1px solid var(--border); color: var(--muted2, #94a3b8); border-radius: 6px; padding: 6px 14px; font-size: .82rem; cursor: pointer; text-decoration: none; font-family: inherit; transition: all .2s; }
+.back-btn:hover { color: var(--text); border-color: var(--muted2, #94a3b8); }
+.mode-pill { font-size: .72rem; font-weight: 900; padding: 4px 12px; border-radius: 4px; text-transform: uppercase; letter-spacing: .08em; background: rgba(167, 139, 250, .15); color: var(--purple); border: 1px solid rgba(167, 139, 250, .3); }
+
+h1 {
+  font-size: clamp(1.6rem, 5vw, 2.6rem);
+  font-weight: 900;
+  letter-spacing: -.02em;
+  line-height: 1.25;
+}
+h1 em { color:var(--accent); font-style:normal; }
+.subtitle { color:var(--muted); font-size:.95rem; margin-top:10px; line-height: 1.6; max-width: 600px; margin-left: auto; margin-right: auto;}
+
+/* ── BANNER ── */
+#info-banner {
+  background: rgba(56,189,248,.08);
+  border: 1px solid rgba(56,189,248,.3);
+  border-radius: 12px;
+  padding: 16px 24px;
+  text-align: center;
+  margin-bottom: 30px;
+  color: var(--accent);
+  font-size: .9rem;
+  line-height: 1.6;
+  max-width: 1200px;
+  margin: 0 auto 30px;
+}
+#voice-warning {
+    color: var(--gold);
+    background: rgba(251,191,36,.12);
+    padding: 12px;
+    border-radius: 8px;
+    margin-top: 10px;
+    font-size: 0.85rem;
+    display: none;
+}
+
+/* ═══ MAIN SECTION & COLUMNS ═══ */
+.main-section { 
+    padding: 0 20px; 
+    max-width: 1300px; 
+    margin: 0 auto; 
+    display: flex;
+    flex-direction: column; /* 改為上下排列 */
+    gap: 32px;
+}
+
+/* 顯示程式碼的區域 */
+.code-panel {
+    flex: 6;
+    background: var(--surface);
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    overflow: hidden;
+    position: relative;
+}
+
+.panel-header {
+    background: rgba(11, 15, 26, 0.4);
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* 程式碼內容網格化，每一行可點擊 */
+.code-lines-container {
+    padding: 16px 0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: clamp(0.9rem, 1.5vw, 1.1rem);
+    line-height: 1.5;
+    overflow-x: auto; /* 加入水平捲軸以顯示過長程式碼 */
+    padding-bottom: 24px;
+}
+
+.code-line {
+    display: flex;
+    padding: 4px 20px;
+    cursor: pointer;
+    transition: background 0.15s, border-left 0.15s;
+    border-left: 3px solid transparent;
+    position: relative; /* Tooltip 的定位基準 */
+}
+.code-line:hover {
+    background: rgba(56,189,248,.05);
+}
+.code-line.active {
+    background: rgba(56,189,248,.12);
+    border-left-color: var(--accent);
+}
+.code-line.clickable:hover {
+    background: rgba(56,189,248,.1);
+}
+
+.line-num {
+    width: 32px;
+    color: var(--muted);
+    text-align: right;
+    margin-right: 20px;
+    user-select: none;
+    opacity: 0.6;
+}
+.line-content {
+    flex: 1;
+    color: var(--text);
+    white-space: pre; /* 保留縮排 */
+}
+.line-content .comment { color: #6ee7b7; font-style: italic; }
+.line-content .keyword { color: #c084fc; font-weight: bold; }
+.line-content .string { color: #fcd34d; }
+.line-content .method { color: #60a5fa; }
+
+/* Floating Tooltip */
+.code-tooltip {
+    position: absolute;
+    right: 20px;
+    top: -30px; /* Positioned slightly above the line */
+    background: var(--bg2);
+    border: 1px solid var(--accent);
+    color: var(--text);
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-weight: 500;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5), 0 0 10px rgba(56,189,248,.3);
+    z-index: 100;
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 0.3s, transform 0.3s;
+    font-family: 'Noto Sans TC', sans-serif;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+}
+
+.code-tooltip.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.code-tooltip::after {
+    content: '';
+    position: absolute;
+    bottom: -6px;
+    right: 20px;
+    width: 10px;
+    height: 10px;
+    background: var(--bg2);
+    border-right: 1px solid var(--accent);
+    border-bottom: 1px solid var(--accent);
+    transform: rotate(45deg);
+}
+
+/* Hide the old static explain panel since we are using tooltips now */
+.explain-panel {
+    display: none !important;
+}
+
+/* Sound wave animation inside tooltip */
+.sound-waves {
+    display: none;
+    gap: 3px;
+    height: 14px;
+    align-items: center;
+}
+.code-tooltip.show .sound-waves {
+    display: flex;
+}
+.wave {
+    width: 3px;
+    background: var(--accent);
+    border-radius: 2px;
+    animation: waveAnim 1s ease-in-out infinite;
+}
+.wave:nth-child(1) { height: 6px; animation-delay: 0.0s; }
+.wave:nth-child(2) { height: 14px; animation-delay: 0.2s; }
+.wave:nth-child(3) { height: 10px; animation-delay: 0.4s; }
+.wave:nth-child(4) { height: 12px; animation-delay: 0.1s; }
+
+@keyframes waveAnim {
+    0%, 100% { transform: scaleY(0.5); }
+    50% { transform: scaleY(1); }
+}
+</style>
+<link rel="stylesheet" href="../css/common.css">
+</head>
+<body>
+
+<div class="page-header">
+  <div class="badge-row">
+    <span class="badge badge-blue">軟體設計丙級 · VB.NET</span>
+    <span class="badge badge-gold" id="topic-badge">檢定題庫</span>
+  </div>
+  <h1>程式碼<em>朗讀練習</em></h1>
+  <p class="subtitle">點擊左側有互動效果的每一行程式碼，系統將為您朗讀該段程式碼的中文涵義。<br>這有助於加強您的聽覺記憶與閱讀理解。</p>
+</div>
+
+<div class="game-header" style="justify-content: flex-start; margin-bottom: 24px;">
+  <a href="#" class="back-btn" id="btn-back">← 返回</a>
+  <div class="mode-pill lvl-easy" id="mode-pill">朗讀練習</div>
+</div>
+
+<div class="game-section">
+<div id="info-banner">
+    <div>🔈 <strong>點擊程式碼播放</strong>：初次使用可能需要稍微等待語音引擎載入。</div>
+    <div id="voice-warning">警告：您的瀏覽器似乎尚未支援中文語音合成，請使用 Chrome/Edge，且確認音響已開啟。</div>
+</div>
+
+
+
+    <!-- 來源程式碼區塊放在下方/現在是唯一可見的區塊 -->
+    <div class="code-panel">
+        <div class="panel-header">
+            <span>💻 來源程式碼</span>
+            <span>Q1() 進入點</span>
+        </div>
+        <div class="code-lines-container" id="code-container">
+            <!-- Rendered via JS -->
+        </div>
+    </div>
+
+</div>
+
+<!-- overlay -->
+<div id="overlay">
+  <div class="overlay-card">
+    <div class="big-emoji" id="result-emoji">🎉</div>
+    <h2 id="result-title">全部完成！</h2>
+    <p id="result-desc">你已完整聆聽這段程式碼的所有關鍵步驟了！</p>
+    <div class="score-display" id="final-score"></div>
+    <div style="display:flex; justify-content:center; gap:10px; margin-top:20px;">
+        <button class="btn btn-primary" id="btn-again" style="white-space: nowrap;">再聆聽一次</button>
+        <button class="btn btn-primary" id="btn-next-level" style="background: linear-gradient(90deg, #4ade80, #10b981); display:none; white-space: nowrap;">⏭️ 下一關</button>
+    </div>
+  </div>
+</div>
+
+<script src="../js/users.js"></script>
+<script type="module" src="../js/api.js?v=6"></script>
+<script src="../js/quiz_data.js"></script>
+<script>
+const urlParams = new URLSearchParams(window.location.search);
+const qID = urlParams.get('q') || 'Q1';
+const tID = urlParams.get('t') || 'T01';
+
+// 設定 UI
+window.addEventListener('load', () => {
+    if (QUIZ_DATA[qID]) {
+        let labelText = `${qID} ${QUIZ_DATA[qID].title} (${tID})`;
+        if (qID === 'SETUP') {
+             document.querySelector('h1').innerHTML = `Form1_Load 練習<br><em>程式碼朗讀</em>`;
+             labelText = 'Form1_Load (通用考生資訊)';
+        } else {
+             document.querySelector('h1').innerHTML = `${qID} ${QUIZ_DATA[qID].title}<br><em>程式碼朗讀 (${tID})</em>`;
+        }
+        document.getElementById('mode-pill').textContent = labelText;
+        if(document.getElementById('topic-badge')) document.getElementById('topic-badge').textContent = `${qID} · ${QUIZ_DATA[qID].title}`;
+    }
+});
+
+// BACK
+document.getElementById('btn-back').addEventListener('click', (e) => {
+    e.preventDefault();
+    window.location.href = `../index.html?q=${qID}&t=${tID}`;
+});
+
+// 完整考題程式碼與對應的中文涵義
+const CODE_SOURCE = generateSteps(qID, tID).map(step => ({
+    text: "        " + step.code,
+    zh: step.zh
+}));
+
+// 簡易 VB 語法高亮轉換
+function highlightCode(line) {
+    let html = line
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+        
+    // 註解
+    if (html.trim().startsWith("'")) {
+        return `<span class="comment">${html}</span>`;
+    }
+    
+    // 關鍵字
+    const keywords = ["Private", "Sub", "End", "Dim", "As", "New", "String", "For", "To", "If", "Then", "Exit", "Next"];
+    keywords.forEach(kw => {
+        const regex = new RegExp(`\\b${kw}\\b`, 'g');
+        html = html.replace(regex, `<span class="keyword">${kw}</span>`);
+    });
+    
+    // 方法/物件 (很粗淺的匹配)
+    const objects = ["StreamReader", "Length", "ReadLine", "RichTextBox1", "Text"];
+    objects.forEach(obj => {
+        const regex = new RegExp(`\\b${obj}\\b`, 'g');
+        html = html.replace(regex, `<span class="method">${obj}</span>`);
+    });
+    
+    // 字串
+    html = html.replace(/(&quot;.*?&quot;)/g, '<span class="string">$1</span>');
+    html = html.replace(/("")/g, '<span class="string">""</span>');
+    
+    return html;
+}
+
+// ══════════ Audio & Speech ══════════
+const AC = window.AudioContext || window.webkitAudioContext;
+let audioCtx = null;
+
+function getAC() {
+    if (!audioCtx) audioCtx = new AC();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    return audioCtx;
+}
+
+// Tick sound when clicked
+function playTick() {
+    try {
+        const ctx = getAC();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.type = 'sine';
+        osc.frequency.value = 800;
+        
+        const t = ctx.currentTime;
+        gain.gain.setValueAtTime(0, t);
+        gain.gain.linearRampToValueAtTime(0.15, t + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+        osc.start(t); osc.stop(t + 0.11);
+    } catch(e) {}
+}
+
+const synth = window.speechSynthesis;
+let preferredVoice = null;
+let currentActiveItem = null;
+
+function loadVoices() {
+    const voices = synth.getVoices();
+    if (voices.length === 0) return;
+    
+    preferredVoice = voices.find(v => v.lang === 'zh-TW') || 
+                     voices.find(v => v.lang.includes('zh') || v.lang.includes('cmn')) ||
+                     voices[0];
+                     
+    if (!voices.find(v => v.lang.includes('zh'))) {
+        document.getElementById('voice-warning').style.display = 'block';
+    } else {
+        document.getElementById('voice-warning').style.display = 'none';
+    }
+}
+
+if (speechSynthesis.onvoiceschanged !== undefined) {
+    speechSynthesis.onvoiceschanged = loadVoices;
+}
+loadVoices();
+
+function hideTooltip(itemEl) {
+    const tooltip = itemEl.querySelector('.code-tooltip');
+    if (tooltip) {
+        tooltip.classList.remove('show');
+        // Let animation finish before removing from DOM
+        setTimeout(() => {
+            if (tooltip.parentNode === itemEl) {
+                itemEl.removeChild(tooltip);
+            }
+        }, 300);
+    }
+}
+
+function speakText(text, itemEl) {
+    if (synth.speaking) synth.cancel();
+    
+    playTick();
+    
+    if (currentActiveItem && currentActiveItem !== itemEl) {
+        currentActiveItem.classList.remove('active');
+        hideTooltip(currentActiveItem);
+    }
+    
+    itemEl.classList.add('active');
+    currentActiveItem = itemEl;
+    
+    // Create and attach tooltip to the row
+    hideTooltip(itemEl); // clear any existing just in case
+    const tooltip = document.createElement('div');
+    tooltip.className = 'code-tooltip';
+    tooltip.innerHTML = `
+        <span>${text}</span>
+        <div class="sound-waves">
+            <div class="wave"></div><div class="wave"></div>
+            <div class="wave"></div><div class="wave"></div>
+        </div>
+    `;
+    itemEl.appendChild(tooltip);
+    
+    // trigger animation
+    requestAnimationFrame(() => {
+        tooltip.classList.add('show');
+    });
+
+    // Speak
+    const utterance = new SpeechSynthesisUtterance(text);
+    if (preferredVoice) utterance.voice = preferredVoice;
+    utterance.rate = 1.0;
+    utterance.pitch = 1.0;
+    
+    const cleanup = () => {
+        itemEl.classList.remove('active');
+        hideTooltip(itemEl);
+        if (currentActiveItem === itemEl) currentActiveItem = null;
+    };
+    
+    utterance.onend = cleanup;
+    utterance.onerror = cleanup;
+    
+    // Fallback cleanup in case TTS fails to trigger onend
+    const fallbackTimer = setTimeout(cleanup, Math.max(text.length * 300, 3000));
+    
+    utterance.onstart = () => {
+        // Clear fallback timer if TTS actually started
+        clearTimeout(fallbackTimer);
+        // Set a more accurate fallback based on text length assuming TTS is working
+        setTimeout(cleanup, Math.max(text.length * 280, 2000));
+    };
+
+    setTimeout(() => { synth.speak(utterance); }, 150);
+}
+
+// Render Code Block
+const container = document.getElementById('code-container');
+let totalClickable = 0;
+let clickedLines = new Set();
+
+CODE_SOURCE.forEach((line, index) => {
+    const row = document.createElement('div');
+    row.className = 'code-line';
+    if (line.zh) {
+        row.classList.add('clickable');
+        row.title = '點擊收聽中文朗讀';
+        totalClickable++;
+    }
+    
+    const lineNum = document.createElement('div');
+    lineNum.className = 'line-num';
+    lineNum.textContent = index + 1;
+    
+    const lineContent = document.createElement('div');
+    lineContent.className = 'line-content';
+    lineContent.innerHTML = highlightCode(line.text);
+    
+    row.appendChild(lineNum);
+    row.appendChild(lineContent);
+    
+    if (line.zh) {
+        row.addEventListener('click', () => {
+            speakText(line.zh, row);
+            if (!clickedLines.has(index)) {
+                clickedLines.add(index);
+                if (clickedLines.size === totalClickable) {
+                    setTimeout(() => {
+                        showResult();
+                    }, 1500);
+                }
+            }
+        });
+    }
+    
+    container.appendChild(row);
+});
+
+
+document.getElementById('btn-again').addEventListener('click', () => {
+    document.getElementById('overlay').classList.remove('show');
+    clickedLines.clear();
+});
+
+function showResult() {
+    let stars = 3;
+    let finalScoreSpan = document.getElementById('final-score');
+    if (finalScoreSpan) {
+        finalScoreSpan.innerHTML = `
+            <div class="star-display-container" style="margin-top: 10px; width: 100%; display: flex; flex-direction: column; align-items: center;">
+                <div style="display: flex; justify-content: center; align-items: center; gap: 12px; margin-bottom: 5px; flex-wrap: nowrap;">
+                    ${Array(3).fill(0).map((_, i) => `<span style="font-size: 2.5rem; filter: drop-shadow(0 0 12px rgba(251,191,36,0.8)); transform: scale(1.1); transition: all 0.3s ease; line-height: 1;">⭐</span>`).join('')}
+                </div>
+                <div style="font-size: 0.85rem; color: var(--green); text-align: center; margin-top: 10px; font-weight:700;">
+                    已成功點擊並聆聽所有步驟
+                </div>
+            </div>
+        `;
+    }
+
+    document.getElementById('overlay').classList.add('show');
+
+    if (typeof getCurrentUser === 'function') {
+        const user = getCurrentUser();
+        if (user && typeof window.saveScore === 'function') {
+            window.saveScore(user.className, user.name, qID + '_' + tID, "程式碼朗讀練習", 0, "PASS", stars)
+              .then(res => console.log("朗讀練習成績上傳完成:", res));
+        }
+    }
+
+    setupNextLevelButton();
+}
+
+function setupNextLevelButton() {
+    const LEVEL_SEQUENCE = [
+      { q: 'SETUP', t: 'T01' }, { q: 'Q1', t: 'T01' }, { q: 'Q1', t: 'T02' }, { q: 'Q1', t: 'T03' },
+      { q: 'Q2', t: 'T01' }, { q: 'Q2', t: 'T02' }, { q: 'Q2', t: 'T03' }, { q: 'Q3', t: 'T01' },
+      { q: 'Q3', t: 'T02' }, { q: 'Q3', t: 'T03' }, { q: 'Q4', t: 'T01' }, { q: 'Q4', t: 'T02' },
+      { q: 'Q4', t: 'T03' }, { q: 'Q5', t: 'T01' }, { q: 'Q5', t: 'T02' }, { q: 'Q5', t: 'T03' },
+      { q: '1060306', t: 'T01' }, { q: '1060307', t: 'T01' }, { q: '1060308', t: 'T01' }
+    ];
+    let currentIndex = LEVEL_SEQUENCE.findIndex(l => l.q === qID && l.t === tID);
+    const nextBtn = document.getElementById('btn-next-level');
+    if (currentIndex >= 0 && currentIndex < LEVEL_SEQUENCE.length - 1) {
+        const nextLv = LEVEL_SEQUENCE[currentIndex + 1];
+        nextBtn.style.display = 'block';
+        nextBtn.innerHTML = '⏭️ 下一關';
+        nextBtn.onclick = () => {
+            window.location.href = `程式碼朗讀練習.html?q=${nextLv.q}&t=${nextLv.t}`;
+        };
+    } else if (currentIndex === LEVEL_SEQUENCE.length - 1) {
+        nextBtn.style.display = 'block';
+        nextBtn.innerHTML = '🎯 進入第二階段 (一行程式碼對譯)';
+        nextBtn.onclick = () => {
+            window.location.href = '一行程式碼翻譯.html?q=SETUP&t=T01';
+        };
+    } else {
+        nextBtn.style.display = 'none';
+        nextBtn.onclick = null;
+    }
+}
+
+</script>
+<script src="../js/game-toolbar.js"></script>
+</body>
+</html>

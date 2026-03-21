@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>術科練習 ── 程式填空</title>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=JetBrains+Mono:wght@400;700&display=swap"
+    rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0c1220;
+      --bg2: #111827;
+      --surface: #1a2236;
+      --surface2: #212d45;
+      --border: #2e3f5c;
+      --accent: #38bdf8;
+      --accent2: #818cf8;
+      --green: #4ade80;
+      --gold: #fbbf24;
+      --red: #f87171;
+      --orange: #fb923c;
+      --text: #e2e8f0;
+      --muted: #64748b;
+      --muted2: #94a3b8;
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0
+    }
+
+    html {
+      scroll-behavior: smooth
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Noto Sans TC', sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: linear-gradient(rgba(56, 189, 248, .03) 1px, transparent 1px), linear-gradient(90deg, rgba(56, 189, 248, .03) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+    }
+
+    /* HEADER */
+    .page-header {
+      text-align: center;
+      padding: 32px 20px 20px;
+    }
+
+    .badge-row {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+
+    .badge {
+      font-size: .68rem;
+      font-weight: 900;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      padding: 3px 12px;
+      border-radius: 2px;
+    }
+
+    .badge-blue {
+      background: rgba(56, 189, 248, .15);
+      color: var(--accent);
+      border: 1px solid rgba(56, 189, 248, .3);
+    }
+
+    .badge-gold {
+      background: rgba(251, 191, 36, .12);
+      color: var(--gold);
+      border: 1px solid rgba(251, 191, 36, .3);
+    }
+
+    .badge-green {
+      background: rgba(74, 222, 128, .12);
+      color: var(--green);
+      border: 1px solid rgba(74, 222, 128, .3);
+    }
+
+    .page-header h1 {
+      font-size: clamp(1.5rem, 5vw, 2.4rem);
+      font-weight: 900;
+      letter-spacing: -.02em;
+      line-height: 1.15;
+    }
+
+    .page-header h1 em {
+      color: var(--green);
+      font-style: normal;
+    }
+
+    .page-subtitle {
+      color: var(--muted);
+      font-size: .88rem;
+      margin-top: 8px;
+    }
+
+    /* CONTENT */
+    .content {
+      padding: 20px;
+      max-width: 920px;
+      margin: 0 auto;
+    }
+
+    /* GAME AREA */
+    .game-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+    }
+
+    .back-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted2);
+      border-radius: 6px;
+      padding: 6px 14px;
+      font-size: .82rem;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all .2s;
+    }
+
+    .back-btn:hover {
+      color: var(--text);
+      border-color: var(--muted2);
+    }
+
+    .mode-pill {
+      font-size: .72rem;
+      font-weight: 900;
+      padding: 4px 12px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+    }
+
+    /* STATS */
+    .stats-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    .stat-c {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 16px;
+      text-align: center;
+      flex: 1;
+      min-width: 66px;
+    }
+
+    .stat-v {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 1.3rem;
+      font-weight: 700;
+      display: block;
+    }
+
+    .stat-l {
+      font-size: .63rem;
+      color: var(--muted);
+      margin-top: 1px;
+      display: block;
+    }
+
+    /* PROGRESS */
+    .prog-wrap {
+      background: var(--surface);
+      border-radius: 4px;
+      height: 4px;
+      margin-bottom: 18px;
+      overflow: hidden;
+    }
+
+    .prog-inner {
+      height: 100%;
+      background: var(--green);
+      transition: width .4s;
+      border-radius: 4px;
+    }
+
+    /* STATIC HINT */
+    .static-hint {
+      background: rgba(251, 191, 36, .08);
+      border: 1px solid rgba(251, 191, 36, .4);
+      border-left: 4px solid var(--gold);
+      padding: 12px 18px;
+      border-radius: 6px;
+      font-size: .88rem;
+      color: var(--gold);
+      margin-bottom: 14px;
+      line-height: 1.5;
+      display: block;
+      min-height: 48px;
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(-5px)
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0)
+      }
+    }
+
+    .static-hint strong {
+      color: #fff;
+      font-weight: 700;
+      margin-right: 6px;
+    }
+
+    /* CODE DISPLAY */
+    .code-box {
+      background: var(--bg2);
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      padding: 20px 0;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: clamp(.7rem, 1.8vw, .82rem);
+      margin-bottom: 14px;
+      overflow-x: hidden;
+    }
+
+    .c-row {
+      display: flex;
+      align-items: flex-start;
+      min-height: 36px;
+      padding: 2px 0;
+      transition: background .12s;
+    }
+
+    .c-row:hover {
+      background: rgba(255, 255, 255, .012);
+    }
+
+    .ln {
+      width: 36px;
+      min-width: 36px;
+      text-align: right;
+      padding-right: 10px;
+      color: var(--muted);
+      font-size: .68rem;
+      user-select: none;
+      flex-shrink: 0;
+      line-height: 2.2;
+    }
+
+    .c-code {
+      padding: 0 16px 0 0;
+      white-space: pre-wrap;
+      word-break: break-all;
+      flex: 1;
+      line-height: 2.2;
+    }
+
+    .kw {
+      color: #93c5fd;
+    }
+
+    .cm {
+      color: #64748b;
+      font-style: italic;
+    }
+
+    .st {
+      color: #86efac;
+    }
+
+    .nm {
+      color: var(--gold);
+    }
+
+    /* BLANK INPUTS */
+    .blank-input {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: inherit;
+      background: rgba(56, 189, 248, .06);
+      border: 1.5px dashed var(--accent);
+      border-radius: 4px;
+      color: var(--accent);
+      padding: 0 5px;
+      outline: none;
+      vertical-align: middle;
+      transition: border-color .15s, background .15s, color .15s;
+      min-width: 24px;
+    }
+
+    .blank-input::placeholder {
+      color: rgba(56, 189, 248, .35);
+    }
+
+    .blank-input:focus {
+      border-style: solid;
+      background: rgba(56, 189, 248, .12);
+      box-shadow: 0 0 0 3px rgba(56, 189, 248, .12);
+    }
+
+    .blank-input.is-correct {
+      border-color: var(--green);
+      background: rgba(74, 222, 128, .1);
+      color: var(--green);
+      border-style: solid;
+    }
+
+    .blank-input.is-wrong {
+      border-color: var(--red);
+      background: rgba(248, 113, 113, .1);
+      color: var(--red);
+      border-style: solid;
+      animation: shake .35s ease;
+    }
+
+    @keyframes shake {
+
+      0%,
+      100% {
+        transform: translateX(0)
+      }
+
+      25% {
+        transform: translateX(-4px)
+      }
+
+      75% {
+        transform: translateX(4px)
+      }
+    }
+
+    /* INFO STRIP */
+    .info-strip {
+      border-radius: 8px;
+      padding: 11px 16px;
+      font-size: .84rem;
+      line-height: 1.8;
+      margin-bottom: 14px;
+      text-align: center;
+      display: none;
+    }
+
+    .info-strip.show {
+      display: block;
+    }
+
+    .info-strip.ok {
+      background: rgba(74, 222, 128, .08);
+      border: 1px solid rgba(74, 222, 128, .3);
+      color: var(--green);
+    }
+
+    .info-strip.bad {
+      background: rgba(248, 113, 113, .06);
+      border: 1px solid rgba(248, 113, 113, .3);
+      color: var(--red);
+    }
+
+    /* BUTTONS */
+    .btn-row {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      font-family: 'Noto Sans TC', sans-serif;
+      font-weight: 700;
+      font-size: .88rem;
+      padding: 10px 26px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      transition: all .2s;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #000;
+    }
+
+    .btn-primary:hover {
+      background: #7dd3fc;
+      transform: translateY(-1px);
+    }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--muted2);
+      border: 1px solid var(--border);
+    }
+
+    .btn-ghost:hover {
+      color: var(--text);
+      border-color: var(--muted2);
+    }
+
+    .btn-gold {
+      background: var(--gold);
+      color: #000;
+    }
+
+    .btn-gold:hover {
+      background: #fcd34d;
+      transform: translateY(-1px);
+    }
+
+    /* OVERLAY */
+    #win-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(12, 18, 32, .88);
+      backdrop-filter: blur(8px);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #win-overlay.show {
+      display: flex;
+    }
+
+    .win-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 44px 52px;
+      text-align: center;
+      max-width: 420px;
+      width: 90%;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, .5);
+      animation: popIn .4s cubic-bezier(.4, 0, .2, 1);
+    }
+
+    @keyframes popIn {
+      from {
+        transform: scale(.8);
+        opacity: 0
+      }
+
+      to {
+        transform: scale(1);
+        opacity: 1
+      }
+    }
+
+    .win-emoji {
+      font-size: 3.2rem;
+      margin-bottom: 12px;
+    }
+
+    .win-card h2 {
+      font-size: 1.7rem;
+      font-weight: 900;
+      margin-bottom: 8px;
+    }
+
+    .win-card p {
+      color: var(--muted);
+      margin-bottom: 6px;
+      font-size: .9rem;
+    }
+
+    .win-score {
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--green);
+      font-size: 1rem;
+      margin: 16px 0 24px;
+      background: rgba(74, 222, 128, .08);
+      border: 1px solid rgba(74, 222, 128, .2);
+      border-radius: 6px;
+      padding: 12px;
+    }
+  </style>
+  <link rel="stylesheet" href="../css/common.css">
+</head>
+
+<body>
+
+  <div class="page-header">
+    <div class="badge-row">
+      <span class="badge badge-blue">軟體設計丙級 · VB.NET</span>
+      <span class="badge badge-gold" id="topic-badge">檢定題庫</span>
+      <span class="badge badge-green">程式填空</span>
+    </div>
+    <h1>程式填空<br><em>把空格補完，寫出完整程式</em></h1>
+    <p class="page-subtitle">選擇模式，將缺少的關鍵字或邏輯值填入程式碼中</p>
+  </div>
+
+  <div class="content">
+
+    <!-- GAME AREA -->
+    <div id="game-area">
+      <div class="game-header">
+        <button class="back-btn" id="btn-back">← 返回</button>
+        <div class="mode-pill lvl-easy" id="mode-pill"></div>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat-c"><span class="stat-v" id="sv-correct" style="color:var(--green);">0</span><span
+            class="stat-l">答對</span></div>
+        <div class="stat-c"><span class="stat-v" id="sv-total" style="color:var(--accent);">0</span><span
+            class="stat-l">總空格</span></div>
+        <div class="stat-c"><span class="stat-v" id="sv-checks" style="color:var(--gold);">0</span><span
+            class="stat-l">檢查次數</span></div>
+        <div class="stat-c"><span class="stat-v" id="sv-timer" style="color:var(--muted2);">0s</span><span
+            class="stat-l">時間</span></div>
+      </div>
+
+      <div class="prog-wrap">
+        <div class="prog-inner" id="prog-inner" style="width:0%"></div>
+      </div>
+
+      <div id="static-hint" class="static-hint"></div>
+
+      <div class="code-box" id="code-box"></div>
+
+      <div class="info-strip" id="info-strip"></div>
+
+      <div class="btn-row">
+        <button class="btn btn-primary" id="btn-check">🔍 檢查答案</button>
+        <button class="btn btn-ghost" id="btn-hint">💡 提示</button>
+        <button class="btn btn-gold" id="btn-reset">🔄 重新開始</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- WIN OVERLAY -->
+  <div id="win-overlay">
+    <div class="win-card">
+      <div class="win-emoji">🏆</div>
+      <h2>全部填對！</h2>
+      <p>你已掌握 Q1 程式的完整寫法！</p>
+      <div class="win-score" id="final-score"></div>
+      <div style="display:flex; justify-content:center; gap:10px; margin-top:20px;">
+        <button class="btn btn-primary" id="btn-again">再次挑戰</button>
+        <button class="btn btn-primary" id="btn-next-level"
+          style="background: linear-gradient(90deg, #4ade80, #10b981); display:none;">⏭️ 下一關</button>
+      </div>
+    </div>
+  </div>
+  <script src="../js/users.js"></script>
+  <script type="module" src="../js/api.js?v=6"></script>
+  <script src="../js/quiz_data.js"></script>
+
+  <script>
+    // ══════════════════════════════════════════
+    //  DYNAMIC DATA LOADING
+    // ══════════════════════════════════════════
+    const params = new URLSearchParams(window.location.search);
+    const qID = params.get('q') || 'Q1';
+    const tID = params.get('t') || 'T01';
+
+    // Convert generateSteps data to the format "text [answer|hint] more text"
+    const labelText = (qID === 'SETUP') ? 'Form1_Load (通用考生資訊)' : `${qID} ${QUIZ_DATA[qID].title} (${tID})`;
+
+    const MODES = {
+      [qID]: {
+        label: labelText,
+        pill: 'lvl-easy',
+        maxBlanks: (qID === 'SETUP') ? 8 : ((qID === 'Q1') ? 12 : 10),
+        templates: generateSteps(qID, tID).map(s => {
+          let finalCode = s.code;
+
+          if (qID === 'SETUP') {
+            const fills = ["RichTextBox1.Text", "&=", "vbCrLf", "Q1()", "Q2()", "Q3()", "Q4()", "Q5()"];
+            fills.forEach(f => {
+              const escaped = f.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+              const re = new RegExp(`(${escaped})(?![^\\[]*\\])`, 'g');
+              finalCode = finalCode.replace(re, `[${f}|📝 ${s.zh}]`);
+            });
+          } else {
+            const kws = ["Private", "Sub", "Dim", "As New", "As String", "As Integer", "For", "To", "If", "Then", "Exit For", "Exit Do", "End If", "Next", "Loop", "Do", "While", "Do While", "Loop While", "&="];
+            kws.forEach(kw => {
+              const escaped = kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+              const startB = /^\\w/.test(kw) ? '\\b' : '';
+              const endB = /\\w$/.test(kw) ? '\\b' : '';
+              const re = new RegExp(`${startB}(${escaped})${endB}(?![^\\[]*\\])`, 'g');
+              finalCode = finalCode.replace(re, `[${kw}|📝 ${s.zh}]`);
+            });
+
+            // 移除 s, i, f 等過於簡單的單一字母變數，大幅提升挑戰度與避免文字斷裂，並替換為重要的函式與屬性
+            const vals = [qID, "ans", '"not"', '""', "ReadLine()", "Length", "RichTextBox1.Text", "Application.StartupPath", "StreamReader", "StreamWriter", "vbCrLf", "+=", "-="];
+            vals.forEach(val => {
+              const escaped = val.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+              const startB = /^\\w/.test(val) ? '\\b' : '';
+              const endB = /\\w$/.test(val) ? '\\b' : '';
+              const re = new RegExp(`${startB}(${escaped})${endB}(?![^\\[]*\\])`, 'g');
+              finalCode = finalCode.replace(re, `[${val}|程式邏輯/內容]`);
+            });
+          }
+          return finalCode;
+        })
+      }
+    };
+    // Overwrite currentMode logic since we have one dynamic mode now
+    window.addEventListener('load', () => {
+      if (QUIZ_DATA[qID]) {
+        document.querySelector('h1 em').textContent = labelText;
+        startMode(qID);
+      }
+    });
+
+    // ══════ PARSER ══════
+    function parseTemplate(tpl) {
+      // segs: [{t:'txt'|'blank'|'cm', v, ans, hint}]
+      const segs = [];
+      // handle <cm>...</cm> for comment lines
+      const cmRe = /^(.*?)<cm>(.*?)<\/cm>(.*)$/;
+      const cmM = tpl.match(cmRe);
+      if (cmM) {
+        if (cmM[1]) segs.push({ t: 'txt', v: cmM[1] });
+        segs.push({ t: 'cm', v: cmM[2] });
+        if (cmM[3]) segs.push({ t: 'txt', v: cmM[3] });
+        return segs;
+      }
+      const re = /\[([^\|]+)\|([^\]]+)\]/g;
+      let last = 0, m;
+      while ((m = re.exec(tpl)) !== null) {
+        if (m.index > last) segs.push({ t: 'txt', v: tpl.slice(last, m.index) });
+        segs.push({ t: 'blank', ans: m[1], hint: m[2] });
+        last = m.index + m[0].length;
+      }
+      if (last < tpl.length) segs.push({ t: 'txt', v: tpl.slice(last) });
+      return segs;
+    }
+
+    // ══════ VB.NET highlight for text segments ══════
+    function hlText(raw) {
+      const kwds = ['Private', 'Sub', 'End', 'Dim', 'As', 'New', 'For', 'To', 'If', 'Then', 'Exit', 'Next', 'String', 'Integer'];
+      let s = raw.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      s = s.replace(/"([^"]*)"/g, (_, g) => `<span class="st">"${g}"</span>`);
+      kwds.forEach(k => { s = s.replace(new RegExp(`\\b${k}\\b`, 'g'), `<span class="kw">${k}</span>`); });
+      s = s.replace(/\b(\d+)\b/g, '<span class="nm">$1</span>');
+      return s;
+    }
+
+    // ══════ SOUND ══════
+    let _ac = null;
+    function ac() { if (!_ac) _ac = new (window.AudioContext || window.webkitAudioContext)(); return _ac; }
+    function tone(f, t, d, v, dt = 0) { try { const c = ac(), o = c.createOscillator(), g = c.createGain(); o.connect(g); g.connect(c.destination); o.type = t; o.frequency.value = f; const s = c.currentTime + dt; g.gain.setValueAtTime(v, s); g.gain.exponentialRampToValueAtTime(.001, s + d); o.start(s); o.stop(s + d); } catch (e) { } }
+    function playOk() { tone(523, 'sine', .07, .15); tone(783, 'sine', .12, .12, .08); }
+    function playWrong() { tone(220, 'sawtooth', .18, .15); tone(180, 'sawtooth', .15, .1, .1); }
+    function playWin() { [523, 659, 784, 1047].forEach((f, i) => tone(f, 'sine', .5, .2, i * .09));[1600, 1900, 2200, 2600].forEach((f, i) => tone(f, 'sine', .15, .07, .42 + i * .06)); }
+
+    // ══════ STATE ══════
+    let allBlanks = [];   // {el, ans, hint}
+    let checkCount = 0;
+    let seconds = 0;
+    let timerID = null;
+    let locked = false;
+    let lastFocusedBlank = null;
+    let totalHintsUsed = 0;
+
+    function startMode(mode) {
+      checkCount = 0; seconds = 0; locked = false; totalHintsUsed = 0;
+      allBlanks = [];
+      clearInterval(timerID);
+
+      const cfg = MODES[mode];
+      document.getElementById('win-overlay').classList.remove('show');
+
+      const pill = document.getElementById('mode-pill');
+      pill.textContent = cfg.label;
+      pill.className = 'mode-pill ' + cfg.pill;
+
+      buildCode(cfg.templates, cfg.maxBlanks);
+      updateStats();
+      clearInfo();
+      document.getElementById('prog-inner').style.width = '0%';
+
+      timerID = setInterval(() => {
+        seconds++;
+        document.getElementById('sv-timer').textContent = seconds + 's';
+      }, 1000);
+    }
+
+    // ══════ BUILD CODE ══════
+    function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1));[a[i], a[j]] = [a[j], a[i]]; } return a; }
+
+    function buildCode(templates, maxBlanks) {
+      const box = document.getElementById('code-box');
+      box.innerHTML = '';
+      allBlanks = [];
+
+      // First pass: collect all possible potential blanks
+      const potentialBlanks = [];
+      templates.forEach((tpl, lineIdx) => {
+        const rawSegs = parseTemplate(tpl);
+        rawSegs.forEach((seg, segIdx) => {
+          if (seg.t === 'blank') {
+            potentialBlanks.push({ lineIdx, segIdx, ans: seg.ans, hint: seg.hint });
+          }
+        });
+      });
+
+      // Pick random subset
+      const chosenIndices = shuffle([...Array(potentialBlanks.length).keys()]).slice(0, maxBlanks);
+      const isChosen = (l, s) => chosenIndices.some(idx => potentialBlanks[idx].lineIdx === l && potentialBlanks[idx].segIdx === s);
+
+      templates.forEach((tpl, lineIdx) => {
+        const segs = parseTemplate(tpl);
+        const row = document.createElement('div');
+        row.className = 'c-row';
+
+        const lNum = document.createElement('div');
+        lNum.className = 'ln';
+        lNum.textContent = lineIdx + 1;
+        row.appendChild(lNum);
+
+        const code = document.createElement('div');
+        code.className = 'c-code';
+
+        segs.forEach((seg, segIdx) => {
+          if (seg.t === 'cm') {
+            const s = document.createElement('span');
+            s.className = 'cm'; s.textContent = seg.v;
+            code.appendChild(s);
+          } else if (seg.t === 'txt') {
+            const s = document.createElement('span');
+            s.innerHTML = hlText(seg.v);
+            code.appendChild(s);
+          } else if (seg.t === 'blank') {
+            if (isChosen(lineIdx, segIdx)) {
+              // Render as actual input blank
+              const inp = document.createElement('input');
+              inp.type = 'text';
+              inp.className = 'blank-input';
+              inp.dataset.ans = seg.ans;
+              inp.dataset.hint = seg.hint;
+              inp.size = Math.max(seg.ans.length * 2, 4);
+              inp.placeholder = Array(seg.ans.length).fill('_').join(' ');
+              inp.autocomplete = 'off';
+              inp.spellcheck = false;
+
+              // 紀錄最後一次點擊的空格，讓提示按鈕優先顯示該格的提示
+              inp.addEventListener('focus', () => { lastFocusedBlank = { el: inp, ans: seg.ans, hint: seg.hint }; });
+              inp.addEventListener('keydown', e => {
+                if (e.key === 'Enter') { e.preventDefault(); doCheck(); }
+              });
+              inp.addEventListener('input', () => {
+                if (locked) return;
+                inp.classList.remove('is-correct', 'is-wrong');
+                if (inp.value.trim() === seg.ans) {
+                  inp.classList.add('is-correct');
+                  updateProgress();
+                }
+              });
+
+              allBlanks.push({ el: inp, ans: seg.ans, hint: seg.hint });
+              code.appendChild(inp);
+            } else {
+              // Render as plain highlighted text
+              const s = document.createElement('span');
+              s.innerHTML = hlText(seg.ans);
+              code.appendChild(s);
+            }
+          }
+        });
+
+        row.appendChild(code);
+        box.appendChild(row);
+      });
+
+      document.getElementById('sv-total').textContent = allBlanks.length;
+
+      // 自動聚焦在第一個作答格子
+      if (allBlanks.length > 0) {
+        allBlanks[0].el.focus();
+      }
+    }
+
+    function showHint(msg) {
+      const hint = document.getElementById('static-hint');
+      hint.innerHTML = `<strong>💡 提示：</strong><span>${msg}</span>`;
+    }
+    function resetHint() {
+      const hint = document.getElementById('static-hint');
+      hint.innerHTML = `<strong>💡 提示：</strong><span style="color:var(--muted2)">（請先點選作答空格，再點擊「💡 提示」按鈕）</span>`;
+      lastFocusedBlank = null;
+    }
+
+    // ══════ CHECK ══════
+    function doCheck() {
+      if (locked) return;
+      checkCount++;
+      document.getElementById('sv-checks').textContent = checkCount;
+
+      let correct = 0;
+      const toHalf = (s) => s.replace(/[\uff01-\uff5e]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xfee0)).replace(/\u3000/g, ' ').trim();
+      allBlanks.forEach(b => {
+        b.el.classList.remove('is-correct', 'is-wrong');
+        const ok = toHalf(b.el.value) === toHalf(b.ans);
+        b.el.classList.add(ok ? 'is-correct' : 'is-wrong');
+        if (ok) correct++;
+      });
+
+      document.getElementById('sv-correct').textContent = correct;
+      updateProgress();
+
+      const total = allBlanks.length;
+      const strip = document.getElementById('info-strip');
+
+      if (correct === total) {
+        locked = true;
+        allBlanks.forEach(b => b.el.disabled = true);
+        strip.className = 'info-strip show ok';
+        strip.textContent = `🎉 全部 ${total} 格填對！`;
+        playWin();
+        clearInterval(timerID);
+        setTimeout(showWin, 900);
+      } else {
+        strip.className = 'info-strip show bad';
+        strip.textContent = `✅ ${correct} / ${total} 正確　❌ ${total - correct} 格有誤，請修改紅色空格！`;
+        if (correct >= total / 2) playOk(); else playWrong();
+      }
+    }
+
+    function updateProgress() {
+      const toHalf = (s) => s.replace(/[\uff01-\uff5e]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xfee0)).replace(/\u3000/g, ' ').trim();
+      const correct = allBlanks.filter(b => toHalf(b.el.value) === toHalf(b.ans)).length;
+      document.getElementById('sv-correct').textContent = correct;
+      document.getElementById('prog-inner').style.width = (correct / allBlanks.length * 100).toFixed(1) + '%';
+    }
+
+    function updateStats() {
+      document.getElementById('sv-correct').textContent = '0';
+      document.getElementById('sv-checks').textContent = '0';
+      document.getElementById('sv-timer').textContent = '0s';
+    }
+
+    function clearInfo() {
+      const s = document.getElementById('info-strip');
+      s.className = 'info-strip'; s.style.display = 'none';
+      if (typeof resetHint === 'function') resetHint();
+    }
+
+    // ══════ HINT ══════
+    document.getElementById('btn-hint').addEventListener('click', () => {
+      if (locked) return;
+
+      let targetBlank = null;
+      // 如果使用者剛剛有點擊某個空格，且該空格尚未填對，則優先給予該格提示
+      if (lastFocusedBlank && lastFocusedBlank.el.value.trim() !== lastFocusedBlank.ans) {
+        targetBlank = lastFocusedBlank;
+      } else {
+        // 否則尋找第一個還沒填對的空格
+        targetBlank = allBlanks.find(b => b.el.value.trim() !== b.ans);
+      }
+
+      if (!targetBlank) return;
+      totalHintsUsed++;
+      showHint(targetBlank.hint);
+      // additional hint logic: first char and length
+      const hint = document.getElementById('static-hint');
+      hint.innerHTML += `<br><span style="font-size:0.8rem;color:var(--muted2);margin-left: 26px;">首字母「${targetBlank.ans[0]}」，共 ${targetBlank.ans.length} 字</span>`;
+      targetBlank.el.focus();
+      targetBlank.el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+
+    // ══════ CHECK BUTTON ══════
+    document.getElementById('btn-check').addEventListener('click', doCheck);
+
+    // ══════ RESET ══════
+    function doReset() {
+      document.getElementById('win-overlay').classList.remove('show');
+      const cfg = MODES[qID];
+      checkCount = 0; seconds = 0; locked = false; totalHintsUsed = 0;
+      clearInterval(timerID);
+
+      // 重新建立代碼區以達成隨機變換挖空位置
+      buildCode(cfg.templates, cfg.maxBlanks);
+
+      updateStats();
+      clearInfo();
+      document.getElementById('prog-inner').style.width = '0%';
+
+      timerID = setInterval(() => {
+        seconds++;
+        document.getElementById('sv-timer').textContent = seconds + 's';
+      }, 1000);
+    }
+
+    document.getElementById('btn-reset').addEventListener('click', doReset);
+    document.getElementById('btn-again').addEventListener('click', doReset);
+
+    // ══════ BACK ══════
+    document.getElementById('btn-back').addEventListener('click', () => {
+      window.location.href = `../index.html?q=${qID}&t=${tID}`;
+    });
+
+    // ══════ WIN ══════
+    function showWin() {
+      const pct = Math.min(Math.round(100 / checkCount), 100);
+      document.getElementById('final-score').innerHTML =
+        `⏱ 用時 ${seconds} 秒　　🔍 檢查 ${checkCount} 次<br>🎯 效率分 ${pct}%`;
+      document.getElementById('win-overlay').classList.add('show');
+
+      let stars = 3;
+      if (typeof totalHintsUsed !== 'undefined') {
+        if (totalHintsUsed > 0 && totalHintsUsed <= 3) stars = 2;
+        if (totalHintsUsed > 3) stars = 1;
+      }
+      if (pct < 60) stars = 1;
+
+      let finalScoreSpan = document.getElementById('final-score');
+      if (finalScoreSpan) {
+        finalScoreSpan.style.width = "calc(100% + 40px)";
+        finalScoreSpan.style.marginLeft = "-20px";
+        finalScoreSpan.style.padding = "20px 10px 25px 10px";
+        finalScoreSpan.style.boxSizing = "border-box";
+        const hintsCount = typeof totalHintsUsed !== 'undefined' ? totalHintsUsed : 0;
+        let originHtml = finalScoreSpan.innerHTML;
+
+        // 移除舊版的星星 UI
+        originHtml = originHtml.replace(/<div class="star-display-container"([\s\S]*?)<\/div>\s*<\/div>/g, '');
+        originHtml = originHtml.replace(/<br>⭐ 提示.*顆/g, '');
+
+        // 修正折行問題，將各個統計項目包裝在 nowrap 中
+        originHtml = originHtml.replace(/(⏱ 用時.*?秒)/g, '<span style="white-space:nowrap;">$1</span>');
+        originHtml = originHtml.replace(/(🔍 檢查.*?次)/g, '<span style="white-space:nowrap;">$1</span>');
+        originHtml = originHtml.replace(/(🎯 效率分.*?%)/g, '<span style="white-space:nowrap;">$1</span>');
+        originHtml = originHtml.replace(/　　/g, ' &nbsp;&nbsp; ');
+
+        finalScoreSpan.innerHTML = originHtml + `
+            <div class="star-display-container" style="margin-top: 20px; width: 100%; display: flex; flex-direction: column; align-items: center;">
+                <div style="display: flex; justify-content: center; align-items: center; gap: 12px; margin-bottom: 5px; flex-wrap: nowrap;">
+                    ${Array(3).fill(0).map((_, i) => `<span style="font-size: 2.5rem; filter: ${i < stars ? 'drop-shadow(0 0 12px rgba(251,191,36,0.8))' : 'grayscale(100%) opacity(20%)'}; transform: scale(${i < stars ? 1.1 : 1}); transition: all 0.3s ease; line-height: 1;">⭐</span>`).join('')}
+                </div>
+                <div style="font-size: 0.85rem; color: #94a3b8; text-align: center; margin-top: 10px;">
+                    ( 使用提示：${hintsCount} 次 )
+                </div>
+            </div>
+        `;
+      }
+
+      // 將成績送往雲端 (若已登入且及格)
+      if (typeof getCurrentUser === 'function') {
+        const user = getCurrentUser();
+        if (user && pct >= 60 && typeof window.saveScore === 'function') {
+          window.saveScore(user.className, user.name, qID + '_' + tID, "程式填空", seconds, "PASS", stars)
+            .then(res => console.log("成績上傳完成:", res));
+        }
+      }
+    }
+  </script>
+  <script src="../js/game-toolbar.js"></script>
+  <script src="../js/nextlevel.js"></script>
+</body>
+
+</html>

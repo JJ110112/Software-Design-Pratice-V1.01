@@ -1,0 +1,148 @@
+T03
+
+
+
+
+'姓名：吳烱賢　　術科測試編號：12345678
+'座號：９９　　　日期：2026/05/18
+
+Imports System.IO
+
+Public Class Form1
+    Private Sub Form1_Load(sender As Object, e As EventArgs) Handles MyBase.Load
+        RichTextBox1.Text &= "姓名：吳烱賢　　術科測試編號：12345678" + vbCrLf        '結果標題第一行
+        RichTextBox1.Text &= "座號：９９　　　日期：2026/05/18" + vbCrLf        '結果標題第二行   
+
+        Q1()
+        Q2()
+        Q3()
+        Q4()
+        Q5()
+    End Sub
+
+    '*******************************
+    '* 11900-1060301 Program Start *
+    '*******************************
+    Private Sub Q1()
+        Dim f As New StreamReader("c:\test\1060301.T03")
+        Dim s As String = f.ReadLine()
+
+        Dim ans As String = ""
+        Dim i As Integer = 0
+        Do
+            If s(i) <> s(s.Length - i - 1) Then
+                ans = "not"
+                Exit Do
+            End If
+            i += 1
+        Loop While i <= s.Length \ 2 - 1
+
+        RichTextBox1.Text &= "第一題結果：" & s & " is " & ans & " a palindrome." & vbCrLf
+    End Sub
+
+
+    '*******************************
+    '* 11900-1060302 Program Start *
+    '*******************************
+    Private Sub Q2()
+        Dim f As New StreamReader("c:\test\1060302.T03")
+        Dim n As Integer = f.ReadLine()
+
+        RichTextBox1.Text &= "第二題結果：" & vbCrLf
+        Dim i As Integer = 1
+        Do
+            Dim j As Integer = 1
+            Do
+                RichTextBox1.Text &= j
+                j += 1
+            Loop While j <= i
+            RichTextBox1.Text &= vbCrLf
+            i += 1
+        Loop While i <= n
+    End Sub
+
+    '*******************************
+    '* 11900-1060303 Program Start *
+    '*******************************
+    Private Sub Q3()
+        Dim f As New StreamReader("c:\test\1060303.T03")
+        Dim n As Integer = f.ReadLine()
+
+        Dim ans As String = ""
+        Dim i As Integer = 2
+        Do
+            If n Mod i = 0 Then
+                ans = "not"
+                Exit Do
+            End If
+            i += 1
+        Loop While i <= n - 1
+
+        RichTextBox1.Text &= "第三題結果：" & n & " is " & ans & " a prime number." & vbCrLf
+    End Sub
+
+
+
+    '*******************************
+    '* 11900-1060304 Program Start *
+    '*******************************
+    Private Sub Q4()
+        Dim f As New StreamReader("c:\test\1060304.T03")
+        Dim min As Integer = 99
+        Dim i As Integer = 1
+        Do
+            Dim data As String() = f.ReadLine().Split(",")
+            Dim bmi As Integer = data(1) / (data(0) / 100) ^ 2
+            If bmi < min Then min = bmi
+            i += 1
+        Loop While i <= 3
+
+        Dim ans As String = "不正常"
+        If min >= 20 And min <= 25 Then ans = "正常"
+        RichTextBox1.Text &= "第四題結果：最小 BMI 值=" & min & "，" & ans & vbCrLf
+
+    End Sub
+
+
+
+    '*******************************
+    '* 11900-1060305 Program Start *
+    '*******************************
+    Private Sub Q5()
+        Dim f As New StreamReader("c:\test\1060305.T03")
+        Dim a(2, 2), b(2, 2), c(2, 2) As Integer
+        Dim data As String()
+        data = f.ReadLine().Split(",") : a(1, 1) = data(0) : a(1, 2) = data(1)
+        data = f.ReadLine().Split(",") : a(2, 1) = data(0) : a(2, 2) = data(1)
+        data = f.ReadLine().Split(",") : b(1, 1) = data(0) : b(1, 2) = data(1)
+        data = f.ReadLine().Split(",") : b(2, 1) = data(0) : b(2, 2) = data(1)
+
+        Dim i As Integer = 1
+        Do
+            Dim j As Integer = 1
+            Do
+                c(i, j) = a(i, j) + b(i, j)
+                j += 1
+            Loop While j <= 2
+            i += 1
+        Loop While i <= 2
+
+        RichTextBox1.Text &= "第五題結果：" & vbCrLf
+        RichTextBox1.Text &= "[" & c(1, 1) & "   " & c(1, 2) & "]" & vbCrLf
+        RichTextBox1.Text &= "[" & c(2, 1) & "   " & c(2, 2) & "]" & vbCrLf
+
+    End Sub
+
+ Private Sub Button1_Click(sender As Object, e As EventArgs) Handles Button1.Click
+        PrintDocument1.Print()
+    End Sub
+
+    Private Sub PrintDocument1_PrintPage(sender As Object, e As PrintPageEventArgs) Handles PrintDocument1.PrintPage
+        e.Graphics.DrawString(RichTextBox1.Text, Font, Brushes.Black, 100, 100)
+    End Sub
+
+End Class
+
+
+
+

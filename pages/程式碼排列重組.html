@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>術科練習 ── 程式碼排列重組</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:       #0b0f1a;
+  --bg2:      #111827;
+  --surface:  #1a2035;
+  --border:   #2a3550;
+  --accent:   #38bdf8;
+  --gold:     #fbbf24;
+  --green:    #4ade80;
+  --red:      #f87171;
+  --purple:   #c084fc;
+  --text:     #e2e8f0;
+  --muted:    #64748b;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Noto Sans TC', sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* grid bg */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image:
+    linear-gradient(rgba(56,189,248,.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(56,189,248,.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+}
+
+/* ═══ HEADER ═══ */
+.page-header { text-align: center; padding: 32px 20px 20px; }
+.badge-row { display: flex; gap: 8px; justify-content: center; margin-bottom: 10px; flex-wrap: wrap; }
+.badge {
+  font-size: .68rem; font-weight: 900; letter-spacing: .1em; text-transform: uppercase;
+  padding: 3px 12px; border-radius: 2px;
+}
+.badge-blue   { background: rgba(56,189,248,.15); color: var(--accent);  border: 1px solid rgba(56,189,248,.3); }
+.badge-gold   { background: rgba(251,191,36,.12);  color: var(--gold);   border: 1px solid rgba(251,191,36,.3); }
+.badge-purple { background: rgba(192,132,252,.12); color: var(--purple); border: 1px solid rgba(192,132,252,.3); }
+
+/* GAME HEADER */
+.game-header { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; flex-wrap: wrap; justify-content: center; }
+.back-btn { background: transparent; border: 1px solid var(--border); color: var(--muted2, #94a3b8); border-radius: 6px; padding: 6px 14px; font-size: .82rem; cursor: pointer; text-decoration: none; font-family: inherit; transition: all .2s; }
+.back-btn:hover { color: var(--text); border-color: var(--muted2, #94a3b8); }
+.mode-pill { font-size: .72rem; font-weight: 900; padding: 4px 12px; border-radius: 4px; text-transform: uppercase; letter-spacing: .08em; background: rgba(192, 132, 252, .15); color: var(--purple); border: 1px solid rgba(192, 132, 252, .3); }
+
+.game-section { padding: 0 12px 60px; max-width: 900px; margin: 0 auto; }
+
+.section-label {
+  display: flex; align-items: center; gap: 10px;
+  font-size: .75rem; font-weight: 700; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--muted);
+  padding: 0 20px; margin-bottom: 16px;
+}
+.section-label::before, .section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+/* stats */
+.stats-bar { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; margin-bottom: 20px; }
+.stat-chip {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 6px; padding: 8px 18px; text-align: center; min-width: 80px;
+}
+.stat-val { font-family: 'JetBrains Mono', monospace; font-size: 1.3rem; font-weight: 700; color: var(--accent); display: block; }
+.stat-lbl { font-size: .65rem; color: var(--muted); margin-top: 1px; display: block; }
+
+/* ── instruction ── */
+.instr { text-align: center; font-size: .82rem; color: var(--muted); margin-bottom: 18px; line-height: 1.7; }
+.instr strong { color: var(--accent); }
+
+/* ── PREVIEW BANNER ── */
+#preview-banner {
+  background: rgba(192,132,252,.08);
+  border: 1px solid rgba(192,132,252,.3);
+  border-radius: 10px; padding: 14px 22px;
+  color: var(--purple); font-size: .88rem; line-height: 1.6;
+  text-align: center; margin-bottom: 20px;
+}
+#preview-banner strong { font-size: 1rem; display: block; margin-bottom: 4px; }
+#preview-banner.hidden { display: none; }
+
+/* ══════════════════════════════
+   TWO-COLUMN LAYOUT  (Preview)
+   ══════════════════════════════ */
+.preview-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 10px;
+}
+@media(max-width:640px){ .preview-grid { grid-template-columns: 1fr; } }
+
+.preview-col-label {
+  font-size: .7rem; font-weight: 700; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--muted); margin-bottom: 8px; text-align: center;
+}
+
+.preview-grid > div {
+  min-width: 0;
+}
+
+/* ── CODE AREA (shared) ── */
+.code-block {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: clamp(.73rem, 2vw, .9rem);
+  overflow-x: auto;
+}
+.code-row {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 0;
+  transition: background .15s;
+}
+.line-no {
+  width: 36px; min-width: 36px;
+  text-align: right;
+  color: var(--muted);
+  font-size: .7rem;
+  padding-right: 10px;
+  user-select: none;
+  flex-shrink: 0;
+  position: sticky;
+  left: 0;
+  background: var(--bg);
+  z-index: 10;
+}
+.line-code {
+  flex: 1;
+  white-space: pre;
+  padding: 5px 14px 5px 0;
+  color: var(--text);
+}
+
+/* VB.NET syntax tinting */
+.kw  { color: #93c5fd; } /* keywords */
+.cm  { color: #64748b; font-style: italic; } /* comments */
+.st  { color: #86efac; } /* strings */
+.fn  { color: var(--accent); } /* function/sub names */
+.nm  { color: var(--gold); } /* numbers */
+.op  { color: var(--purple); } /* operators */
+
+/* ══════════════════════════════
+   DRAG-DROP ZONE
+   ══════════════════════════════ */
+#sort-zone {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 0;
+  min-height: 120px;
+  position: relative;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: clamp(.73rem, 2vw, .9rem);
+  overflow-x: auto;
+}
+#sort-zone.drag-over {
+  border-color: var(--accent);
+  background: rgba(56,189,248,.03);
+}
+
+.drag-item {
+  display: flex;
+  align-items: center;
+  padding: 1px 0;
+  cursor: grab;
+  border: 1.5px solid transparent;
+  border-radius: 6px;
+  margin: 2px 6px;
+  transition: background .12s, border-color .12s, transform .15s;
+  user-select: none;
+  position: relative;
+}
+.drag-item:active { cursor: grabbing; }
+.drag-handle {
+  width: 28px; min-width: 28px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--border);
+  font-size: .75rem;
+  transition: color .15s;
+  flex-shrink: 0;
+  position: sticky;
+  left: 0;
+  background: transparent;
+  z-index: 10;
+}
+.drag-item:hover .drag-handle { color: var(--muted); }
+.drag-item:hover:not(.state-correct):not(.state-wrong) {
+  background: rgba(56,189,248,.06);
+  border-color: rgba(56,189,248,.25);
+}
+.drag-item.dragging {
+  opacity: .45;
+  transform: scale(.98);
+}
+.drag-item.drag-over-top    { border-top-color: var(--accent); background: rgba(56,189,248,.06); }
+.drag-item.drag-over-bottom { border-bottom-color: var(--accent); background: rgba(56,189,248,.06); }
+
+/* result states */
+.drag-item.state-correct {
+  background: rgba(74,222,128,.09);
+  border-color: rgba(74,222,128,.35);
+}
+.drag-item.state-wrong {
+  background: rgba(248,113,113,.09);
+  border-color: rgba(248,113,113,.35);
+  animation: wrongShake .35s ease;
+}
+@keyframes wrongShake {
+  0%,100%{transform:translateX(0)} 25%{transform:translateX(-5px)} 75%{transform:translateX(5px)}
+}
+.state-icon {
+  width: 20px; min-width: 20px;
+  font-size: .75rem; text-align: center;
+  display: none;
+}
+.drag-item.state-correct .state-icon { display: inline; color: var(--green); }
+.drag-item.state-wrong   .state-icon { display: inline; color: var(--red); }
+
+/* drop placeholder */
+.drop-placeholder {
+  height: 38px;
+  margin: 2px 6px;
+  border: 2px dashed rgba(56,189,248,.35);
+  border-radius: 6px;
+  background: rgba(56,189,248,.04);
+  pointer-events: none;
+}
+
+/* ── buttons ── */
+.btn-row { display: flex; gap: 12px; justify-content: center; margin-top: 20px; flex-wrap: wrap; }
+.btn {
+  font-family: 'Noto Sans TC', sans-serif; font-weight: 700; font-size: .88rem;
+  padding: 10px 28px; border-radius: 6px; border: none; cursor: pointer; transition: all .2s;
+}
+.btn-primary { background: var(--accent); color: #000; }
+.btn-primary:hover { background: #7dd3fc; transform: translateY(-2px); }
+.btn-ghost   { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+.btn-ghost:hover { color: var(--text); border-color: var(--muted); }
+.btn-gold    { background: var(--gold); color: #000; }
+.btn-gold:hover { background: #fcd34d; transform: translateY(-2px); }
+.btn-purple  { background: var(--purple); color: #000; }
+.btn-purple:hover { background: #d8b4fe; transform: translateY(-2px); }
+
+/* result summary strip */
+#result-strip {
+  display: none;
+  border-radius: 8px; padding: 14px 18px;
+  font-size: .86rem; line-height: 1.8;
+  margin-top: 16px; text-align: center;
+}
+#result-strip.show { display: block; }
+#result-strip.all-correct {
+  background: rgba(74,222,128,.08); border: 1px solid rgba(74,222,128,.3); color: var(--green);
+}
+#result-strip.partial {
+  background: rgba(248,113,113,.06); border: 1px solid rgba(248,113,113,.3); color: var(--red);
+}
+
+/* ═══ OVERLAY ═══ */
+#overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(11,15,26,.88); backdrop-filter: blur(6px);
+  z-index: 100; align-items: center; justify-content: center;
+}
+#overlay.show { display: flex; }
+.overlay-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 14px; padding: 44px 52px; text-align: center;
+  max-width: 420px; width: 90%;
+  box-shadow: 0 20px 60px rgba(0,0,0,.5);
+  animation: popIn .4s cubic-bezier(.4,0,.2,1);
+}
+@keyframes popIn { from{transform:scale(.8);opacity:0} to{transform:scale(1);opacity:1} }
+.overlay-card .big-emoji { font-size: 3.2rem; margin-bottom: 12px; }
+.overlay-card h2 { font-size: 1.7rem; font-weight: 900; margin-bottom: 8px; }
+.overlay-card p  { color: var(--muted); margin-bottom: 6px; font-size: .9rem; }
+.score-display {
+  font-family: 'JetBrains Mono', monospace; color: var(--green);
+  font-size: 1rem; margin: 16px 0 24px;
+  background: rgba(74,222,128,.08); border: 1px solid rgba(74,222,128,.2);
+  border-radius: 6px; padding: 12px;
+}
+</style>
+<link rel="stylesheet" href="../css/common.css">
+</head>
+<body>
+
+<!-- ═══ HEADER ═══ -->
+<div class="page-header">
+  <div class="badge-row">
+    <span class="badge badge-blue">軟體設計丙級 · VB.NET</span>
+    <span class="badge badge-gold" id="topic-badge">檢定題庫</span>
+  </div>
+  <h1>程式碼<em>排列重組</em></h1>
+  <p class="subtitle">打散的程式碼！請透過拖拉順序（Drag & Drop）或點擊上下按鈕將它們排回正確的順序。</p>
+</div>
+
+<!-- ═══ MAIN LAYOUT ═══ -->
+<div class="game-section">
+  <div class="game-header" style="justify-content: flex-start; margin-bottom: 24px;">
+    <a href="#" class="back-btn" id="btn-back">← 返回</a>
+    <div class="mode-pill lvl-easy" id="mode-pill">排列重組</div>
+  </div>
+
+  <div class="section-label">程式碼排列重組遊戲區</div>
+
+  <!-- stats -->
+  <div class="stats-bar" id="stats-bar" style="display:none;">
+    <div class="stat-chip"><span class="stat-val" id="stat-correct">0</span><span class="stat-lbl">正確位置</span></div>
+    <div class="stat-chip"><span class="stat-val" id="stat-total">0</span><span class="stat-lbl">總行數</span></div>
+    <div class="stat-chip"><span class="stat-val" id="stat-checks">0</span><span class="stat-lbl">檢查次數</span></div>
+    <div class="stat-chip"><span class="stat-val" id="stat-timer">0s</span><span class="stat-lbl">時間</span></div>
+  </div>
+
+  <!-- PREVIEW banner -->
+  <div id="preview-banner">
+    <strong>📖 預覽完整程式</strong>
+    先熟悉 Q1 迴文判斷完整程式的結構，準備好後按「開始遊戲」，行的順序將會打亂！
+  </div>
+
+  <!-- PREVIEW: two column -->
+  <div id="preview-section">
+    <div class="preview-grid">
+      <div>
+        <div class="preview-col-label">🖥️ 完整程式碼（正確順序）</div>
+        <div class="code-block" id="preview-code"></div>
+      </div>
+      <div>
+        <div class="preview-col-label">📖 每行中文說明</div>
+        <div class="code-block" id="preview-zh"></div>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-gold" id="btn-start">▶ 開始遊戲</button>
+    </div>
+  </div>
+
+  <!-- GAME section -->
+  <div id="game-section" style="display:none;">
+    <p class="instr">
+      <strong>拖拉</strong>每一行到正確位置 &nbsp;→&nbsp; 按「<strong>檢查順序</strong>」確認答案<br>
+      <span style="font-size:.76rem;">（綠色 ✅ = 位置正確，紅色 ❌ = 位置錯誤，繼續調整再試！）</span>
+    </p>
+
+    <div id="sort-zone"></div>
+
+    <div id="result-strip"></div>
+
+    <div class="btn-row">
+      <button class="btn btn-primary" id="btn-check">🔍 檢查順序</button>
+      <button class="btn btn-ghost"   id="btn-hint">💡 提示</button>
+      <button class="btn btn-ghost"   id="btn-restart">🔄 重新開始</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ OVERLAY ═══ -->
+<div id="overlay">
+  <div class="overlay-card">
+    <div class="big-emoji">🎉</div>
+    <h2>排列完成！</h2>
+    <p>你已完全掌握 Q1 迴文判斷的程式結構！</p>
+    <div class="score-display" id="final-score"></div>
+    <div style="display:flex; justify-content:center; gap:10px; margin-top:20px;">
+        <button class="btn btn-primary" id="btn-again">再次挑戰</button>
+        <button class="btn btn-primary" id="btn-next-level" style="background: linear-gradient(90deg, #4ade80, #10b981); display:none;">⏭️ 下一關</button>
+    </div>
+  </div>
+</div>
+
+<script src="../js/users.js"></script>
+<script type="module" src="../js/api.js?v=6"></script>
+<script src="../js/quiz_data.js"></script>
+<script>
+const urlParams = new URLSearchParams(window.location.search);
+const qID = urlParams.get('q') || 'Q1';
+const tID = urlParams.get('t') || 'T01';
+
+// 設定 UI
+window.addEventListener('load', () => {
+    if (QUIZ_DATA[qID]) {
+        let labelText = `${qID} ${QUIZ_DATA[qID].title} (${tID})`;
+        if (qID === 'SETUP') {
+             document.querySelector('h1').innerHTML = `Form1_Load 練習<br><em>排列重組</em>`;
+             labelText = 'Form1_Load (通用考生資訊)';
+        } else {
+             document.querySelector('h1').innerHTML = `${qID} ${QUIZ_DATA[qID].title}<br><em>排列重組 (${tID})</em>`;
+        }
+        document.getElementById('mode-pill').textContent = labelText;
+        if(document.getElementById('topic-badge')) document.getElementById('topic-badge').textContent = `${qID} · ${QUIZ_DATA[qID].title}`;
+    }
+});
+
+// BACK
+document.getElementById('btn-back').addEventListener('click', (e) => {
+    e.preventDefault();
+    window.location.href = `../index.html?q=${qID}&t=${tID}`;
+});
+
+// ══════════════════════════════════════
+//  完整 Q1 程式行 + 每行中文說明 (動態生成且包含自動縮排)
+// ══════════════════════════════════════
+let currentIndent = 4;
+const LINES = generateSteps(qID, tID).map(step => {
+    let raw = step.code.trim();
+    
+    if (raw.startsWith("End ") || raw.startsWith("Next") || raw.startsWith("Loop")) {
+        currentIndent = Math.max(0, currentIndent - 4);
+    } else if (raw.startsWith("Else")) {
+        currentIndent = Math.max(0, currentIndent - 4);
+    }
+    
+    const obj = {
+        code: " ".repeat(currentIndent) + raw,
+        indent: currentIndent,
+        zh: step.zh
+    };
+    
+    if (raw.startsWith("Private Sub") || raw.startsWith("For ") || raw.startsWith("If ") || raw.startsWith("Do")) {
+        currentIndent += 4;
+    } else if (raw.startsWith("Else")) {
+        currentIndent += 4;
+    }
+    
+    return obj;
+});
+
+// ══════════ SOUND ══════════
+const AC = window.AudioContext || window.webkitAudioContext;
+let audioCtx = null;
+function getAC() { if (!audioCtx) audioCtx = new AC(); return audioCtx; }
+
+function playCorrect() {
+  try {
+    const ctx = getAC();
+    [[523.25, 0], [783.99, 0.13]].forEach(([freq, when]) => {
+      const osc = ctx.createOscillator(), gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.type = 'sine'; osc.frequency.value = freq;
+      const t = ctx.currentTime + when;
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(0.28, t + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.32);
+      osc.start(t); osc.stop(t + 0.33);
+    });
+  } catch(e) {}
+}
+function playWrong() {
+  try {
+    const ctx = getAC();
+    [[220, 0], [180, 0.1]].forEach(([freq, when]) => {
+      const osc = ctx.createOscillator(), gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.type = 'sawtooth'; osc.frequency.value = freq;
+      const t = ctx.currentTime + when;
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(0.18, t + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+      osc.start(t); osc.stop(t + 0.23);
+    });
+  } catch(e) {}
+}
+function playWin() {
+  try {
+    const ctx = getAC();
+    [[523.25,0],[659.25,0.15],[783.99,0.30],[1046.50,0.45]].forEach(([freq, when]) => {
+      const osc = ctx.createOscillator(), gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.type = 'sine'; osc.frequency.value = freq;
+      const t = ctx.currentTime + when;
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(0.30, t + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.45);
+      osc.start(t); osc.stop(t + 0.46);
+    });
+    const shimmer = ctx.createOscillator(), sGain = ctx.createGain();
+    shimmer.connect(sGain); sGain.connect(ctx.destination);
+    shimmer.type = 'sine'; shimmer.frequency.value = 2093;
+    const st = ctx.currentTime + 0.70;
+    sGain.gain.setValueAtTime(0, st);
+    sGain.gain.linearRampToValueAtTime(0.15, st + 0.02);
+    sGain.gain.exponentialRampToValueAtTime(0.001, st + 0.6);
+    shimmer.start(st); shimmer.stop(st + 0.61);
+  } catch(e) {}
+}
+
+// ══════════ state ══════════
+let order       = [];   // current indices into LINES
+let checkCount  = 0;
+let seconds     = 0;
+let timerID     = null;
+let dragSrcIdx  = null; // index in order[] of dragged item
+
+// ══════════ shuffle ══════════
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+// ══════════ VB.NET syntax highlight ══════════
+function highlightVB(raw) {
+  const kwds = ['Private','Sub','End','Dim','As','New','For','To','If','Then','Exit','Next','String','Integer'];
+  let s = raw
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  // comments
+  s = s.replace(/(&#39;.*|'.*)/g, m => `<span class="cm">${m}</span>`);
+  if (!s.includes('class="cm"')) {
+    // strings
+    s = s.replace(/"([^"]*)"/g, (_,g) => `<span class="st">"${g}"</span>`);
+    // keywords
+    kwds.forEach(k => {
+      s = s.replace(new RegExp(`\\b${k}\\b`, 'g'), `<span class="kw">${k}</span>`);
+    });
+    // numbers
+    s = s.replace(/\b(\d+)\b/g, '<span class="nm">$1</span>');
+  }
+  return s;
+}
+
+// ══════════ PREVIEW ══════════
+function buildPreview() {
+  const codeEl = document.getElementById('preview-code');
+  const zhEl   = document.getElementById('preview-zh');
+  codeEl.innerHTML = '';
+  zhEl.innerHTML   = '';
+
+  LINES.forEach((ln, i) => {
+    // code col
+    const row = document.createElement('div');
+    row.className = 'code-row';
+    row.innerHTML = `<span class="line-no">${i + 1}</span><span class="line-code">${highlightVB(ln.code)}</span>`;
+    codeEl.appendChild(row);
+
+    // zh col
+    const zrow = document.createElement('div');
+    zrow.className = 'code-row';
+    zrow.innerHTML = `<span class="line-no" style="color:transparent;">${i+1}</span><span class="line-code" style="color:var(--muted);font-family:'Noto Sans TC',sans-serif;font-size:.8rem;white-space:pre-wrap;word-break:break-all;">${ln.zh}</span>`;
+    zhEl.appendChild(zrow);
+  });
+
+  // Sync heights after rendering
+  setTimeout(() => {
+    const rows1 = codeEl.children;
+    const rows2 = zhEl.children;
+    for (let i = 0; i < rows1.length; i++) {
+        const h1 = rows1[i].offsetHeight;
+        const h2 = rows2[i].offsetHeight;
+        const maxH = Math.max(h1, h2);
+        rows1[i].style.minHeight = maxH + 'px';
+        rows2[i].style.minHeight = maxH + 'px';
+    }
+  }, 50);
+}
+
+// ══════════ GAME ══════════
+function startGame() {
+  window.scrollTo(0, 0);
+  checkCount = 0; seconds = 0;
+  order = shuffle(LINES.map((_, i) => i));
+
+  document.getElementById('preview-banner').classList.add('hidden');
+  document.getElementById('preview-section').style.display = 'none';
+  document.getElementById('game-section').style.display   = 'block';
+  document.getElementById('stats-bar').style.display      = 'flex';
+  document.getElementById('stat-total').textContent = LINES.length;
+  document.getElementById('stat-checks').textContent = '0';
+  document.getElementById('stat-correct').textContent = '0';
+  document.getElementById('overlay').classList.remove('show');
+  document.getElementById('result-strip').className = 'result-strip';
+
+  renderSortZone();
+  clearInterval(timerID);
+  timerID = setInterval(() => {
+    seconds++;
+    document.getElementById('stat-timer').textContent = seconds + 's';
+  }, 1000);
+}
+
+// ══════════ render sort zone ══════════
+function renderSortZone() {
+  const zone = document.getElementById('sort-zone');
+  zone.innerHTML = '';
+
+  order.forEach((lineIdx, pos) => {
+    const ln  = LINES[lineIdx];
+    const item = document.createElement('div');
+    item.className   = 'drag-item';
+    item.draggable   = true;
+    item.dataset.pos = pos;
+
+    item.innerHTML =
+      `<span class="drag-handle">⠿</span>` +
+      `<span class="line-no">${pos + 1}</span>` +
+      `<span class="line-code" style="flex:1;padding:5px 10px 5px 0;white-space:pre;overflow:hidden;text-overflow:ellipsis;">${highlightVB(ln.code)}</span>` +
+      `<span class="state-icon"></span>`;
+
+    // ── Drag events ──
+    item.addEventListener('dragstart', e => {
+      dragSrcIdx = pos;
+      item.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', pos);
+    });
+    item.addEventListener('dragend', () => {
+      item.classList.remove('dragging');
+      clearDragStyles();
+    });
+    item.addEventListener('dragover', e => {
+      e.preventDefault();
+      clearDragStyles();
+      const rect   = item.getBoundingClientRect();
+      const midY   = rect.top + rect.height / 2;
+      if (e.clientY < midY) item.classList.add('drag-over-top');
+      else                   item.classList.add('drag-over-bottom');
+    });
+    item.addEventListener('dragleave', () => clearDragStyles());
+    item.addEventListener('drop', e => {
+      e.preventDefault();
+      if (dragSrcIdx === null || dragSrcIdx === pos) { clearDragStyles(); return; }
+      const rect = item.getBoundingClientRect();
+      const midY = rect.top + rect.height / 2;
+      let insertPos = pos;
+      if (e.clientY >= midY) insertPos = pos + 1;
+      moveItem(dragSrcIdx, insertPos);
+      dragSrcIdx = null;
+    });
+
+    zone.appendChild(item);
+  });
+
+  // zone-level drag events for drop at end
+  zone.addEventListener('dragover', e => e.preventDefault());
+  zone.addEventListener('drop', e => e.preventDefault());
+}
+
+function clearDragStyles() {
+  document.querySelectorAll('.drag-item').forEach(el => {
+    el.classList.remove('drag-over-top','drag-over-bottom');
+  });
+}
+
+function moveItem(fromPos, toPos) {
+  // remove the item at fromPos
+  const moved = order.splice(fromPos, 1)[0];
+  // adjust toPos if needed
+  let insertAt = toPos;
+  if (toPos > fromPos) insertAt = toPos - 1;
+  order.splice(insertAt, 0, moved);
+  // clear check state
+  document.getElementById('result-strip').className = 'result-strip';
+  renderSortZone();
+}
+
+// ══════════ CHECK ══════════
+document.getElementById('btn-check').addEventListener('click', () => {
+  checkCount++;
+  document.getElementById('stat-checks').textContent = checkCount;
+
+  let correctCount = 0;
+  const items = document.querySelectorAll('.drag-item');
+  items.forEach((item, pos) => {
+    const lineIdx = order[pos];
+    // 用程式碼內容比對，讓內容相同的行（如第 1、3 行星號注釋）都算正確
+    const isCorrect = LINES[lineIdx].code === LINES[pos].code;
+    item.classList.remove('state-correct','state-wrong');
+    const icon = item.querySelector('.state-icon');
+    if (isCorrect) {
+      item.classList.add('state-correct');
+      icon.textContent = '✓';
+      correctCount++;
+    } else {
+      item.classList.add('state-wrong');
+      icon.textContent = '✗';
+    }
+  });
+
+  document.getElementById('stat-correct').textContent = correctCount;
+
+  const strip = document.getElementById('result-strip');
+  if (correctCount === LINES.length) {
+    strip.className = 'result-strip show all-correct';
+    strip.textContent = `🎉 全部 ${LINES.length} 行位置正確！太厲害了！`;
+    playWin();
+    clearInterval(timerID);
+    setTimeout(showWin, 1000);
+  } else {
+    strip.className = 'result-strip show partial';
+    strip.textContent = `✅ ${correctCount} / ${LINES.length} 行正確，繼續調整紅色行的位置！`;
+    if (correctCount > LINES.length / 2) playCorrect();
+    else playWrong();
+  }
+});
+
+// ══════════ HINT ══════════
+document.getElementById('btn-hint').addEventListener('click', () => {
+  // Find first wrong item and tell user what line it should be
+  for (let pos = 0; pos < order.length; pos++) {
+    if (LINES[order[pos]].code !== LINES[pos].code) {
+      const correctLine = LINES[pos];
+      const strip = document.getElementById('result-strip');
+      strip.className = 'result-strip show partial';
+      strip.style.background = 'rgba(251,191,36,.07)';
+      strip.style.borderColor = 'rgba(251,191,36,.35)';
+      strip.style.color = 'var(--gold)';
+      strip.textContent = `💡 提示：第 ${pos + 1} 個位置應該放「${correctLine.code.trim().substring(0, 28)}…」`;
+      return;
+    }
+  }
+});
+
+// ══════════ WIN ══════════
+function showWin() {
+  const acc = Math.round(100 / checkCount);
+  document.getElementById('final-score').innerHTML =
+    `⏱ 用時 ${seconds} 秒　　🔍 檢查 ${checkCount} 次<br>🎯 效率分 ${Math.min(acc, 100)}%`;
+  document.getElementById('overlay').classList.add('show');
+
+  // 將成績送往雲端 (若已登入且及格)
+  if (typeof getCurrentUser === 'function') {
+      const user = getCurrentUser();
+      const eff = Math.min(acc, 100);
+      if (user && eff >= 60 && typeof window.saveScore === 'function') {
+          
+          let stars = 3;
+          if (typeof totalHintsUsed !== 'undefined') {
+              if (totalHintsUsed > 0 && totalHintsUsed <= 3) stars = 2;
+              if (totalHintsUsed > 3) stars = 1;
+          }
+          let finalScoreSpan = document.getElementById('final-score');
+          if (finalScoreSpan) {
+              finalScoreSpan.style.width = "calc(100% + 40px)";
+              finalScoreSpan.style.marginLeft = "-20px";
+              finalScoreSpan.style.padding = "20px 10px 25px 10px";
+              finalScoreSpan.style.boxSizing = "border-box";
+              const hintsCount = typeof totalHintsUsed !== 'undefined' ? totalHintsUsed : 0;
+              let originHtml = finalScoreSpan.innerHTML;
+              
+              // 移除舊版的星星 UI
+              originHtml = originHtml.replace(/<div class="star-display-container"([\s\S]*?)<\/div>\s*<\/div>/g, '');
+              originHtml = originHtml.replace(/<br>⭐ 提示.*顆/g, '');
+              
+              // 修正折行問題，將各個統計項目包裝在 nowrap 中
+              originHtml = originHtml.replace(/(⏱ 用時.*?秒)/g, '<span style="white-space:nowrap;">$1</span>');
+              originHtml = originHtml.replace(/(❌ 錯誤.*?次)/g, '<span style="white-space:nowrap;">$1</span>');
+              originHtml = originHtml.replace(/(🎯 正確率.*?%)/g, '<span style="white-space:nowrap;">$1</span>');
+              originHtml = originHtml.replace(/　　/g, ' &nbsp;&nbsp; ');
+
+              finalScoreSpan.innerHTML = originHtml + `
+                  <div class="star-display-container" style="margin-top: 20px; width: 100%; display: flex; flex-direction: column; align-items: center;">
+                      <div style="display: flex; justify-content: center; align-items: center; gap: 12px; margin-bottom: 5px; flex-wrap: nowrap;">
+                          ${Array(3).fill(0).map((_, i) => `<span style="font-size: 2.5rem; filter: ${i < stars ? 'drop-shadow(0 0 12px rgba(251,191,36,0.8))' : 'grayscale(100%) opacity(20%)'}; transform: scale(${i < stars ? 1.1 : 1}); transition: all 0.3s ease; line-height: 1;">⭐</span>`).join('')}
+                      </div>
+                      <div style="font-size: 0.85rem; color: #94a3b8; text-align: center; margin-top: 10px;">
+                          ( 使用提示：${hintsCount} 次 )
+                      </div>
+                  </div>
+              `;
+          }
+          window.saveScore(user.className, user.name, qID + '_' + tID, "程式碼排列重組", seconds, "PASS", stars)
+            .then(res => console.log("成績上傳完成:", res));
+      }
+  }
+
+  setupNextLevelButton();
+}
+
+function setupNextLevelButton() {
+    const LEVEL_SEQUENCE = [
+      { q: 'SETUP', t: 'T01' }, { q: 'Q1', t: 'T01' }, { q: 'Q1', t: 'T02' }, { q: 'Q1', t: 'T03' },
+      { q: 'Q2', t: 'T01' }, { q: 'Q2', t: 'T02' }, { q: 'Q2', t: 'T03' }, { q: 'Q3', t: 'T01' },
+      { q: 'Q3', t: 'T02' }, { q: 'Q3', t: 'T03' }, { q: 'Q4', t: 'T01' }, { q: 'Q4', t: 'T02' },
+      { q: 'Q4', t: 'T03' }, { q: 'Q5', t: 'T01' }, { q: 'Q5', t: 'T02' }, { q: 'Q5', t: 'T03' },
+      { q: '1060306', t: 'T01' }, { q: '1060307', t: 'T01' }, { q: '1060308', t: 'T01' }
+    ];
+    let currentIndex = LEVEL_SEQUENCE.findIndex(l => l.q === qID && l.t === tID);
+    const nextBtn = document.getElementById('btn-next-level');
+    if (currentIndex >= 0 && currentIndex < LEVEL_SEQUENCE.length - 1) {
+        const nextLv = LEVEL_SEQUENCE[currentIndex + 1];
+        nextBtn.style.display = 'block';
+        nextBtn.onclick = () => {
+            window.location.href = `程式碼排列重組.html?q=${nextLv.q}&t=${nextLv.t}`;
+        };
+    } else {
+        nextBtn.style.display = 'block';
+        nextBtn.innerHTML = '⏭️ 下一練習 (程式與結果配對)';
+        nextBtn.onclick = () => {
+            window.location.href = '程式與結果配對.html?q=SETUP&t=T01';
+        };
+    }
+}
+
+// ══════════ RESTART ══════════
+function doRestart() {
+  document.getElementById('overlay').classList.remove('show');
+  document.getElementById('preview-banner').classList.remove('hidden');
+  document.getElementById('preview-section').style.display = 'block';
+  document.getElementById('game-section').style.display   = 'none';
+  document.getElementById('stats-bar').style.display      = 'none';
+  clearInterval(timerID);
+}
+
+document.getElementById('btn-restart').addEventListener('click', doRestart);
+document.getElementById('btn-again').addEventListener('click',   doRestart);
+document.getElementById('btn-start').addEventListener('click',   startGame);
+
+// ══════════ BOOT ══════════
+buildPreview();
+</script>
+<script src="../js/game-toolbar.js"></script>
+</body>
+</html>

@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>教師管理 | 學習進度儀表板</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0c1220;
+            --surface: #1a2236;
+            --surface2: #212d45;
+            --border: #2e3f5c;
+            --accent: #38bdf8;
+            --purple: #a78bfa;
+            --success: #10b981;
+            --danger: #f43f5e;
+            --text: #e2e8f0;
+            --muted: #64748b;
+        }
+        body { margin: 0; padding: 20px; font-family: 'Noto Sans TC', sans-serif; background: var(--bg); color: var(--text); }
+        .container { max-width: 1200px; margin: 0 auto; }
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 15px; }
+        h1 { margin: 0; font-size: 1.8rem; color: var(--accent); }
+        
+        .controls { display: flex; gap: 10px; align-items: center; }
+        select, button { padding: 8px 12px; background: var(--surface2); border: 1px solid var(--border); color: var(--text); border-radius: 6px; }
+        button { cursor: pointer; color: #fff; background: var(--purple); border: none; font-weight: bold; }
+        button:hover { opacity: 0.9; }
+        .btn-danger { background: var(--danger); margin-left: 10px; }
+        
+        .dashboard-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+        .card { background: var(--surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border); }
+        .card h3 { margin-top: 0; color: var(--muted); font-size: 1rem; margin-bottom: 15px; }
+        .stat-value { font-size: 2.5rem; font-weight: 700; color: #fff; }
+
+        .charts-wrapper { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-bottom: 20px; }
+        .chart-box { background: var(--surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border); }
+        canvas { width: 100% !important; max-height: 300px; }
+
+        .table-wrapper { background: var(--surface); border-radius: 12px; border: 1px solid var(--border); overflow: hidden; }
+        table { width: 100%; border-collapse: collapse; text-align: left; }
+        th, td { padding: 12px 20px; border-bottom: 1px solid var(--border); }
+        th { background: rgba(0,0,0,0.2); color: var(--muted); font-weight: 500; font-size: 0.9rem; }
+        tr:hover td { background: rgba(255,255,255,0.02); }
+        .status-pass { color: var(--success); font-weight: bold; background: rgba(16,185,129,0.1); padding: 4px 8px; border-radius: 4px; }
+        .status-fail { color: var(--danger); font-weight: bold; background: rgba(244,63,94,0.1); padding: 4px 8px; border-radius: 4px; }
+    </style>
+    <!-- Chart.js 引入 -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>👨‍🏫 教師管理 | 學生學習進度儀表板</h1>
+        <div class="controls">
+            <select id="filter-class">
+                <option value="ALL">全站即時所有班級</option>
+                <option value="資訊二">資訊二</option>
+                <option value="電子二">電子二</option>
+            </select>
+            <button id="btn-refresh">↻ 刷新資料</button>
+            <a href="index.html" style="margin-left:10px; color: var(--muted); text-decoration: none;">返回首頁</a>
+        </div>
+    </header>
+
+    <div class="dashboard-grid">
+        <div class="card">
+            <h3>總過關紀錄數</h3>
+            <div class="stat-value" id="stat-total">0</div>
+        </div>
+        <div class="card">
+            <h3>參與學生人數</h3>
+            <div class="stat-value" id="stat-students">0</div>
+        </div>
+        <div class="card">
+            <h3>最常遭遇困難的題目</h3>
+            <div class="stat-value" id="stat-hardest" style="font-size: 1.5rem; color: var(--danger); margin-top:10px;">計算中...</div>
+        </div>
+    </div>
+
+    <div class="charts-wrapper">
+        <div class="chart-box">
+            <h3 style="color:var(--muted); margin-top:0;">班級總體過關挑戰率 (由最近 500 筆紀錄統計)</h3>
+            <canvas id="barChart"></canvas>
+        </div>
+        <div class="chart-box">
+            <h3 style="color:var(--muted); margin-top:0;">闖關狀態比例</h3>
+            <canvas id="doughnutChart"></canvas>
+        </div>
+    </div>
+
+    <!-- 最近 50 筆紀錄明細 -->
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr>
+                    <th>時間</th>
+                    <th>班級</th>
+                    <th>姓名</th>
+                    <th>題號 (qID)</th>
+                    <th>模式</th>
+                    <th>花費秒數</th>
+                    <th>狀態</th>
+                </tr>
+            </thead>
+            <tbody id="tb-recent">
+                <tr><td colspan="7" style="text-align:center;">載入中...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script type="module" src="js/api.js?v=5"></script>
+<script>
+let rawData = [];
+let chart1, chart2;
+
+document.addEventListener('DOMContentLoaded', () => {
+    // 當按下刷新按鈕
+    document.getElementById('btn-refresh').addEventListener('click', fetchData);
+    
+    // 當切換下拉選單，不用重新 fetch，只需 refresh UI
+    document.getElementById('filter-class').addEventListener('change', renderDashboard);
+
+    // 延遲 1 秒等模組內的 Firebase 載入完畢，安全呼叫
+    setTimeout(fetchData, 800);
+});
+
+async function fetchData() {
+    const btn = document.getElementById('btn-refresh');
+    btn.textContent = "載入中...";
+    btn.disabled = true;
+
+    try {
+        if (typeof window.getAllScoresForDashboard !== 'function') {
+            console.warn("API 模組尚在初始化...");
+            setTimeout(fetchData, 1000);
+            return;
+        }
+
+        // 撈取原始資料
+        rawData = await window.getAllScoresForDashboard();
+        renderDashboard();
+    } catch(e) {
+        console.error(e);
+        alert("資料載入失敗，請檢查 Firebase 連線或金鑰設定。");
+    } finally {
+        btn.textContent = "↻ 刷新資料";
+        btn.disabled = false;
+    }
+}
+
+function renderDashboard() {
+    const filterCls = document.getElementById('filter-class').value;
+    const data = filterCls === 'ALL' ? rawData : rawData.filter(d => d.className === filterCls);
+
+    // ========== Stats Update ==========
+    document.getElementById('stat-total').textContent = data.length;
+    
+    const uniqueStudents = new Set(data.map(d => `${d.className}_${d.userName}`));
+    document.getElementById('stat-students').textContent = uniqueStudents.size;
+
+    // 分算最困難的題目 (平均耗時最久或是 FAIL 比例最高，這裡用 FAIL 計算)
+    const qFails = {};
+    data.forEach(d => {
+        if (!qFails[d.qID]) qFails[d.qID] = { total: 0, fail: 0 };
+        qFails[d.qID].total++;
+        if (d.status === 'FAIL') qFails[d.qID].fail++;
+    });
+    let hardestQ = "無資料";
+    let highestFailRate = -1;
+    for (const [q, stats] of Object.entries(qFails)) {
+        if (stats.total > 2) { // 至少超過兩次挑戰才統計
+            const rate = stats.fail / stats.total;
+            if (rate > highestFailRate) {
+                highestFailRate = rate;
+                hardestQ = q;
+            }
+        }
+    }
+    document.getElementById('stat-hardest').textContent = highestFailRate > 0 ? `${hardestQ} (${Math.round(highestFailRate*100)}% 失敗率)` : "目前無特別困難";
+
+    // ========== Table Render ==========
+    const tbody = document.getElementById('tb-recent');
+    tbody.innerHTML = '';
+    
+    if (data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">目前尚無挑戰紀錄喔！</td></tr>';
+    } else {
+        // 取前 30 筆最新
+        const displayData = data.slice(0, 30);
+        displayData.forEach(r => {
+            const dt = new Date(r.timestamp);
+            const timeStr = `${dt.getMonth()+1}/${dt.getDate()} ${dt.getHours()}:${dt.getMinutes().toString().padStart(2, '0')}`;
+            const statusTag = r.status === 'PASS' ? '<span class="status-pass">過關</span>' : '<span class="status-fail">失敗</span>';
+            tbody.innerHTML += `
+                <tr>
+                    <td>${timeStr}</td>
+                    <td>${r.className || '-'}</td>
+                    <td>${r.userName || '訪客'}</td>
+                    <td>${r.qID}</td>
+                    <td>${r.gameMode}</td>
+                    <td>${r.timeSpent} 秒</td>
+                    <td>${statusTag}</td>
+                </tr>
+            `;
+        });
+    }
+
+    // ========== Charts Render ==========
+    renderCharts(data);
+}
+
+function renderCharts(data) {
+    if (chart1) chart1.destroy();
+    if (chart2) chart2.destroy();
+
+    // 1. Bar Chart: 不同題目的過關總量
+    const passCountByQ = {};
+    data.filter(d => d.status === 'PASS').forEach(d => {
+        passCountByQ[d.qID] = (passCountByQ[d.qID] || 0) + 1;
+    });
+    
+    const labels1 = Object.keys(passCountByQ);
+    const data1 = Object.values(passCountByQ);
+
+    const ctx1 = document.getElementById('barChart').getContext('2d');
+    chart1 = new Chart(ctx1, {
+        type: 'bar',
+        data: {
+            labels: labels1,
+            datasets: [{
+                label: '已完成 (人次)',
+                data: data1,
+                backgroundColor: 'rgba(56, 189, 248, 0.7)',
+                borderColor: '#38bdf8',
+                borderWidth: 1,
+                borderRadius: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: { y: { beginAtZero: true, ticks: { color: '#64748b', stepSize: 1 } }, x: { ticks: { color: '#64748b' } } },
+            plugins: { legend: { display: false } }
+        }
+    });
+
+    // 2. Doughnut Chart: PASS vs FAIL
+    let passCt = 0, failCt = 0;
+    data.forEach(d => {
+        if(d.status === 'FAIL') failCt++;
+        else passCt++;
+    });
+
+    const ctx2 = document.getElementById('doughnutChart').getContext('2d');
+    chart2 = new Chart(ctx2, {
+        type: 'doughnut',
+        data: {
+            labels: ['順利過關', '挑戰失敗/未完'],
+            datasets: [{
+                data: [passCt, failCt],
+                backgroundColor: ['#10b981', '#f43f5e'],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom', labels: { color: '#e2e8f0' } }
+            }
+        }
+    });
+}
+</script>
+</body>
+</html>

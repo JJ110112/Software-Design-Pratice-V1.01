@@ -1,0 +1,919 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>訓練進程與模式 ── 關卡選擇</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/common.css">
+<style>
+:root {
+  --bg: #0c1220;
+  --surface: #1a2236;
+  --surface2: #212d45;
+  --border: #2a3550;
+  --accent: #38bdf8;
+  --purple: #c084fc;
+  --green: #4ade80;
+  --gold: #fbbf24;
+  --text: #e2e8f0;
+  --muted: #64748b;
+  --locked: #334155;
+}
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Noto Sans TC', sans-serif;
+  min-height: 100vh;
+  margin: 0; padding: 0;
+  overflow-x: hidden;
+  position: relative;
+}
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image:
+    linear-gradient(rgba(56,189,248,.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(56,189,248,.04) 1px, transparent 1px);
+  background-size: 30px 30px;
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* ═══ HEADER ═══ */
+.map-header {
+  padding: 30px 20px 10px;
+  margin-top: 80px;
+  line-height: 1.3;
+  text-align: center;
+  position: relative;
+  z-index: 10;
+}
+.map-header h1 {
+  font-size: clamp(1.8rem, 5vw, 2.6rem);
+  font-weight: 900;
+  margin: 10px 0;
+  background: linear-gradient(135deg, var(--accent), var(--purple));
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.map-header .subtitle {
+  color: var(--muted);
+  font-size: 1rem;
+}
+
+/* ═══ TOP BAR ═══ */
+.top-bar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 24px;
+  z-index: 100;
+  background: rgba(12, 18, 32, 0.85);
+  backdrop-filter: blur(6px);
+  border-bottom: 1px solid var(--border);
+}
+.top-bar-left, .top-bar-right {
+  display: flex; align-items: center; gap: 10px;
+}
+.btn-icon {
+  background: rgba(33, 45, 69, 0.8);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-decoration: none;
+  font-size: 0.85rem;
+  font-weight: 700;
+  font-family: inherit;
+  display: flex; align-items: center; gap: 6px;
+}
+.btn-icon:hover {
+  background: rgba(56, 189, 248, 0.1);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.user-info { font-size: 0.85rem; color: var(--green); font-weight: 700; }
+
+/* ═══ TABS ═══ */
+.tab-bar {
+  display: flex;
+  justify-content: center;
+  gap: 0;
+  margin: 10px auto 0;
+  max-width: 400px;
+  width: 90%;
+  border-bottom: 2px solid var(--border);
+}
+.tab-btn {
+  flex: 1;
+  padding: 14px 20px;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-weight: 700;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: inherit;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+}
+.tab-btn.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+.tab-btn:hover:not(.active) {
+  color: var(--text);
+}
+
+/* ═══ TAB PANEL ═══ */
+.tab-panel { display: none; }
+.tab-panel.active { display: block; animation: fadeIn 0.4s ease-out; }
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ═══ MODE GRID (from index.html) ═══ */
+.modes-container {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 20px;
+}
+.stage-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--purple);
+  margin: 30px 0 12px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.stage-title span {
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  color: #fff;
+}
+/* Stage rarity colors (RPG style) */
+.stage-1 { color: #67e8f9 !important; border-color: rgba(103, 232, 249, 0.3) !important; }
+.stage-1 span { background: rgba(103, 232, 249, 0.25); }
+.stage-2 { color: #4ade80 !important; border-color: rgba(74, 222, 128, 0.3) !important; }
+.stage-2 span { background: rgba(74, 222, 128, 0.25); }
+.stage-3 { color: #60a5fa !important; border-color: rgba(96, 165, 250, 0.3) !important; }
+.stage-3 span { background: rgba(96, 165, 250, 0.25); }
+.stage-4 { color: #c084fc !important; border-color: rgba(192, 132, 252, 0.3) !important; }
+.stage-4 span { background: rgba(192, 132, 252, 0.25); }
+.stage-5 { color: #fbbf24 !important; border-color: rgba(251, 191, 36, 0.3) !important; }
+.stage-5 span { background: rgba(251, 191, 36, 0.25); }
+
+/* Mode items with stage accent */
+.mode-item.s1 { border-left: 3px solid #67e8f9; }
+.mode-item.s1:hover { border-color: #67e8f9; box-shadow: 0 8px 25px rgba(103,232,249,0.15); }
+.mode-item.s1 .mode-icon { background: rgba(103, 232, 249, 0.1); }
+.mode-item.s2 { border-left: 3px solid #4ade80; }
+.mode-item.s2:hover { border-color: #4ade80; box-shadow: 0 8px 25px rgba(74,222,128,0.15); }
+.mode-item.s2 .mode-icon { background: rgba(74, 222, 128, 0.1); }
+.mode-item.s3 { border-left: 3px solid #60a5fa; }
+.mode-item.s3:hover { border-color: #60a5fa; box-shadow: 0 8px 25px rgba(96,165,250,0.15); }
+.mode-item.s3 .mode-icon { background: rgba(96, 165, 250, 0.1); }
+.mode-item.s4 { border-left: 3px solid #c084fc; }
+.mode-item.s4:hover { border-color: #c084fc; box-shadow: 0 8px 25px rgba(192,132,252,0.15); }
+.mode-item.s4 .mode-icon { background: rgba(192, 132, 252, 0.1); }
+.mode-item.s5 { border-left: 3px solid #fbbf24; }
+.mode-item.s5:hover { border-color: #fbbf24; box-shadow: 0 8px 25px rgba(251,191,36,0.15); }
+.mode-item.s5 .mode-icon { background: rgba(251, 191, 36, 0.1); }
+.mode-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 14px;
+}
+.mode-item {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  text-decoration: none;
+  color: inherit;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.mode-item:hover, .mode-item.active {
+  transform: translateY(-2px);
+  border-color: var(--purple);
+  background: var(--surface2);
+  box-shadow: 0 8px 25px rgba(0,0,0,0.4);
+}
+/* specific active state glow based on stage */
+.mode-item.s1.active { border-color: #67e8f9; box-shadow: 0 8px 25px rgba(103,232,249,0.3); }
+.mode-item.s2.active { border-color: #4ade80; box-shadow: 0 8px 25px rgba(74,222,128,0.3); }
+.mode-item.s3.active { border-color: #60a5fa; box-shadow: 0 8px 25px rgba(96,165,250,0.3); }
+.mode-item.s4.active { border-color: #c084fc; box-shadow: 0 8px 25px rgba(192,132,252,0.3); }
+.mode-item.s5.active { border-color: #fbbf24; box-shadow: 0 8px 25px rgba(251,191,36,0.3); }
+.mode-icon {
+  font-size: 1.5rem;
+  width: 44px; height: 44px;
+  background: rgba(167, 139, 250, 0.1);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.mode-info h3 { font-size: 1rem; margin-bottom: 2px; }
+.mode-info p  { font-size: 0.78rem; color: var(--muted); }
+.badge-new {
+  font-size: 0.55rem;
+  padding: 2px 5px;
+  background: var(--purple);
+  color: #fff;
+  border-radius: 3px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+/* ═══ MAP CONTAINER ═══ */
+.map-container {
+  max-width: 900px;
+  margin: 20px auto;
+  padding: 20px;
+  position: relative;
+}
+.path-svg {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+  z-index: 0;
+}
+.level-nodes {
+  display: flex;
+  flex-direction: column;
+  gap: 60px;
+  position: relative;
+  z-index: 1;
+}
+
+/* Node Layout (ZigZag) */
+.node-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+}
+.node-row:nth-child(even) { transform: translateX(-80px); }
+.node-row:nth-child(odd)  { transform: translateX(80px); }
+.node-row:first-child      { transform: translateX(0); margin-bottom: 20px; }
+
+/* Node */
+.level-node {
+  position: relative;
+  width: 100px; height: 100px;
+  background: var(--surface);
+  border: 4px solid var(--border);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 900; font-size: 1.2rem; color: var(--muted);
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+  text-decoration: none;
+}
+.level-node .label {
+  position: absolute; bottom: -32px;
+  white-space: nowrap; font-size: 0.85rem; font-weight: 700;
+  color: var(--muted);
+  background: rgba(12,18,32,0.8); padding: 2px 8px; border-radius: 4px;
+}
+.level-node .stars {
+  position: absolute; top: -20px;
+  font-size: 1.2rem; display: none;
+}
+
+/* States */
+.level-node.locked {
+  background: var(--bg); cursor: not-allowed; opacity: 0.6;
+}
+.level-node.locked::after { content: '🔒'; font-size: 1.8rem; }
+.level-node.unlocked {
+  border-color: var(--accent); color: var(--text);
+  background: rgba(56, 189, 248, 0.1);
+  animation: pulse 2s infinite;
+}
+.level-node.unlocked .label { color: var(--accent); }
+.level-node.unlocked:hover {
+  transform: scale(1.15) translateY(-5px);
+  box-shadow: 0 10px 25px rgba(56,189,248,0.4);
+  background: rgba(56, 189, 248, 0.2);
+}
+.level-node.cleared {
+  border-color: var(--green); color: var(--green);
+  background: rgba(74, 222, 128, 0.1);
+}
+.level-node.cleared .label { color: var(--green); }
+.level-node.cleared .stars { display: block; filter: drop-shadow(0 0 5px rgba(251,191,36,0.8)); }
+.level-node.cleared::after { content: '✓'; font-size: 2.5rem; opacity: 0.2; position: absolute; }
+.level-node.cleared:hover {
+  transform: scale(1.1);
+  border-color: var(--accent);
+  box-shadow: 0 5px 20px rgba(74,222,128,0.3);
+}
+
+@keyframes pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.4); }
+  70%  { box-shadow: 0 0 0 15px rgba(56, 189, 248, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(56, 189, 248, 0); }
+}
+
+/* Mode selector (hidden since user wants direct clicking on boxes) */
+.mode-selector {
+  display: none !important;
+}
+.mode-chip {
+  display: none;
+}
+
+.user-panel-inline {
+  text-align: center;
+  margin: 10px 0;
+  font-size: 0.9rem;
+  color: var(--accent);
+}
+
+/* Scroll to Top Button */
+.scroll-to-top {
+  position: fixed;
+  top: 50%;
+  right: 20px;
+  transform: translateY(-50%);
+  width: 45px;
+  height: 45px;
+  background: rgba(12, 18, 32, 0.7);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  color: var(--accent);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  cursor: pointer;
+  z-index: 999;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+  opacity: 0;
+  visibility: hidden;
+}
+.scroll-to-top.show {
+  opacity: 1;
+  visibility: visible;
+}
+.scroll-to-top:hover {
+  background: rgba(56, 189, 248, 0.15);
+  border-color: var(--accent);
+  transform: translateY(-50%) scale(1.1);
+  box-shadow: 0 0 15px rgba(56,189,248,0.4);
+}
+</style>
+</head>
+<body>
+
+<!-- Top Bar -->
+<div class="top-bar">
+    <div class="top-bar-left">
+        <a href="../index.html" class="btn-icon">🏠 首頁</a>
+    </div>
+    <div class="top-bar-right">
+        <span class="user-info" id="user-info"></span>
+        <button id="btn-logout" class="btn-icon" style="display:none;">登出</button>
+    </div>
+</div>
+
+<!-- Header -->
+<header class="map-header">
+  <h1>訓練進程與模式</h1>
+  <p class="subtitle">選擇練習項目，開始你的闖關之旅</p>
+  <div id="motivational-quote" style="margin-top: 15px; font-size: 0.95rem; color: rgba(255,255,255,0.9); font-style: italic; width: fit-content; max-width: 90vw; margin-left: auto; margin-right: auto; text-align: center; line-height: 1.5; padding: 12px 20px; background: rgba(255,255,255,0.06); border-radius: 8px; border: 1px solid rgba(255,255,255,0.15); text-wrap: balance; word-break: keep-all;"></div>
+</header>
+
+<!-- Tabs -->
+<div class="tab-bar">
+    <button class="tab-btn active" data-tab="modes-tab">🎮 練習模式</button>
+    <button class="tab-btn" data-tab="map-tab">🗺️ 闖關地圖</button>
+</div>
+
+<!-- Tab 1: Modes -->
+<div id="modes-tab" class="tab-panel active">
+    <div class="modes-container">
+        <div class="stage-title stage-1"><span>第一階段</span> 認識指令 (基礎)</div>
+        <div class="mode-grid">
+            <a href="map.html?mode=連連看&tab=map" class="mode-item s1">
+                <div class="mode-icon">🔗</div><div class="mode-info"><h3>英中單字配對</h3><p>將英文關鍵字拖拉連到中文意思</p></div>
+            </a>
+            <a href="map.html?mode=記憶翻牌遊戲&tab=map" class="mode-item s1">
+                <div class="mode-icon">🃏</div><div class="mode-info"><h3>圖卡翻牌記憶</h3><p>翻開英文牌，找到對應的中文牌</p></div>
+            </a>
+            <a href="map.html?mode=中英選擇題&tab=map" class="mode-item s1">
+                <div class="mode-icon">❓</div><div class="mode-info"><h3>中英選擇題</h3><p>針對單一關鍵字進行翻譯選擇測驗</p></div>
+            </a>
+        </div>
+
+        <div class="stage-title stage-2"><span>第二階段</span> 讀懂一行程式碼</div>
+        <div class="mode-grid">
+            <a href="map.html?mode=程式碼朗讀練習&tab=map" class="mode-item s2">
+                <div class="mode-icon">🔊</div><div class="mode-info"><h3>程式碼朗讀練習</h3><p>透過語音輔助強化每一行程式邏輯記憶</p></div>
+            </a>
+            <a href="map.html?mode=一行程式碼翻譯&tab=map" class="mode-item s2">
+                <div class="mode-icon">📝</div><div class="mode-info"><h3>一行程式碼翻譯</h3><p>看單行程式碼，選出正確的翻譯或含義</p></div>
+            </a>
+            <a href="map.html?mode=錯誤找找看&tab=map" class="mode-item s2">
+                <div class="mode-icon">🐛</div><div class="mode-info"><h3>錯誤找找看</h3><p>給一行有語法錯誤的程式，找出場景</p></div>
+            </a>
+        </div>
+
+        <div class="stage-title stage-3"><span>第三階段</span> 讀懂整段程式</div>
+        <div class="mode-grid">
+            <a href="map.html?mode=程式碼排列重組&tab=map" class="mode-item s3">
+                <div class="mode-icon">🧩</div><div class="mode-info"><h3>程式碼排列重組</h3><p>把打散的程式碼行拖拉排回正確順序</p></div>
+            </a>
+            <a href="map.html?mode=程式與結果配對&tab=map" class="mode-item s3">
+                <div class="mode-icon">⚖️</div><div class="mode-info"><h3>程式與結果配對</h3><p>左邊程式配對右邊執行結果</p></div>
+            </a>
+            <a href="map.html?mode=逐行中文注解填空&tab=map" class="mode-item s3">
+                <div class="mode-icon">💬</div><div class="mode-info"><h3>逐行中文注解填空</h3><p>為每一行程式選出對應的中文說明</p></div>
+            </a>
+        </div>
+
+        <div class="stage-title stage-4"><span>第四階段</span> 自己動手寫</div>
+        <div class="mode-grid">
+            <a href="map.html?mode=程式填空&tab=map" class="mode-item s4">
+                <div class="mode-icon">🔑</div><div class="mode-info"><h3>進階：動態程式填空</h3><p>在隨機挖空的代碼中填入關鍵字與邏輯值</p></div>
+            </a>
+            <a href="map.html?mode=看中文寫程式&tab=map" class="mode-item s4">
+                <div class="mode-icon">📝</div><div class="mode-info"><h3>實戰：看中文寫程式</h3><p>逐行將中文邏輯翻譯為 VB.NET 代碼並點亮畫布</p></div>
+            </a>
+        </div>
+
+        <div class="stage-title stage-5"><span>第五階段</span> 模擬考試情境</div>
+        <div class="mode-grid">
+            <a href="map.html?mode=獨立全程式撰寫&tab=map" class="mode-item s5">
+                <div class="mode-icon">💎</div><div class="mode-info"><h3>精英：獨立全程式撰寫 <span class="badge-new">推薦</span></h3><p>面對空白 IDE，拼湊出完整的程式碼與標頭註解</p></div>
+            </a>
+            <a href="map.html?mode=打字練習&tab=map" class="mode-item s5">
+                <div class="mode-icon">⌨️</div><div class="mode-info"><h3>打字練習模式</h3><p>純粹的無腦輸入速度訓練以應付檢定</p></div>
+            </a>
+            <a href="map.html?mode=錯誤程式除錯&tab=map" class="mode-item s5">
+                <div class="mode-icon">💀</div><div class="mode-info"><h3>錯誤程式除錯 <span class="badge-new">NEW</span></h3><p>修復整段會報錯的或是邏輯瑡疵的程式碼</p></div>
+            </a>
+        </div>
+    </div>
+</div>
+<!-- Tab 2: Map -->
+<div id="map-tab" class="tab-panel">
+    <div class="mode-selector" id="mode-selector"></div>
+    <div class="user-panel-inline" id="user-stats-bar"></div>
+    <div class="map-container">
+        <svg class="path-svg" id="path-svg"></svg>
+        <div class="level-nodes" id="level-container">
+            <!-- Nodes generated by JS -->
+        </div>
+    </div>
+</div>
+
+<script src="../js/users.js"></script>
+<script type="module" src="../js/api.js?v=6"></script>
+<script>
+// ── Parse URL params ──
+const urlParams = new URLSearchParams(window.location.search);
+let GAME_MODE = urlParams.get('mode') || '';
+const initialTab = urlParams.get('tab') || '';
+
+// ── Tab Logic ──
+const tabBtns = document.querySelectorAll('.tab-btn');
+const tabPanels = document.querySelectorAll('.tab-panel');
+
+function switchTab(tabId) {
+    tabBtns.forEach(b => b.classList.toggle('active', b.dataset.tab === tabId));
+    tabPanels.forEach(p => p.classList.toggle('active', p.id === tabId));
+    if (tabId === 'map-tab' && GAME_MODE) {
+        loadProgress();
+    }
+}
+
+tabBtns.forEach(btn => {
+    btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+});
+
+// If coming with mode param, switch to map tab
+if (GAME_MODE || initialTab === 'map') {
+    switchTab('map-tab');
+}
+
+// ── Mode Selector Chips ──
+const ALL_MODES = [
+    '連連看', '記憶翻牌遊戲', '中英選擇題',
+    '一行程式碼翻譯', '錯誤找找看', '程式碼朗讀練習',
+    '程式碼排列重組', '程式與結果配對', '逐行中文注解填空',
+    '程式填空', '看中文寫程式',
+    '獨立全程式撰寫', '打字練習', '錯誤程式除錯'
+];
+
+const modeSelectorEl = document.getElementById('mode-selector');
+ALL_MODES.forEach(m => {
+    const chip = document.createElement('button');
+    chip.className = 'mode-chip' + (m === GAME_MODE ? ' active' : '');
+    chip.textContent = m;
+    chip.addEventListener('click', () => {
+        GAME_MODE = m;
+        document.querySelectorAll('.mode-chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        // Update URL without reload
+        const newUrl = new URL(window.location);
+        newUrl.searchParams.set('mode', m);
+        newUrl.searchParams.set('tab', 'map');
+        history.replaceState(null, '', newUrl);
+        loadProgress();
+    });
+    modeSelectorEl.appendChild(chip);
+});
+
+// ── Intercept large mode boxes ──
+document.querySelectorAll('.mode-item').forEach(item => {
+    item.addEventListener('click', (e) => {
+        e.preventDefault();
+        let url = new URL(item.href, window.location.href);
+        let m = url.searchParams.get('mode');
+        if (m) {
+            // Update active box style
+            document.querySelectorAll('.mode-item').forEach(c => c.classList.remove('active'));
+            item.classList.add('active');
+            
+            // Trigger the hidden chip's click event
+            document.querySelectorAll('.mode-chip').forEach(chip => {
+                if (chip.textContent.trim() === m) {
+                    chip.click();
+                }
+            });
+
+            // 跳轉至闖關地圖分頁
+            switchTab('map-tab');
+        }
+    });
+});
+
+// Set initial active mode box on load
+if (GAME_MODE) {
+    document.querySelectorAll('.mode-item').forEach(item => {
+        let u = new URL(item.href, window.location.href);
+        if (u.searchParams.get('mode') === GAME_MODE) {
+            item.classList.add('active');
+        }
+    });
+}
+
+// If no mode selected, select the first one
+if (!GAME_MODE && initialTab === 'map') {
+    GAME_MODE = ALL_MODES[0];
+    modeSelectorEl.querySelector('.mode-chip').click(); // Auto-trigger first chip
+}
+
+// ── Level Sequence ──
+const LEVEL_SEQUENCE = [
+  { q: 'SETUP', t: 'T01', label: 'Form_Load 通用' },
+  { q: 'Q1', t: 'T01', label: 'Q1 (T01) 迴文判斷' },
+  { q: 'Q1', t: 'T02', label: 'Q1 (T02) 迴文判斷' },
+  { q: 'Q1', t: 'T03', label: 'Q1 (T03) 迴文判斷' },
+  { q: 'Q2', t: 'T01', label: 'Q2 (T01) 直角三角形列印' },
+  { q: 'Q2', t: 'T02', label: 'Q2 (T02) 直角三角形列印' },
+  { q: 'Q2', t: 'T03', label: 'Q2 (T03) 直角三角形列印' },
+  { q: 'Q3', t: 'T01', label: 'Q3 (T01) 質數計算' },
+  { q: 'Q3', t: 'T02', label: 'Q3 (T02) 質數計算' },
+  { q: 'Q3', t: 'T03', label: 'Q3 (T03) 質數計算' },
+  { q: 'Q4', t: 'T01', label: 'Q4 (T01) BMI值計算' },
+  { q: 'Q4', t: 'T02', label: 'Q4 (T02) BMI值計算' },
+  { q: 'Q4', t: 'T03', label: 'Q4 (T03) BMI值計算' },
+  { q: 'Q5', t: 'T01', label: 'Q5 (T01) 矩陣相加' },
+  { q: 'Q5', t: 'T02', label: 'Q5 (T02) 矩陣相加' },
+  { q: 'Q5', t: 'T03', label: 'Q5 (T03) 矩陣相加' },
+  { q: '1060306', t: 'T01', label: '306 身分證號碼檢查' },
+  { q: '1060307', t: 'T01', label: '307 撲克牌比大小' },
+  { q: '1060308', t: 'T01', label: '308 分數加減乘除運算' }
+];
+
+let records = [];
+
+// ── Auth UI ──
+async function initAuthUI() {
+    const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+    const infoEl = document.getElementById('user-info');
+    const btnLogout = document.getElementById('btn-logout');
+    if (user) {
+        let starsStr = '';
+        let stats = null;
+        if (typeof window.getUserStarStats === 'function') {
+            stats = await window.getUserStarStats(user.name);
+            starsStr = `(⭐ ${stats.currentStars} / ${stats.totalPossibleStars})`;
+        }
+        infoEl.textContent = `${user.className} ${user.name} ${starsStr}`;
+        infoEl.style.color = '';
+        btnLogout.style.display = 'flex';
+        
+        // 處理星星解鎖邏輯
+        if (stats) {
+            const req = { 2: 57, 3: 57, 4: 57, 5: 38 };
+            for (let stage = 2; stage <= 5; stage++) {
+                const prevStageStars = stats.stageStars[stage - 1] || 0;
+                const isLocked = prevStageStars < req[stage];
+                
+                const title = document.querySelector(`.stage-title.stage-${stage}`);
+                const grid = title ? title.nextElementSibling : null;
+                
+                if (title && grid && grid.classList.contains('mode-grid')) {
+                    const existingLock = title.querySelector('.lock-hint');
+                    if (existingLock) existingLock.remove();
+                    
+                    if (isLocked) {
+                        grid.style.opacity = '0.4';
+                        grid.style.pointerEvents = 'none';
+                        grid.style.filter = 'grayscale(80%)';
+                        
+                        const lockHint = document.createElement('span');
+                        lockHint.className = 'lock-hint';
+                        lockHint.style.color = 'var(--red)';
+                        lockHint.style.fontSize = '0.75rem';
+                        lockHint.style.marginLeft = '10px';
+                        lockHint.style.backgroundColor = 'rgba(248,113,113,0.1)';
+                        lockHint.style.border = '1px solid rgba(248,113,113,0.3)';
+                        lockHint.style.padding = '2px 8px';
+                        lockHint.style.borderRadius = '4px';
+                        lockHint.innerHTML = `🔒 需上一階段達成 ${req[stage]} 星`;
+                        title.appendChild(lockHint);
+                    } else {
+                        grid.style.opacity = '1';
+                        grid.style.pointerEvents = 'auto';
+                        grid.style.filter = 'none';
+                    }
+                }
+            }
+
+            // --- 顯示各練習模式的星星進度 ---
+            const modeItems = document.querySelectorAll('.mode-item');
+            modeItems.forEach(item => {
+                const url = new URL(item.href, window.location.origin);
+                const modeName = url.searchParams.get('mode');
+                if (modeName) {
+                    const earned = stats.modeStars[modeName] || 0;
+                    const max = 19 * 3; // 目前預設一關19題*3星 (57)
+                    const infoDiv = item.querySelector('.mode-info h3');
+                    if (infoDiv) {
+                        let badge = item.querySelector('.mode-star-badge');
+                        if (!badge) {
+                            badge = document.createElement('div');
+                            badge.className = 'mode-star-badge';
+                            badge.style.display = 'inline-block';
+                            badge.style.fontSize = '0.75rem';
+                            badge.style.color = 'var(--gold)';
+                            badge.style.marginTop = '4px';
+                            badge.style.backgroundColor = 'rgba(251,191,36,0.15)';
+                            badge.style.border = '1px solid rgba(251,191,36,0.3)';
+                            badge.style.padding = '3px 8px';
+                            badge.style.borderRadius = '12px';
+                            badge.style.whiteSpace = 'nowrap';
+                            infoDiv.appendChild(badge);
+                        }
+                        badge.innerHTML = `⭐ ${earned} / ${max}`;
+                    }
+                }
+            });
+
+            // --- 顯示各階段的總星星數 ---
+            const stageTitles = document.querySelectorAll('.stage-title');
+            stageTitles.forEach(st => {
+                const grid = st.nextElementSibling;
+                if (grid && grid.classList.contains('mode-grid')) {
+                    const items = grid.querySelectorAll('.mode-item');
+                    let stageEarned = 0;
+                    let stageMax = 0;
+                    items.forEach(item => {
+                        const url = new URL(item.href, window.location.origin);
+                        const modeName = url.searchParams.get('mode');
+                        if (modeName) {
+                            stageEarned += (stats.modeStars[modeName] || 0);
+                            stageMax += 57; // 19 * 3
+                        }
+                    });
+
+                    if (stageMax > 0) {
+                        let badge = st.querySelector('.stage-star-badge');
+                        if (!badge) {
+                            badge = document.createElement('span');
+                            badge.className = 'stage-star-badge';
+                            badge.style.display = 'inline-block';
+                            badge.style.fontSize = '0.9rem';
+                            badge.style.marginLeft = '12px';
+                            badge.style.color = '#fbbf24';
+                            badge.style.backgroundColor = 'rgba(251,191,36,0.15)';
+                            badge.style.border = '1px solid rgba(251,191,36,0.3)';
+                            badge.style.padding = '2px 10px';
+                            badge.style.borderRadius = '20px';
+                            badge.style.verticalAlign = 'middle';
+                            badge.style.fontWeight = '700';
+                            st.appendChild(badge);
+                        }
+                        badge.innerHTML = `⭐ ${stageEarned} / ${stageMax}`;
+                    }
+                }
+            });
+        }
+    } else {
+        infoEl.textContent = '訪客模式';
+        infoEl.style.color = 'var(--muted)';
+        btnLogout.style.display = 'none';
+        window.location.href = '../index.html'; // 強制回到登入頁
+    }
+}
+
+document.getElementById('btn-logout').addEventListener('click', () => {
+    if (typeof logoutUser === 'function') logoutUser();
+    initAuthUI();
+    loadProgress();
+});
+
+// ── Load Progress ──
+async function loadProgress() {
+    if (!GAME_MODE) return;
+
+    const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+    records = [];
+
+    if (user) {
+        try {
+            if (typeof window.getScoresForUser === 'function') {
+                const allScores = await window.getScoresForUser(user.name);
+                records = allScores.filter(s => s.gameMode === GAME_MODE && s.status === 'PASS');
+            }
+        } catch (err) {
+            console.error("無法讀取進度", err);
+        }
+    }
+
+    let earnedStars = 0;
+    const uniqueMap = new Map();
+    // 找出每個關卡的最高星數
+    records.forEach(r => {
+        const currentMax = uniqueMap.get(r.qID) || 0;
+        if ((r.stars || 1) > currentMax) {
+            uniqueMap.set(r.qID, r.stars || 1);
+        }
+    });
+    uniqueMap.forEach(stars => { earnedStars += stars; });
+    
+    // 一個模式有 LEVEL_SEQUENCE.length 關，目前滿分是 每關 3 顆星
+    const maxStars = LEVEL_SEQUENCE.length * 3;
+
+    document.getElementById('user-stats-bar').innerHTML =
+        `<strong>${GAME_MODE}</strong> ── ⭐ <span style="color:var(--gold);">${earnedStars}</span> / ${maxStars} 顆星`;
+
+    renderMap(user);
+}
+
+function renderMap(user) {
+    const container = document.getElementById('level-container');
+    container.innerHTML = '';
+
+    let furthestIndex = -1;
+    for (let i = 0; i < LEVEL_SEQUENCE.length; i++) {
+        const lv = LEVEL_SEQUENCE[i];
+        const matchesQT = records.some(r => r.qID === lv.q + '_' + lv.t);
+        if (matchesQT) furthestIndex = Math.max(furthestIndex, i);
+    }
+
+    const unlockIndex = user ? furthestIndex + 1 : LEVEL_SEQUENCE.length;
+    const htmlNodes = [];
+
+    LEVEL_SEQUENCE.forEach((lv, index) => {
+        const isBeaten = index <= furthestIndex;
+        const isUnlocked = index <= unlockIndex;
+
+        let stateClass = 'locked';
+        let onClickAction = 'return false;';
+
+        const matches = records.filter(r => r.qID === lv.q + '_' + lv.t);
+        let highestStars = 0;
+        if (matches.length > 0) {
+            highestStars = Math.max(...matches.map(r => r.stars || 1));
+        }
+        let starsDisplayHtml = '';
+        if (highestStars > 0) {
+            starsDisplayHtml = `<div class="stars" style="color:var(--gold); display:block; filter: drop-shadow(0 0 5px rgba(251,191,36,0.8)); font-size:1.15rem; letter-spacing:-2px; top:-22px; width:100%; text-align:center; left:0; position:absolute;">${'⭐'.repeat(highestStars)}</div>`;
+        }
+
+        if (isBeaten) {
+            stateClass = 'cleared';
+            onClickAction = `window.location.href='${GAME_MODE}.html?q=${lv.q}&t=${lv.t}'`;
+        } else if (isUnlocked) {
+            stateClass = 'unlocked';
+            onClickAction = `window.location.href='${GAME_MODE}.html?q=${lv.q}&t=${lv.t}'`;
+        }
+
+        const row = document.createElement('div');
+        row.className = 'node-row';
+        row.innerHTML = `
+            <a href="#" class="level-node ${stateClass}" onclick="${onClickAction}" id="node-${index}">
+                ${starsDisplayHtml}
+                ${isBeaten || isUnlocked ? (index+1) : ''}
+                <div class="label">${lv.label}</div>
+            </a>
+        `;
+        container.appendChild(row);
+        htmlNodes.push(row.querySelector('.level-node'));
+    });
+
+    setTimeout(() => {
+        drawLines(htmlNodes);
+        
+        // 如果是在 map-tab，自動捲動到目前可以玩的關卡
+        if (document.getElementById('map-tab').classList.contains('active')) {
+            const unlockedNode = container.querySelector('.level-node.unlocked');
+            if (unlockedNode) {
+                unlockedNode.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+    }, 100);
+}
+
+function drawLines(nodes) {
+    const svg = document.getElementById('path-svg');
+    svg.innerHTML = '';
+    const container = document.querySelector('.map-container');
+    const bounds = container.getBoundingClientRect();
+
+    for (let i = 0; i < nodes.length - 1; i++) {
+        const n1 = nodes[i].getBoundingClientRect();
+        const n2 = nodes[i+1].getBoundingClientRect();
+
+        const x1 = n1.left - bounds.left + n1.width/2;
+        const y1 = n1.top - bounds.top + n1.height/2;
+        const x2 = n2.left - bounds.left + n2.width/2;
+        const y2 = n2.top - bounds.top + n2.height/2;
+
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', x1);
+        line.setAttribute('y1', y1);
+        line.setAttribute('x2', x2);
+        line.setAttribute('y2', y2);
+
+        if (nodes[i+1].classList.contains('locked')) {
+            line.setAttribute('stroke', 'var(--locked)');
+            line.setAttribute('stroke-dasharray', '8,8');
+            line.setAttribute('stroke-width', '3');
+        } else {
+            line.setAttribute('stroke', 'var(--accent)');
+            line.setAttribute('stroke-width', '5');
+        }
+        svg.appendChild(line);
+    }
+}
+
+window.addEventListener('resize', () => {
+    const nodes = document.querySelectorAll('.level-node');
+    if (nodes.length > 0) drawLines(nodes);
+});
+
+// ── Init ──
+window.addEventListener('load', () => {
+    initAuthUI();
+    if (GAME_MODE) loadProgress();
+});
+</script>
+
+<!-- Scroll to Top Button -->
+<button class="scroll-to-top" id="btn-scroll-top" title="回到頂部">⬆️</button>
+<script>
+    const scrollBtn = document.getElementById('btn-scroll-top');
+    window.addEventListener('scroll', () => {
+        if (window.scrollY > 300) {
+            scrollBtn.classList.add('show');
+        } else {
+            scrollBtn.classList.remove('show');
+        }
+    });
+    scrollBtn.addEventListener('click', () => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+</script>
+
+<script src="../js/quotes.js"></script>
+</body>
+</html>

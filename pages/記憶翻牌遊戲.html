@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VB.NET 關鍵字記憶遊戲 ── Q1 迴文判斷</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:      #0d1117;
+    --surface: #161b22;
+    --border:  #30363d;
+    --accent:  #58a6ff;
+    --accent2: #f78166;
+    --accent3: #56d364;
+    --text:    #e6edf3;
+    --muted:   #8b949e;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: 'Noto Sans TC', sans-serif;
+    min-height: 100vh;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 24px 16px 40px;
+  }
+  body::before {
+    content: ''; position: fixed; inset: 0;
+    background: repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.07) 2px,rgba(0,0,0,.07) 4px);
+    pointer-events: none; z-index: 999;
+  }
+
+  /* header */
+  header { text-align: center; margin-bottom: 24px; }
+  .badge {
+    display: inline-block; background: var(--accent2); color: #000;
+    font-size: .72rem; font-weight: 900; letter-spacing: .12em;
+    padding: 3px 10px; border-radius: 2px; margin-bottom: 8px; text-transform: uppercase;
+  }
+  h1 { font-size: clamp(1.4rem,4vw,2rem); font-weight: 900; line-height: 1.2; }
+  h1 span { color: var(--accent); }
+  .subtitle { color: var(--muted); font-size: .88rem; margin-top: 6px; }
+
+  /* GAME HEADER */
+  .game-header { width: 100%; max-width: 900px; display: flex; align-items: center; gap: 12px; margin-bottom: 24px; flex-wrap: wrap; justify-content: center; }
+  .back-btn { background: transparent; border: 1px solid var(--border); color: var(--muted); border-radius: 6px; padding: 6px 14px; font-size: .82rem; cursor: pointer; text-decoration: none; font-family: inherit; transition: all .2s; }
+  .back-btn:hover { color: var(--text); border-color: var(--muted); }
+  .mode-pill { font-size: .72rem; font-weight: 900; padding: 4px 12px; border-radius: 4px; text-transform: uppercase; letter-spacing: .08em; background: rgba(74, 222, 128, .15); color: var(--accent3, #56d364); border: 1px solid rgba(74, 222, 128, .3); }
+
+  /* stats */
+  .stats { display: flex; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; justify-content: center; }
+  .stat { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 8px 18px; text-align: center; }
+  .stat-val { font-size: 1.3rem; font-weight: 900; color: var(--accent); font-family: 'Share Tech Mono', monospace; display: block; }
+  .stat-lbl { font-size: .68rem; color: var(--muted); margin-top: 1px; display: block; }
+
+  /* banner */
+  #countdown-banner {
+    background: rgba(251,191,36,.08); border: 1px solid rgba(251,191,36,.35);
+    border-radius: 8px; padding: 10px 20px;
+    font-size: .88rem; font-weight: 700; color: #fbbf24;
+    margin-bottom: 20px; max-width: 900px; width: 100%; text-align: center;
+  }
+  #countdown-banner.hidden { display: none; }
+
+  .instruction {
+    background: rgba(88,166,255,.08); border: 1px solid rgba(88,166,255,.25);
+    border-radius: 6px; padding: 10px 18px;
+    font-size: .82rem; color: var(--accent);
+    margin-bottom: 20px; max-width: 900px; width: 100%; text-align: center;
+  }
+
+  /* grid */
+  #grid {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 12px; max-width: 900px; width: 100%; margin-bottom: 24px;
+  }
+  @media (max-width: 480px) { #grid { grid-template-columns: repeat(3, 1fr); gap: 8px; } }
+
+  /* ── CARD (single face, no 3D transform) ── */
+  .card {
+    aspect-ratio: 1 / 0.65;
+    border-radius: 8px;
+    border: 2px solid var(--border);
+    cursor: pointer;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 8px; text-align: center;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    transition: border-color .15s, background .15s, box-shadow .15s;
+    position: relative; overflow: hidden;
+  }
+
+  /* ── BACK face (? mark) ── */
+  .card.back {
+    background: #1a2030;
+    border-color: #374151;
+  }
+  .card.back .card-content { display: none; }
+  .card.back::after {
+    content: '?';
+    font-size: 1.8rem; font-weight: 900;
+    color: var(--muted); opacity: .45;
+  }
+
+  /* ── EN front ── */
+  .card[data-type="en"]:not(.back) {
+    background: #1a1f2e;
+    border-color: #2a3550;
+  }
+  .card[data-type="en"]:not(.back) .card-word {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: clamp(.7rem, 2.3vw, .92rem);
+    font-weight: 700; color: var(--accent);
+    word-break: normal; overflow-wrap: break-word; line-height: 1.35;
+  }
+  .card[data-type="en"]:not(.back) .card-tag {
+    font-size: .58rem; color: var(--muted); margin-top: 5px;
+    background: rgba(88,166,255,.1); padding: 1px 7px; border-radius: 99px;
+  }
+
+  /* ── ZH front ── */
+  .card[data-type="zh"]:not(.back) {
+    background: #1a1e2e;
+    border-color: #2a3450;
+  }
+  .card[data-type="zh"]:not(.back) .card-word {
+    font-size: clamp(.7rem, 2.3vw, .88rem);
+    font-weight: 700; color: #e6c77a; line-height: 1.4;
+  }
+  .card[data-type="zh"]:not(.back) .card-tag {
+    font-size: .58rem; color: var(--muted); margin-top: 5px;
+    background: rgba(230,199,122,.1); padding: 1px 7px; border-radius: 99px;
+  }
+
+  /* ── selected ── */
+  .card.selected {
+    border-color: var(--accent) !important;
+    box-shadow: 0 0 0 3px rgba(88,166,255,.22), 0 0 14px rgba(88,166,255,.28);
+    transform: scale(1.05);
+  }
+
+  /* ── wrong ── */
+  .card.wrong {
+    border-color: #f87171 !important;
+    background: rgba(248,113,113,.1) !important;
+    animation: shake .35s ease;
+  }
+  @keyframes shake {
+    0%,100%{ transform: translateX(0); }
+    25%    { transform: translateX(-5px); }
+    75%    { transform: translateX(5px); }
+  }
+
+  /* ── vanish ── */
+  .card.vanish { animation: vanish .45s ease forwards; }
+  @keyframes vanish {
+    0%  { transform: scale(1);   opacity: 1; filter: brightness(1); }
+    40% { transform: scale(1.1); opacity: 1; filter: brightness(2); }
+    100%{ transform: scale(0);   opacity: 0; }
+  }
+
+  /* ── gone ── */
+  .card.gone {
+    visibility: hidden; pointer-events: none;
+    border-color: transparent !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  /* flip reveal */
+  @keyframes flipIn {
+    from { transform: scaleX(0.1); }
+    to   { transform: scaleX(1); }
+  }
+  .card.flip-in { animation: flipIn .16s ease; }
+
+  /* buttons */
+  .btn-row { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+  button {
+    font-family: 'Noto Sans TC', sans-serif; font-size: .9rem; font-weight: 700;
+    padding: 10px 28px; border-radius: 6px; border: none; cursor: pointer; transition: all .2s;
+  }
+  #btn-restart { background: var(--accent); color: #000; }
+  #btn-restart:hover { background: #79b8ff; transform: translateY(-2px); }
+
+  /* overlay */
+  #overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(13,17,23,.92); backdrop-filter: blur(4px);
+    z-index: 100; align-items: center; justify-content: center;
+  }
+  #overlay.show { display: flex; }
+  .overlay-box {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 40px 48px;
+    text-align: center; max-width: 380px; width: 90%;
+    animation: popIn .35s cubic-bezier(.4,0,.2,1);
+  }
+  @keyframes popIn {
+    from{ transform: scale(.85); opacity: 0; }
+    to  { transform: scale(1);   opacity: 1; }
+  }
+  .overlay-box .emoji { font-size: 3rem; margin-bottom: 12px; }
+  .overlay-box h2 { font-size: 1.6rem; font-weight: 900; margin-bottom: 8px; }
+  .overlay-box p  { color: var(--muted); font-size: .9rem; margin-bottom: 20px; }
+  .overlay-box .score-line {
+    font-family: 'Share Tech Mono', monospace; color: var(--accent3);
+    font-size: 1rem; margin-bottom: 24px;
+    background: rgba(86,211,100,.08); border: 1px solid rgba(86,211,100,.2);
+    border-radius: 6px; padding: 10px;
+  }
+
+  /* legend */
+  .legend { display: flex; gap: 20px; margin-top: 18px; flex-wrap: wrap; justify-content: center; }
+  .leg { display: flex; align-items: center; gap: 6px; font-size: .78rem; color: var(--muted); }
+  .leg-dot { width: 10px; height: 10px; border-radius: 2px; }
+</style>
+<link rel="stylesheet" href="../css/common.css">
+</head>
+<body>
+
+
+<div class="game-header">
+  <a href="#" class="back-btn" id="btn-back">← 返回</a>
+  <div class="mode-pill lvl-easy" id="mode-pill">記憶翻牌遊戲</div>
+</div>
+
+<div class="stats">
+  <div class="stat"><span class="stat-val" id="matched-count">0</span><span class="stat-lbl">已消除</span></div>
+  <div class="stat"><span class="stat-val" id="total-count">0</span><span class="stat-lbl">總配對數</span></div>
+  <div class="stat"><span class="stat-val" id="click-count">0</span><span class="stat-lbl">點擊次數</span></div>
+  <div class="stat"><span class="stat-val" id="timer">0s</span><span class="stat-lbl">時間</span></div>
+</div>
+
+<div id="countdown-banner">👀 記住所有答案！<span id="countdown-num">5</span> 秒後開始遊戲…</div>
+<div class="instruction" id="instruction" style="display:none;">💡 點選英文牌，再點選對應的中文牌，配對成功即消除！</div>
+
+<div id="grid"></div>
+
+<div class="btn-row">
+  <button id="btn-restart">🔄 重新開始</button>
+  <button id="btn-hint" style="background:#4b5563; color:#fff;">💡 提示</button>
+</div>
+
+<div class="legend">
+  <div class="leg"><div class="leg-dot" style="background:#58a6ff"></div>英文指令 / 語法</div>
+  <div class="leg"><div class="leg-dot" style="background:#e6c77a"></div>中文說明</div>
+</div>
+
+<div id="overlay">
+  <div class="overlay-box">
+    <div class="emoji">🎉</div>
+    <h2>全部配對完成！</h2>
+    <p>你已經認識了 Q1 迴文判斷的所有關鍵字！</p>
+    <div class="score-line" id="final-score"></div>
+    <div style="display:flex; justify-content:center; gap:10px;">
+        <button id="btn-again" style="background:#56d364;color:#000;font-weight:900;padding:12px 24px;border-radius:6px;border:none;cursor:pointer;font-size:1rem;white-space:nowrap;">再玩一次</button>
+        <button id="btn-next-level" style="background: linear-gradient(90deg, #38bdf8, #818cf8); color:#fff; font-weight:900; padding:12px 24px; border-radius:6px; border:none; cursor:pointer; font-size:1rem; display:none;white-space:nowrap;">⏭️ 下一關</button>
+    </div>
+  </div>
+</div>
+
+<script src="../js/users.js"></script>
+<script type="module" src="../js/api.js?v=6"></script>
+<script src="../js/quiz_data.js"></script>
+<script>
+const urlParams = new URLSearchParams(window.location.search);
+const qID = urlParams.get('q') || 'Q1';
+const tID = urlParams.get('t') || 'T01';
+
+// 設定標題與 UI
+window.addEventListener('load', () => {
+    if (QUIZ_DATA[qID]) {
+        let labelText = `${qID} ${QUIZ_DATA[qID].title} (${tID})`;
+        if (qID === 'SETUP') {
+             labelText = 'Form1_Load (通用考生資訊)';
+        }
+        document.getElementById('mode-pill').textContent = labelText;
+        if(document.getElementById('topic-badge')) document.getElementById('topic-badge').textContent = `${qID} · ${QUIZ_DATA[qID].title}`;
+    }
+});
+
+// BACK BTN
+document.getElementById('btn-back').addEventListener('click', (e) => {
+    e.preventDefault();
+    window.location.href = `../index.html?q=${qID}&t=${tID}`;
+});
+
+// ══ Audio 同連連看 ══
+const AC = window.AudioContext || window.webkitAudioContext;
+let audioCtx = null;
+function getAC() {
+  if (!audioCtx) audioCtx = new AC();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+}
+function playMatchSound() {
+  try {
+    const ctx = getAC();
+    [[523.25,0],[783.99,0.13]].forEach(([freq,when]) => {
+      const osc = ctx.createOscillator(), gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.type = 'sine'; osc.frequency.value = freq;
+      const t = ctx.currentTime + when;
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(0.28, t+0.01);
+      gain.gain.exponentialRampToValueAtTime(0.001, t+0.32);
+      osc.start(t); osc.stop(t+0.33);
+    });
+  } catch(e){}
+}
+function playWrongSound() {
+  try {
+    const ctx = getAC();
+    [[220,0],[180,0.1]].forEach(([freq,when]) => {
+      const osc = ctx.createOscillator(), gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.type = 'sawtooth'; osc.frequency.value = freq;
+      const t = ctx.currentTime + when;
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(0.18, t+0.01);
+      gain.gain.exponentialRampToValueAtTime(0.001, t+0.22);
+      osc.start(t); osc.stop(t+0.23);
+    });
+  } catch(e){}
+}
+function playWinSound() {
+  try {
+    const ctx = getAC();
+    [[523.25,0],[659.25,0.15],[783.99,0.30],[1046.50,0.45]].forEach(([freq,when]) => {
+      const osc = ctx.createOscillator(), gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.type = 'sine'; osc.frequency.value = freq;
+      const t = ctx.currentTime + when;
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(0.30, t+0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, t+0.45);
+      osc.start(t); osc.stop(t+0.46);
+    });
+    const sh = ctx.createOscillator(), sg = ctx.createGain();
+    sh.connect(sg); sg.connect(ctx.destination);
+    sh.type = 'sine'; sh.frequency.value = 2093;
+    const st = ctx.currentTime + 0.70;
+    sg.gain.setValueAtTime(0, st);
+    sg.gain.linearRampToValueAtTime(0.15, st+0.02);
+    sg.gain.exponentialRampToValueAtTime(0.001, st+0.6);
+    sh.start(st); sh.stop(st+0.61);
+  } catch(e){}
+}
+
+// ══ Data ══
+const allPairs = generateSteps(qID, tID).map(step => ({
+  en: step.code,
+  enTag: '程式碼',
+  zh: step.zh,
+  zhTag: '中文說明'
+}));
+
+// ══ State ══
+let pairs=[], cards=[], selected=null;
+let matchedCount=0, clickCount=0;
+let locked=false, timerInterval=null, seconds=0, totalHintsUsed=0;
+let PREVIEW_SECS = 5;
+if (qID === '1060306' || qID === '1060307' || qID === '1060308') {
+    PREVIEW_SECS = 15;
+} else if (qID !== 'SETUP') {
+    PREVIEW_SECS = 10;
+}
+
+function shuffle(arr) {
+  const a=[...arr];
+  for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}
+  return a;
+}
+
+// Build single-face card element
+function makeCard(data) {
+  const el = document.createElement('div');
+  el.className = 'card';           // shows front content by default
+  el.dataset.pairId = data.pairId;
+  el.dataset.type   = data.type;
+  el.innerHTML = `<div class="card-content">
+    <div class="card-word">${data.word}</div>
+    <div class="card-tag">${data.tag}</div>
+  </div>`;
+  el.addEventListener('click', () => onCardClick(el));
+  return el;
+}
+
+function hideCard(el) {
+  el.classList.add('back');
+}
+function revealCard(el) {
+  el.classList.remove('back');
+  el.classList.add('flip-in');
+  el.addEventListener('animationend', () => el.classList.remove('flip-in'), { once: true });
+}
+
+// ══ Start game ══
+function startGame() {
+  window.scrollTo(0, 0);
+  clearInterval(timerInterval);
+  seconds=0; clickCount=0; matchedCount=0; selected=null; locked=true; totalHintsUsed=0;
+
+  pairs = shuffle(allPairs).slice(0, 6);
+  cards = [];
+  pairs.forEach((p,idx)=>{
+    cards.push({ pairId:idx, type:'en', word:p.en, tag:p.enTag });
+    cards.push({ pairId:idx, type:'zh', word:p.zh, tag:p.zhTag });
+  });
+  cards = shuffle(cards);
+
+  const grid = document.getElementById('grid');
+  grid.innerHTML = '';
+  document.getElementById('total-count').textContent = pairs.length;
+  cards.forEach(c => grid.appendChild(makeCard(c)));
+
+  document.getElementById('overlay').classList.remove('show');
+  document.getElementById('instruction').style.display = 'none';
+  updateStats();
+
+  // Preview phase
+  const banner = document.getElementById('countdown-banner');
+  const numEl  = document.getElementById('countdown-num');
+  banner.classList.remove('hidden');
+  let rem = PREVIEW_SECS;
+  numEl.textContent = rem;
+
+  const cd = setInterval(() => {
+    rem--;
+    if (rem <= 0) {
+      clearInterval(cd);
+      document.querySelectorAll('#grid .card').forEach(hideCard);
+      banner.classList.add('hidden');
+      document.getElementById('instruction').style.display = 'block';
+      locked = false;
+      timerInterval = setInterval(() => {
+        seconds++;
+        document.getElementById('timer').textContent = seconds + 's';
+      }, 1000);
+    } else {
+      numEl.textContent = rem;
+    }
+  }, 1000);
+}
+
+// ══ Click handler ══
+function onCardClick(el) {
+  if (locked) return;
+  if (el.classList.contains('gone')) return;
+  if (el.classList.contains('vanish')) return;
+  if (!el.classList.contains('back')) return; // already revealed, ignore
+
+  getAC(); // wake audio
+
+  revealCard(el);
+  el.classList.add('selected');
+  clickCount++;
+  updateStats();
+
+  if (!selected) {
+    selected = el;
+    return;
+  }
+
+  const a = selected, b = el;
+  a.classList.remove('selected');
+  b.classList.remove('selected');
+  selected = null;
+  locked = true;
+
+  const isMatch = a.dataset.pairId === b.dataset.pairId
+               && a.dataset.type   !== b.dataset.type;
+
+  if (isMatch) {
+    playMatchSound();
+    a.classList.add('vanish');
+    b.classList.add('vanish');
+    setTimeout(() => {
+      a.classList.remove('vanish');
+      b.classList.remove('vanish');
+      a.classList.add('gone');
+      b.classList.add('gone');
+      matchedCount++;
+      updateStats();
+      locked = false;
+      if (matchedCount === pairs.length) setTimeout(showWin, 300);
+    }, 480);
+  } else {
+    playWrongSound();
+    a.classList.add('wrong');
+    b.classList.add('wrong');
+        let delay = 1500;
+    if (qID === '1060306' || qID === '1060307' || qID === '1060308') {
+        delay = 2500;
+    }
+    setTimeout(() => {
+      a.classList.remove('wrong');
+      b.classList.remove('wrong');
+      hideCard(a);
+      hideCard(b);
+      locked = false;
+    }, delay);
+  }
+}
+
+function showWin() {
+  clearInterval(timerInterval);
+  playWinSound();
+  const eff = Math.round(pairs.length / clickCount * 100);
+  document.getElementById('final-score').innerHTML =
+    `⏱ ${seconds} 秒　　🃏 點擊 ${clickCount} 次　　🎯 效率 ${eff}%`;
+  document.getElementById('overlay').classList.add('show');
+
+  // 將成績送往雲端 (若以登入且及格)
+  if (typeof getCurrentUser === 'function') {
+      const user = getCurrentUser();
+      if (user && typeof window.saveScore === 'function') {
+          
+          let stars = 3;
+          if (typeof totalHintsUsed !== 'undefined') {
+              if (totalHintsUsed > 0 && totalHintsUsed <= 3) stars = 2;
+              if (totalHintsUsed > 3) stars = 1;
+          }
+          let finalScoreSpan = document.getElementById('final-score');
+          if (finalScoreSpan) {
+              finalScoreSpan.style.width = "calc(100% + 40px)";
+              finalScoreSpan.style.marginLeft = "-20px";
+              finalScoreSpan.style.padding = "20px 10px 25px 10px";
+              finalScoreSpan.style.boxSizing = "border-box";
+              const hintsCount = typeof totalHintsUsed !== 'undefined' ? totalHintsUsed : 0;
+              let originHtml = finalScoreSpan.innerHTML;
+              
+              // 移除舊版的星星 UI
+              originHtml = originHtml.replace(/<div class="star-display-container"([\s\S]*?)<\/div>\s*<\/div>/g, '');
+              originHtml = originHtml.replace(/<br>⭐ 提示.*顆/g, '');
+              
+              // 修正折行問題，將各個統計項目包裝在 nowrap 中
+              originHtml = originHtml.replace(/(⏱ 用時.*?秒)/g, '<span style="white-space:nowrap;">$1</span>');
+              originHtml = originHtml.replace(/(❌ 錯誤.*?次)/g, '<span style="white-space:nowrap;">$1</span>');
+              originHtml = originHtml.replace(/(🎯 正確率.*?%)/g, '<span style="white-space:nowrap;">$1</span>');
+              originHtml = originHtml.replace(/　　/g, ' &nbsp;&nbsp; ');
+
+              finalScoreSpan.innerHTML = originHtml + `
+                  <div class="star-display-container" style="margin-top: 20px; width: 100%; display: flex; flex-direction: column; align-items: center;">
+                      <div style="display: flex; justify-content: center; align-items: center; gap: 12px; margin-bottom: 5px; flex-wrap: nowrap;">
+                          ${Array(3).fill(0).map((_, i) => `<span style="font-size: 2.5rem; filter: ${i < stars ? 'drop-shadow(0 0 12px rgba(251,191,36,0.8))' : 'grayscale(100%) opacity(20%)'}; transform: scale(${i < stars ? 1.1 : 1}); transition: all 0.3s ease; line-height: 1;">⭐</span>`).join('')}
+                      </div>
+                      <div style="font-size: 0.85rem; color: #94a3b8; text-align: center; margin-top: 10px;">
+                          ( 使用提示：${hintsCount} 次 )
+                      </div>
+                  </div>
+              `;
+          }
+          window.saveScore(user.className, user.name, qID + '_' + tID, "圖卡翻牌記憶", seconds, "PASS", stars)
+            .then(res => console.log("翻牌成績上傳完成:", res));
+      }
+  }
+
+    setupNextLevelButton();
+}
+
+function setupNextLevelButton() {
+    const LEVEL_SEQUENCE = [
+      { q: 'SETUP', t: 'T01' }, { q: 'Q1', t: 'T01' }, { q: 'Q1', t: 'T02' }, { q: 'Q1', t: 'T03' },
+      { q: 'Q2', t: 'T01' }, { q: 'Q2', t: 'T02' }, { q: 'Q2', t: 'T03' }, { q: 'Q3', t: 'T01' },
+      { q: 'Q3', t: 'T02' }, { q: 'Q3', t: 'T03' }, { q: 'Q4', t: 'T01' }, { q: 'Q4', t: 'T02' },
+      { q: 'Q4', t: 'T03' }, { q: 'Q5', t: 'T01' }, { q: 'Q5', t: 'T02' }, { q: 'Q5', t: 'T03' },
+      { q: '1060306', t: 'T01' }, { q: '1060307', t: 'T01' }, { q: '1060308', t: 'T01' }
+    ];
+    let currentIndex = LEVEL_SEQUENCE.findIndex(l => l.q === qID && l.t === tID);
+    const nextBtn = document.getElementById('btn-next-level');
+    if (nextBtn) {
+        if (currentIndex >= 0 && currentIndex < LEVEL_SEQUENCE.length - 1) {
+            const nextLv = LEVEL_SEQUENCE[currentIndex + 1];
+            nextBtn.style.display = 'block';
+            nextBtn.onclick = () => {
+                window.location.href = `記憶翻牌遊戲.html?q=${nextLv.q}&t=${nextLv.t}`;
+            };
+        } else if (currentIndex === LEVEL_SEQUENCE.length - 1) {
+            nextBtn.style.display = 'block';
+            nextBtn.innerHTML = '挑戰下一主題 ⏭️';
+            nextBtn.onclick = () => {
+                window.location.href = '中英選擇題.html?q=SETUP&t=T01';
+            };
+        } else {
+            nextBtn.style.display = 'none';
+            nextBtn.onclick = null;
+        }
+    }
+}
+
+function updateStats() {
+  document.getElementById('matched-count').textContent = matchedCount;
+  document.getElementById('click-count').textContent   = clickCount;
+}
+
+document.getElementById('btn-restart').addEventListener('click', startGame);
+document.getElementById('btn-again').addEventListener('click', startGame);
+
+document.getElementById('btn-hint').addEventListener('click', () => {
+  if (locked) return;
+  const backs = Array.from(document.querySelectorAll('.card.back:not(.gone)'));
+  if (backs.length === 0) return;
+
+  locked = true;
+  totalHintsUsed++;
+  
+  let targetCards = [];
+  if (selected) {
+    const pairId = selected.dataset.pairId;
+    const targetType = selected.dataset.type === 'en' ? 'zh' : 'en';
+    const match = document.querySelector(`.card.back:not(.gone)[data-pair-id="${pairId}"][data-type="${targetType}"]`);
+    if (match) targetCards.push(match);
+  } else {
+    const pairId = backs[0].dataset.pairId;
+    targetCards = Array.from(document.querySelectorAll(`.card.back:not(.gone)[data-pair-id="${pairId}"]`));
+  }
+
+  targetCards.forEach(c => {
+    c.classList.remove('back'); 
+    c.classList.add('flip-in');
+    c.style.borderColor = 'var(--gold)';
+    c.style.boxShadow = '0 0 0 3px rgba(251,191,36,0.5)';
+  });
+
+  setTimeout(() => {
+    targetCards.forEach(c => {
+       c.classList.add('back');
+       c.style.borderColor = '';
+       c.style.boxShadow = '';
+    });
+    locked = false;
+  }, 1000);
+});
+
+startGame();
+</script>
+<script src="../js/game-toolbar.js"></script>
+<script src="../js/nextlevel.js"></script>
+</body>
+</html>
