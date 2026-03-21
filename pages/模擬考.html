@@ -135,7 +135,7 @@ body{background:var(--bg);color:var(--text);font-family:'Noto Sans TC',sans-seri
 </div>
 
 <script src="../js/users.js"></script>
-<script type="module" src="../js/api.js?v=7"></script>
+<script type="module" src="../js/api.js?v=8"></script>
 <script src="../js/quiz_data.js"></script>
 <script>
 // ══════════════════════════════════════════
@@ -172,7 +172,7 @@ examQuestions.forEach((eq, i) => {
 });
 document.getElementById('draw-info').innerHTML =
   `迴圈指令：<b style="color:var(--accent)">${LOOP_NAMES[drawnT]}</b><br>` +
-  `第一套抽中：<b>${drawnQs.join(', ')}</b>　第二套抽中：<b>${drawnSet2}</b>`;
+  `第一套抽中：<b>${drawnQs.join(', ')}</b><br>第二套抽中：<b>${drawnSet2}</b>`;
 
 // ══════════════════════════════════════════
 //  EXAM STATE
@@ -334,7 +334,12 @@ function updateTimerDisplay() {
   const m = Math.floor(remainingSeconds / 60);
   const s = remainingSeconds % 60;
   const el = document.getElementById('exam-timer');
-  el.textContent = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  const h = Math.floor(m / 60);
+  const mm = m % 60;
+  const timeStr = h > 0
+    ? `${h} 時 ${String(mm).padStart(2,'0')} 分 ${String(s).padStart(2,'0')} 秒`
+    : `${mm} 分 ${String(s).padStart(2,'0')} 秒`;
+  el.textContent = `剩餘時間：${timeStr}`;
   el.classList.toggle('warning', remainingSeconds < 300); // last 5 min
 }
 

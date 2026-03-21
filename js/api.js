@@ -29,7 +29,7 @@ if (firebaseConfig.apiKey && firebaseConfig.apiKey !== "YOUR_API_KEY_HERE") {
 
 // ── 快取工具函式 (改用 localStorage，F5 不會清掉) ──
 // TTL 預設 30 分鐘 (1800000ms)
-const CACHE_TTL = 1800000;
+const CACHE_TTL = 7200000; // 2 小時
 
 function cacheGet(key) {
     try {
@@ -57,9 +57,15 @@ function cacheSet(key, data) {
 function cacheAppend(key, newRecord) {
     try {
         const raw = localStorage.getItem(key);
-        if (!raw) return;
+        if (!raw) {
+            // 快取不存在或已過期，建立新快取
+            cacheSet(key, [newRecord]);
+            return;
+        }
         const obj = JSON.parse(raw);
+        if (!Array.isArray(obj.data)) obj.data = [];
         obj.data.push(newRecord);
+        obj.time = Date.now(); // 更新快取時間，避免過期
         localStorage.setItem(key, JSON.stringify(obj));
     } catch (e) {}
 }
