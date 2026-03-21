@@ -186,7 +186,8 @@ textarea {
   <div class="controls">
     <button class="btn btn-primary" id="btn-submit">🚀 編譯並驗證</button>
     <button class="btn btn-ghost" id="btn-hint">💡 獲得邏輯提示</button>
-    <button class="btn btn-ghost" id="btn-reset">🔄 重置</button>
+    <button class="btn btn-ghost" id="btn-clear-line">⌫ 清除一行</button>
+    <button class="btn btn-ghost" id="btn-reset">🔄 全部重置</button>
   </div>
 
   <div class="hint-box" id="hint-box">
@@ -330,9 +331,11 @@ function win() {
   playWin();
 
   // 計算星星：0 提示 = 3 星, 1~3 提示 = 2 星, >3 提示 = 1 星
+  // 速度異常（< 5 秒完成）視為作弊，0 星
   let stars = 3;
-  if (hintCount > 0 && hintCount <= 3) stars = 2;
-  if (hintCount > 3) stars = 1;
+  if (seconds < 5) stars = 0;
+  else if (hintCount > 0 && hintCount <= 3) stars = 2;
+  else if (hintCount > 3) stars = 1;
 
   // 更新任務標題
   const titleEl = document.getElementById('win-mission-title');
@@ -370,6 +373,7 @@ function win() {
 //  EVENTS
 // ══════════════════════════════════════════
 editor.addEventListener('input', validate);
+editor.addEventListener('paste', e => e.preventDefault()); // 禁止貼上
 
 document.getElementById('btn-back').addEventListener('click', (e) => {
     e.preventDefault();
@@ -434,6 +438,20 @@ editor.addEventListener('keydown', function(e) {
     this.value = this.value.substring(0, start) + "    " + this.value.substring(end);
     this.selectionStart = this.selectionEnd = start + 4;
   }
+});
+
+// 清除一行：刪除游標所在那一行
+document.getElementById('btn-clear-line').addEventListener('click', () => {
+  const pos = editor.selectionStart;
+  const val = editor.value;
+  const before = val.lastIndexOf('\n', pos - 1);
+  const after = val.indexOf('\n', pos);
+  const lineStart = before + 1;
+  const lineEnd = after === -1 ? val.length : after + 1;
+  editor.value = val.substring(0, lineStart) + val.substring(lineEnd);
+  editor.selectionStart = editor.selectionEnd = lineStart;
+  editor.focus();
+  validate();
 });
 </script>
 <script src="../js/game-toolbar.js"></script>

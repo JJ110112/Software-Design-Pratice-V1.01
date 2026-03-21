@@ -220,6 +220,7 @@ h1 em { color: var(--accent2); font-style: normal; }
     <div class="btn-row">
       <button class="btn btn-primary" id="btn-submit">確認提交 (Enter)</button>
       <button class="btn btn-ghost" id="btn-hint">顯示提示</button>
+      <button class="btn btn-ghost" id="btn-clear-input">清除</button>
     </div>
   </div>
 
@@ -292,6 +293,7 @@ let timer = null;
 let isFinished = false;
 
 const inputEl = document.getElementById('code-input');
+inputEl.addEventListener('paste', e => e.preventDefault()); // 禁止貼上
 const displayEl = document.getElementById('code-display');
 const fillEl = document.getElementById('progress-fill');
 const hintText = document.getElementById('hint-text');
@@ -473,6 +475,10 @@ inputEl.addEventListener('keydown', (e) => {
 document.getElementById('btn-hint').addEventListener('click', () => {
   hintContent.textContent = STEPS[currentIdx].hint;
   hintText.classList.add('show');
+  inputEl.focus();
+});
+document.getElementById('btn-clear-input').addEventListener('click', () => {
+  inputEl.value = '';
   inputEl.focus();
 });
 document.getElementById('btn-replay').addEventListener('click', () => {

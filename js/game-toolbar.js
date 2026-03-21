@@ -1,20 +1,28 @@
 /* game-toolbar.js — 自動注入遊戲右上角工具列 (Home, Map, Sound, Restart) */
 (function() {
-    // Determine which game mode this page is (from filename)
+    // Determine which game mode this page is (from filename + sub param)
     const path = window.location.pathname;
     const filename = decodeURIComponent(path.split('/').pop().replace('.html', ''));
-    
+
     // Read q and t from URL params
     const params = new URLSearchParams(window.location.search);
     const q = params.get('q') || '';
     const t = params.get('t') || '';
+    const sub = params.get('sub') || '';
+
+    // 打字練習子模式對應正確的 map mode 名稱
+    let mapMode = filename;
+    if (filename === '打字練習' && sub) {
+        const SUB_MAP = { keyword: '打字-關鍵字', line: '打字-單行', full: '打字-完整' };
+        mapMode = SUB_MAP[sub] || filename;
+    }
 
     // Build toolbar HTML
     const toolbar = document.createElement('div');
     toolbar.className = 'game-toolbar';
     toolbar.innerHTML = `
         <a href="../index.html" class="toolbar-btn" title="回首頁">🏠</a>
-        <a href="map.html?mode=${encodeURIComponent(filename)}&tab=map" class="toolbar-btn" title="訓練進程與模式">🗺️</a>
+        <a href="map.html?mode=${encodeURIComponent(mapMode)}&tab=map" class="toolbar-btn" title="訓練進程與模式">🗺️</a>
         <button class="toolbar-btn" id="toolbar-sound" title="音效開關">🔊</button>
         <button class="toolbar-btn" id="toolbar-restart" title="重新開始">🔄</button>
     `;

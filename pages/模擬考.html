@@ -115,7 +115,11 @@ body{background:var(--bg);color:var(--text);font-family:'Noto Sans TC',sans-seri
       </div>
     </div>
 
-    <button class="exam-hint-btn" id="btn-hint">💡 獲得邏輯提示</button>
+    <div style="display:flex;gap:10px;margin-top:15px;flex-wrap:wrap;">
+      <button class="exam-hint-btn" id="btn-hint">💡 獲得邏輯提示</button>
+      <button class="exam-hint-btn" id="btn-exam-clear-line">⌫ 清除一行</button>
+      <button class="exam-hint-btn" id="btn-exam-clear">🔄 全部清除</button>
+    </div>
     <div class="exam-hint-box" id="hint-box"></div>
   </div>
 </div>
@@ -365,6 +369,31 @@ document.getElementById('btn-hint').addEventListener('click', () => {
   box.textContent = `第 ${nextIdx + 1} 行：${steps[nextIdx].zh}`;
 });
 
+// 清除一行（游標所在行）
+document.getElementById('btn-exam-clear-line').addEventListener('click', () => {
+  const ed = document.getElementById('editor');
+  const pos = ed.selectionStart;
+  const val = ed.value;
+  const before = val.lastIndexOf('\n', pos - 1);
+  const after = val.indexOf('\n', pos);
+  const lineStart = before + 1;
+  const lineEnd = after === -1 ? val.length : after + 1;
+  ed.value = val.substring(0, lineStart) + val.substring(lineEnd);
+  ed.selectionStart = ed.selectionEnd = lineStart;
+  ed.focus();
+  saveCurrentAnswer();
+  validateCurrent();
+});
+
+// 全部清除
+document.getElementById('btn-exam-clear').addEventListener('click', () => {
+  const ed = document.getElementById('editor');
+  ed.value = '';
+  ed.focus();
+  saveCurrentAnswer();
+  validateCurrent();
+});
+
 // ══════════════════════════════════════════
 //  FINISH
 // ══════════════════════════════════════════
@@ -420,6 +449,7 @@ function finishExam(timeout) {
 //  EDITOR EVENTS
 // ══════════════════════════════════════════
 const editor = document.getElementById('editor');
+editor.addEventListener('paste', e => e.preventDefault()); // 禁止貼上
 editor.addEventListener('input', () => {
   saveCurrentAnswer();
   validateCurrent();

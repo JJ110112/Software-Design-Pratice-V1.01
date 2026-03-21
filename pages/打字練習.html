@@ -334,6 +334,8 @@ body::after{
         <button class="typing-back-btn" id="btn-back">← 返回</button>
         <div class="typing-mode-label" id="mode-label"></div>
         <div style="flex:1"></div>
+        <button class="btn btn-ghost btn-sm" id="btn-clear" title="清除已輸入的文字">清除</button>
+        <button class="btn btn-ghost btn-sm" id="btn-clear-line" title="清除最後一行" style="display:none;">⌫ 清除一行</button>
         <button class="btn btn-ghost btn-sm" id="btn-skip">跳過此題</button>
         <label class="auto-advance-wrap" id="auto-advance-wrap" title="完成後自動跳下一題">
           <span class="toggle-switch">
@@ -558,8 +560,8 @@ const LINES = generateSteps(qID, tID).map((step, idx) => {
     } else if (raw.startsWith("Else")) {
         currentIndent = Math.max(0, currentIndent - 4);
     }
-    const txt = " ".repeat(currentIndent) + raw;
-    const obj = { text: txt, zh: step.zh, note: `第 ${idx+1} 行` };
+    const indented = " ".repeat(currentIndent) + raw;
+    const obj = { text: indented, zh: step.zh, note: `第 ${idx+1} 行`, noIndent: raw };
     if (raw.startsWith("Private Sub") || raw.startsWith("For ") || raw.startsWith("If ") || raw.startsWith("Do")) {
         currentIndent += 4;
     } else if (raw.startsWith("Else")) {
@@ -568,7 +570,7 @@ const LINES = generateSteps(qID, tID).map((step, idx) => {
     return obj;
 });
 
-const FULL_CODE = LINES.map(x => x.text).join('\n');
+const FULL_CODE = LINES.map(x => x.noIndent || x.text.trim()).join('\n');
 
 const MODE_META = {
   keyword:{ label:'🔤 關鍵字', labelClass:'lvl-easy' },
@@ -620,8 +622,8 @@ function startMode(mode) {
   sessionWpmSum = 0; sessionCount = 0; sessionTimeSum = 0;
 
   queue = mode === 'keyword' ? shuffle([...KEYWORDS])
-        : mode === 'line'    ? [...LINES]
-        : [{ text: FULL_CODE, zh:'完整 Q1 迴文判斷 Sub', note:'完整程式碼' }];
+        : mode === 'line'    ? LINES.map(l => ({ ...l, text: l.noIndent || l.text.trim() }))
+        : [{ text: FULL_CODE, zh:'完整程式碼', note:'完整程式碼' }];
   qIdx = 0;
 
   document.getElementById('mode-select').style.display  = 'none';
@@ -631,6 +633,9 @@ function startMode(mode) {
   const lbl  = document.getElementById('mode-label');
   lbl.textContent = meta.label;
   lbl.className   = 'typing-mode-label ' + meta.labelClass;
+
+  // 完整模式顯示「清除一行」按鈕
+  document.getElementById('btn-clear-line').style.display = mode === 'full' ? '' : 'none';
 
   loadItem(0);
 }
@@ -649,6 +654,28 @@ document.getElementById('btn-back').addEventListener('click', () => {
   resetTypingUI();
 });
 document.getElementById('btn-skip').addEventListener('click', () => advanceItem());
+
+// 清除按鈕：清空已輸入的文字，重新開始當前題目
+document.getElementById('btn-clear').addEventListener('click', () => {
+  typingInput.value = '';
+  typingInput.disabled = false;
+  isCompleting = false;
+  errorChars = 0;
+  totalChars = 0;
+  onTypingInput();
+  typingInput.focus();
+});
+
+// 清除一行（完整模式用，刪除最後一行）
+document.getElementById('btn-clear-line').addEventListener('click', () => {
+  const val = typingInput.value;
+  const lastNl = val.lastIndexOf('\n');
+  typingInput.value = lastNl === -1 ? '' : val.substring(0, lastNl);
+  typingInput.disabled = false;
+  isCompleting = false;
+  onTypingInput();
+  typingInput.focus();
+});
 
 // toggle
 const toggleAutoAdvance = document.getElementById('toggle-auto-advance');
@@ -722,8 +749,14 @@ const promptBox   = document.getElementById('prompt-box');
 
 promptBox.addEventListener('click', () => { typingInput.focus(); promptBox.classList.add('focused'); requestAnimationFrame(scrollToCursor); });
 promptBox.addEventListener('keydown', () => typingInput.focus());
+// 禁止貼上
+typingInput.addEventListener('paste', e => e.preventDefault());
 typingInput.addEventListener('focus', () => { promptBox.classList.add('focused'); });
-typingInput.addEventListener('blur',  () => { promptBox.classList.remove('focused'); });
+typingInput.addEventListener('blur',  () => {
+  promptBox.classList.remove('focused');
+  // 防止焦點丟失：短暫延遲後自動重新聚焦（除非正在切換題目或已完成）
+  if (!isCompleting) setTimeout(() => { if (!isCompleting && document.getElementById('typing-area').style.display !== 'none') typingInput.focus(); }, 100);
+});
 typingInput.addEventListener('keydown', e => {
   if (!startTime && e.key.length === 1) beginTimer();
   // 禁止左右鍵、Home、End 移動游標，強制從末尾打字
@@ -901,15 +934,19 @@ function showAllClear() {
 
   const avgWpm = sessionCount > 0 ? Math.round(sessionWpmSum / sessionCount) : 0;
 
-  // 計算星星：WPM >= 30 = 3星, >= 20 = 2星, 其他 1星
+  // 計算星星：WPM >= 30 = 3星, >= 20 = 2星, < 20 = 1星
+  // WPM > 120 視為作弊（貼上或其他手段），不給星星
   let stars = 3;
-  if (avgWpm < 30) stars = 2;
-  if (avgWpm < 20) stars = 1;
+  if (avgWpm > 120) stars = 0;
+  else if (avgWpm < 30) stars = 2;
+  else if (avgWpm < 20) stars = 1;
 
+  const cheatWarning = stars === 0 ? '<div style="color:var(--red);font-weight:700;margin-top:12px;">⚠️ 偵測到異常速度 (WPM > 120)，本次不計星星</div>' : '';
   document.getElementById('all-clear-stats').innerHTML = `
-    <div class="clear-stat-chip"><span class="cv" style="color:var(--accent2)">${avgWpm}</span><span class="cl">平均 WPM</span></div>
+    <div class="clear-stat-chip"><span class="cv" style="color:${avgWpm > 120 ? 'var(--red)' : 'var(--accent2)'}">${avgWpm}</span><span class="cl">平均 WPM</span></div>
     <div class="clear-stat-chip"><span class="cv" style="color:var(--gold)">${sessionTimeSum}s</span><span class="cl">總用時</span></div>
     <div class="clear-stat-chip"><span class="cv" style="color:var(--green)">${queue.length}</span><span class="cl">通關題數</span></div>
+    ${cheatWarning}
     <div style="margin-top: 16px; display: flex; justify-content: center; align-items: center; gap: 12px; width: 100%;">
         ${Array(3).fill(0).map((_, i) => `<span style="font-size: 2.5rem; filter: ${i < stars ? 'drop-shadow(0 0 12px rgba(251,191,36,0.8))' : 'grayscale(100%) opacity(20%)'}; transform: scale(${i < stars ? 1.1 : 1}); transition: all 0.3s ease; line-height: 1;">⭐</span>`).join('')}
     </div>`;
@@ -937,13 +974,15 @@ function showAllClear() {
     btnNext.onclick = () => { window.location.href = next.href; };
   }
 
-  // 將成績送往雲端 (若已登入)
-  const gameModeName = SUB_GAME_NAMES[mode] || '打字練習';
-  if (typeof getCurrentUser === 'function') {
-      const user = getCurrentUser();
-      if (user && typeof window.saveScore === 'function') {
-          window.saveScore(user.className, user.name, qID + '_' + tID, gameModeName, sessionTimeSum, "PASS", stars)
-            .then(res => console.log("成績上傳完成:", res));
+  // 將成績送往雲端 (若已登入，0 星不儲存)
+  if (stars > 0) {
+      const gameModeName = SUB_GAME_NAMES[mode] || '打字練習';
+      if (typeof getCurrentUser === 'function') {
+          const user = getCurrentUser();
+          if (user && typeof window.saveScore === 'function') {
+              window.saveScore(user.className, user.name, qID + '_' + tID, gameModeName, sessionTimeSum, "PASS", stars)
+                .then(res => console.log("成績上傳完成:", res));
+          }
       }
   }
 }
