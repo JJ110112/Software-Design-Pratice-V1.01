@@ -243,25 +243,21 @@ body.stage-bg-5 { background: #211c08; }
 
 /* ═══ MOBILE RESPONSIVE ═══ */
 @media (max-width: 768px) {
-  /* 導覽列：兩行佈局 — 標題一行，工具列一行 */
-  body { padding-top: 40px !important; }
+  /* 手機：隱藏固定導覽列，改用頁面頂部顯示題目資訊 */
+  body { padding-top: 0 !important; }
   .level-top-bar {
-    padding: 6px 10px;
-    font-size: 0.75rem;
-    white-space: nowrap;
-    overflow: hidden;
+    position: relative !important;
+    padding: 10px 14px;
+    font-size: 0.85rem;
+    white-space: normal;
+    text-align: center;
   }
-  .level-top-bar-title {
-    margin-left: 4px;
-    max-width: 55vw;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  /* 手機：隱藏導覽列的使用者資訊（星星），避免擠壓 */
+  .level-top-bar-title { margin: 0; }
+  /* 隱藏使用者/星星資訊 */
   .level-top-bar [style*="margin-left: auto"] {
     display: none !important;
   }
-  /* 工具列按鈕縮到最小 */
+  /* 工具列固定右上角，縮小 */
   .game-toolbar { top: 6px; right: 6px; gap: 3px; }
   .toolbar-btn { width: 30px; height: 30px; font-size: 0.85rem; border-radius: 6px; }
 
