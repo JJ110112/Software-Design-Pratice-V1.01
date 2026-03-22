@@ -137,8 +137,8 @@ h1 { font-size: clamp(1.5rem, 5vw, 2.6rem); font-weight: 900; letter-spacing: -.
   color: var(--muted, #64748b);
 }
 @media (max-width: 600px) {
-  .game-toolbar { top: 10px; right: 10px; gap: 6px; }
-  .toolbar-btn { width: 38px; height: 38px; font-size: 1rem; border-radius: 8px; }
+  .game-toolbar { top: 8px; right: 8px; gap: 4px; }
+  .toolbar-btn { width: 34px; height: 34px; font-size: 0.9rem; border-radius: 7px; }
 }
 
 /* --- NEW LEVEL TOP BAR & BG --- */
@@ -239,4 +239,52 @@ body.stage-bg-5 { background: #211c08; }
   color: #fff !important; padding: 10px 24px; border-radius: 8px; border: none;
   font-weight: 700; cursor: pointer; font-family: inherit; font-size: 0.95rem;
   white-space: nowrap;
+}
+
+/* ═══ MOBILE RESPONSIVE ═══ */
+@media (max-width: 768px) {
+  /* 導覽列：縮小文字，單行不折行 */
+  body { padding-top: 44px !important; }
+  .level-top-bar {
+    padding: 8px 12px;
+    font-size: 0.8rem;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  .level-top-bar-title { margin-left: 6px; }
+  .level-top-bar .user-info {
+    font-size: 0.7rem;
+    max-width: 45%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* 打字練習：關鍵字/單行模式輸入區縮小 */
+  .prompt-box:not(.mode-full) {
+    min-height: 60px !important;
+    padding: 16px !important;
+  }
+
+  /* 打字統計列縮小 */
+  .stat-bar { flex-wrap: wrap; gap: 6px; }
+  .stat-item { min-width: 70px; padding: 8px 6px; }
+  .stat-item .val { font-size: 1.1rem; }
+  .stat-item .label { font-size: 0.6rem; }
+
+  /* 通關 overlay 縮小 padding */
+  .overlay-card, .win-card, .win-modal, .all-clear-card {
+    padding: 28px 20px !important;
+  }
+  .overlay-card h2, .win-card h2, .win-modal h2, .all-clear-title {
+    font-size: 1.4rem !important;
+  }
+
+  /* IDE 編輯器 (獨立全程式撰寫, 看中文寫程式) */
+  .ide-container { margin: 0 -8px; }
+  .editor-wrapper { min-height: 300px; }
+  textarea#editor, textarea#code-input { font-size: 0.85rem; padding: 12px; }
+
+  /* 按鈕組 */
+  .controls { flex-wrap: wrap; gap: 8px; }
+  .controls .btn { font-size: 0.8rem; padding: 10px 16px; }
 }

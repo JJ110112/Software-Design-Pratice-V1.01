@@ -275,7 +275,7 @@ body::after{
   .tstat-val{font-size:1.1rem}
 }
 </style>
-<link rel="stylesheet" href="../css/common.css?v=4">
+<link rel="stylesheet" href="../css/common.css?v=5">
 </head>
 <body>
 
@@ -801,7 +801,7 @@ function onTypingInput() {
     }
   });
 
-  if (currentMode === 'full') requestAnimationFrame(scrollToCursor);
+  requestAnimationFrame(scrollToCursor);
 
   errorChars = errCount;
   totalChars = typed.length;
@@ -815,10 +815,16 @@ function onTypingInput() {
 }
 
 function scrollToCursor() {
-  if (currentMode !== 'full') return;
   const cur = document.querySelector('#prompt-chars .char.cursor');
   const box = document.getElementById('prompt-box');
   if (!cur || !box) return;
+
+  // 手機：確保輸入區在可視範圍內（鍵盤彈出時）
+  if (window.innerWidth <= 768) {
+    box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  if (currentMode !== 'full') return;
   let el = cur, y = 0;
   while (el && el !== box) { y += el.offsetTop; el = el.offsetParent; }
   const h = box.clientHeight;

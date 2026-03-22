@@ -141,7 +141,7 @@ textarea {
 .back-btn:hover { color: var(--text); border-color: var(--muted2); }
 .mode-pill { font-size: .72rem; font-weight: 900; padding: 4px 12px; border-radius: 4px; text-transform: uppercase; letter-spacing: .08em; background: rgba(74, 222, 128, .15); color: var(--green); border: 1px solid rgba(74, 222, 128, .3); }
 </style>
-<link rel="stylesheet" href="../css/common.css?v=4">
+<link rel="stylesheet" href="../css/common.css?v=5">
 </head>
 <body>
 
@@ -437,6 +437,13 @@ editor.addEventListener('keydown', function(e) {
     const end = this.selectionEnd;
     this.value = this.value.substring(0, start) + "    " + this.value.substring(end);
     this.selectionStart = this.selectionEnd = start + 4;
+  }
+});
+
+// 手機：鍵盤彈出時自動捲動到編輯器
+editor.addEventListener('focus', () => {
+  if (window.innerWidth <= 768) {
+    setTimeout(() => editor.scrollIntoView({ behavior: 'smooth', block: 'center' }), 300);
   }
 });
 

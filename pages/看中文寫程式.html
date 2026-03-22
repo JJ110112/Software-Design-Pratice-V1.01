@@ -164,7 +164,7 @@ h1 em { color: var(--accent2); font-style: normal; }
 .back-btn:hover { color: var(--text); border-color: var(--muted2); }
 .mode-pill { font-size: .72rem; font-weight: 900; padding: 4px 12px; border-radius: 4px; text-transform: uppercase; letter-spacing: .08em; background: rgba(74, 222, 128, .15); color: var(--green); border: 1px solid rgba(74, 222, 128, .3); }
 </style>
-<link rel="stylesheet" href="../css/common.css?v=4">
+<link rel="stylesheet" href="../css/common.css?v=5">
 </head>
 <body>
 
@@ -294,6 +294,12 @@ let isFinished = false;
 
 const inputEl = document.getElementById('code-input');
 inputEl.addEventListener('paste', e => e.preventDefault()); // 禁止貼上
+// 手機：鍵盤彈出時自動捲動到輸入區
+inputEl.addEventListener('focus', () => {
+  if (window.innerWidth <= 768) {
+    setTimeout(() => inputEl.scrollIntoView({ behavior: 'smooth', block: 'center' }), 300);
+  }
+});
 const displayEl = document.getElementById('code-display');
 const fillEl = document.getElementById('progress-fill');
 const hintText = document.getElementById('hint-text');
