@@ -255,8 +255,9 @@ window.getAllScoresForDashboard = async function () {
             results.push(data);
         });
 
-        cacheSet(sysCacheKey, results);
-        return results;
+        const filtered = results.filter(r => r.className !== '測試用');
+        cacheSet(sysCacheKey, filtered);
+        return filtered;
     } catch (e) {
         console.error("載入儀表板資料失敗:", e);
         return [];
@@ -368,7 +369,7 @@ window.getOverallRanking = async function (classFilter = "ALL") {
             }
         }
 
-        let filtered = results.filter(r => r.status === "PASS");
+        let filtered = results.filter(r => r.status === "PASS" && r.className !== '測試用');
         if (classFilter !== "ALL") {
             filtered = filtered.filter(r => r.className === classFilter);
         }
@@ -457,6 +458,25 @@ window.getUserStarStats = async function (userName) {
         stageStars[stage] += entry.stars;
         modeStars[entry.mode] = (modeStars[entry.mode] || 0) + entry.stars;
     }
+
+    // 每個模式最多 19 關 × 3 星 = 57 星，防止超額
+    for (let m in modeStars) {
+        if (modeStars[m] > 57) modeStars[m] = 57;
+    }
+    // 重新計算總星星（以 capped modeStars 為準）
+    currentStars = Object.values(modeStars).reduce((a, b) => a + b, 0);
+    for (let s = 1; s <= 5; s++) stageStars[s] = 0;
+    for (let k in levelStars) {
+        const entry = levelStars[k];
+        const stage = MODE_TO_STAGE[entry.mode] || 1;
+        stageStars[stage] += entry.stars;
+    }
+    // 每階段也設上限
+    const STAGE_MAX = { 1: 171, 2: 171, 3: 171, 4: 228, 5: 171 };
+    for (let s = 1; s <= 5; s++) {
+        if (stageStars[s] > STAGE_MAX[s]) stageStars[s] = STAGE_MAX[s];
+    }
+    currentStars = Math.min(currentStars, 912);
 
     return {
         currentStars,
