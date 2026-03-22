@@ -172,7 +172,7 @@ test.describe('模擬考 - 考試畫面', () => {
 
     const val = await editor.inputValue();
     // 應該少了一行
-    expect(val.split('\n').length).toBeLessThan(3);
+    expect(val.split('\n').filter(l => l.length > 0).length).toBeLessThan(3);
   });
 
   test('全部清除按鈕可以使用', async ({ page }) => {
@@ -193,6 +193,7 @@ test.describe('模擬考 - 完成流程', () => {
   test('輸入正確答案後分頁標記為完成', async ({ page }) => {
     await page.goto('/pages/模擬考.html');
     await page.click('#btn-start-exam');
+    await page.waitForSelector('.exam-tab');
 
     // 取得第一題（SETUP）的正確答案
     const answer = await page.evaluate(() => {

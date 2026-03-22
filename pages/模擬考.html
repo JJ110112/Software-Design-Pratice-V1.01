@@ -202,6 +202,7 @@ document.getElementById('btn-start-exam').addEventListener('click', () => {
   document.getElementById('exam-screen').style.display = 'block';
   buildTabs();
   loadQuestion(0);
+  updateTimerDisplay();
   startTimer();
 });
 

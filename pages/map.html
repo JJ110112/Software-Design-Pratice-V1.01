@@ -513,6 +513,7 @@ const urlParams = new URLSearchParams(window.location.search);
 let GAME_MODE = urlParams.get('mode') || '';
 const initialTab = urlParams.get('tab') || '';
 const DEV_MODE = urlParams.get('dev') === '1';
+let records = [];
 
 // 打字子模式對應：mode name → { file, sub }
 const TYPING_SUB_MAP = {
@@ -525,6 +526,29 @@ function getGameHref(mode, q, t) {
   if (ts) return `${ts.file}.html?q=${q}&t=${t}&sub=${ts.sub}`;
   return `${mode}.html?q=${q}&t=${t}`;
 }
+
+// ── Level Sequence ──
+const LEVEL_SEQUENCE = [
+  { q: 'SETUP', t: 'T01', label: 'Form_Load 通用' },
+  { q: 'Q1', t: 'T01', label: 'Q1 (T01) 迴文判斷' },
+  { q: 'Q1', t: 'T02', label: 'Q1 (T02) 迴文判斷' },
+  { q: 'Q1', t: 'T03', label: 'Q1 (T03) 迴文判斷' },
+  { q: 'Q2', t: 'T01', label: 'Q2 (T01) 直角三角形列印' },
+  { q: 'Q2', t: 'T02', label: 'Q2 (T02) 直角三角形列印' },
+  { q: 'Q2', t: 'T03', label: 'Q2 (T03) 直角三角形列印' },
+  { q: 'Q3', t: 'T01', label: 'Q3 (T01) 質數計算' },
+  { q: 'Q3', t: 'T02', label: 'Q3 (T02) 質數計算' },
+  { q: 'Q3', t: 'T03', label: 'Q3 (T03) 質數計算' },
+  { q: 'Q4', t: 'T01', label: 'Q4 (T01) BMI值計算' },
+  { q: 'Q4', t: 'T02', label: 'Q4 (T02) BMI值計算' },
+  { q: 'Q4', t: 'T03', label: 'Q4 (T03) BMI值計算' },
+  { q: 'Q5', t: 'T01', label: 'Q5 (T01) 矩陣相加' },
+  { q: 'Q5', t: 'T02', label: 'Q5 (T02) 矩陣相加' },
+  { q: 'Q5', t: 'T03', label: 'Q5 (T03) 矩陣相加' },
+  { q: '1060306', t: 'T01', label: '306 身分證號碼檢查' },
+  { q: '1060307', t: 'T01', label: '307 撲克牌比大小' },
+  { q: '1060308', t: 'T01', label: '308 分數加減乘除運算' }
+];
 
 // ── Tab Logic ──
 const tabBtns = document.querySelectorAll('.tab-btn');
@@ -615,31 +639,6 @@ if (!GAME_MODE && initialTab === 'map') {
     GAME_MODE = ALL_MODES[0];
     modeSelectorEl.querySelector('.mode-chip').click(); // Auto-trigger first chip
 }
-
-// ── Level Sequence ──
-const LEVEL_SEQUENCE = [
-  { q: 'SETUP', t: 'T01', label: 'Form_Load 通用' },
-  { q: 'Q1', t: 'T01', label: 'Q1 (T01) 迴文判斷' },
-  { q: 'Q1', t: 'T02', label: 'Q1 (T02) 迴文判斷' },
-  { q: 'Q1', t: 'T03', label: 'Q1 (T03) 迴文判斷' },
-  { q: 'Q2', t: 'T01', label: 'Q2 (T01) 直角三角形列印' },
-  { q: 'Q2', t: 'T02', label: 'Q2 (T02) 直角三角形列印' },
-  { q: 'Q2', t: 'T03', label: 'Q2 (T03) 直角三角形列印' },
-  { q: 'Q3', t: 'T01', label: 'Q3 (T01) 質數計算' },
-  { q: 'Q3', t: 'T02', label: 'Q3 (T02) 質數計算' },
-  { q: 'Q3', t: 'T03', label: 'Q3 (T03) 質數計算' },
-  { q: 'Q4', t: 'T01', label: 'Q4 (T01) BMI值計算' },
-  { q: 'Q4', t: 'T02', label: 'Q4 (T02) BMI值計算' },
-  { q: 'Q4', t: 'T03', label: 'Q4 (T03) BMI值計算' },
-  { q: 'Q5', t: 'T01', label: 'Q5 (T01) 矩陣相加' },
-  { q: 'Q5', t: 'T02', label: 'Q5 (T02) 矩陣相加' },
-  { q: 'Q5', t: 'T03', label: 'Q5 (T03) 矩陣相加' },
-  { q: '1060306', t: 'T01', label: '306 身分證號碼檢查' },
-  { q: '1060307', t: 'T01', label: '307 撲克牌比大小' },
-  { q: '1060308', t: 'T01', label: '308 分數加減乘除運算' }
-];
-
-let records = [];
 
 // ── Auth UI ──
 async function initAuthUI() {
