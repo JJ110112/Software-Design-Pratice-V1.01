@@ -408,6 +408,10 @@ function showLoginModal() {
         Object.keys(CLASS_ROSTER).forEach(cls => {
             classSelect.innerHTML += `<option value="${cls}">${cls}</option>`;
         });
+        // dev 模式下顯示測試帳號
+        if (new URLSearchParams(window.location.search).get('dev') === '1') {
+            classSelect.innerHTML += `<option value="__TEST__">🔧 測試用</option>`;
+        }
     }
     document.getElementById('sel-student').innerHTML = '<option value="">請先選擇班級</option>';
     document.getElementById('sel-student').disabled = true;
@@ -441,7 +445,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const cls = e.target.value;
         const studentSelect = document.getElementById('sel-student');
         const btnDoLogin = document.getElementById('btn-do-login');
-        if (cls && typeof CLASS_ROSTER !== 'undefined') {
+        if (cls === '__TEST__') {
+            studentSelect.disabled = false;
+            studentSelect.innerHTML = '<option value="0|測試老師">0號 測試老師</option>';
+            btnDoLogin.disabled = false;
+        } else if (cls && typeof CLASS_ROSTER !== 'undefined') {
             studentSelect.disabled = false;
             studentSelect.innerHTML = '<option value="">請選擇座號與姓名</option>';
             CLASS_ROSTER[cls].forEach(student => {
@@ -464,7 +472,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (cls && studentVal) {
             const [no, name] = studentVal.split('|');
             const persist = document.getElementById('chk-persist').checked;
-            loginUser(cls, parseInt(no), name, persist);
+            const displayClass = cls === '__TEST__' ? '測試用' : cls;
+            loginUser(displayClass, parseInt(no), name, persist);
             initAuthUI();
             loginModal.style.display = 'none';
             const btnDoLogin = document.getElementById('btn-do-login');
