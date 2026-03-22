@@ -50,8 +50,8 @@ Public Class Form1
         End While
 
         DataGridView1.DataSource = dt
-        DataGridView1.ColumnHeadersDefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter '欄位名稱置中
-        DataGridView1.RowsDefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter '欄位內容置中
+        DataGridView1.ColumnHeadersDefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter 
+        DataGridView1.RowsDefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter 
 
     End Sub
 End Class

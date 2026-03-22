@@ -109,24 +109,24 @@ Public Class Form1
     '*******************************
     Private Sub Q5()
         Dim f As New StreamReader("c:\test\1060305.T02")
-        Dim a(2, 2), b(2, 2), c(2, 2) As Integer            '宣告 a, b, c 為二維整數陣列，大小為 2 * 2
+        Dim a(2, 2), b(2, 2), c(2, 2) As Integer            
         Dim data As String()
-        data = f.ReadLine().Split(",") : a(1, 1) = data(0) : a(1, 2) = data(1)  '讀取 a 第 1 行資料
-        data = f.ReadLine().Split(",") : a(2, 1) = data(0) : a(2, 2) = data(1)  '讀取 a 第 2 行資料
-        data = f.ReadLine().Split(",") : b(1, 1) = data(0) : b(1, 2) = data(1)  '讀取 b 第 1 行資料
-        data = f.ReadLine().Split(",") : b(2, 1) = data(0) : b(2, 2) = data(1)  '讀取 b 第 2 行資料
+        data = f.ReadLine().Split(",") : a(1, 1) = data(0) : a(1, 2) = data(1)  
+        data = f.ReadLine().Split(",") : a(2, 1) = data(0) : a(2, 2) = data(1)  
+        data = f.ReadLine().Split(",") : b(1, 1) = data(0) : b(1, 2) = data(1)  
+        data = f.ReadLine().Split(",") : b(2, 1) = data(0) : b(2, 2) = data(1)  
 
-        Dim i As Integer = 1                                 '宣告整數變數外迴圈 i 與內迴圈 j 作為迴圈計數使用
-        Do While i <= 2                                      '外迴圈 i 從 1 到 2
+        Dim i As Integer = 1                                 
+        Do While i <= 2                                      
             Dim j As Integer = 1
-            Do While j <= 2                                  '內迴圈 j 從 1 到 2    
-                c(i, j) = a(i, j) + b(i, j)                 '矩陣 a 加 b 放到 c
+            Do While j <= 2                                  
+                c(i, j) = a(i, j) + b(i, j)                 
                 j += 1
             Loop
             i += 1
-        Loop                                              '外迴圈 i 加 1
+        Loop                                              
 
-        RichTextBox1.Text &= "第五題結果：" & vbCrLf              '顯示陣列 c
+        RichTextBox1.Text &= "第五題結果：" & vbCrLf              
         RichTextBox1.Text &= "[" & c(1, 1) & "   " & c(1, 2) & "]" & vbCrLf
         RichTextBox1.Text &= "[" & c(2, 1) & "   " & c(2, 2) & "]" & vbCrLf
 
