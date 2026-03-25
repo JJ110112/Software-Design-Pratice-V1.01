@@ -59,7 +59,14 @@
 </head>
 <body>
 
-<div class="container">
+<div style="position:fixed;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:center;padding:8px 16px;background:rgba(12,18,32,.95);backdrop-filter:blur(6px);border-bottom:1px solid var(--border);z-index:100;">
+    <div style="display:flex;gap:8px;">
+        <a href="index.html" style="text-decoration:none;padding:6px 14px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:.85rem;font-weight:700;">🏠 首頁</a>
+        <a href="pages/map.html?tab=map" style="text-decoration:none;padding:6px 14px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:.85rem;font-weight:700;">🗺️ 關卡地圖</a>
+    </div>
+</div>
+
+<div class="container" style="padding-top:50px;">
     <header>
         <h1>🏆 綜合英雄風雲榜</h1>
         <div class="subtitle">累積通關次數與星星，證明你的全能實力！</div>
