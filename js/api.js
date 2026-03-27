@@ -578,6 +578,32 @@ window.saveClassRoster = async function (roster, teacherPassword) {
     }
 };
 
+/**
+ * 刪除學生成績（需教師密碼）
+ * @param {string} teacherPassword
+ * @param {"single"|"all"} mode
+ * @param {string} [userName] - mode=single 時必填
+ * @param {string} [className] - 選填
+ */
+window.deleteScores = async function (teacherPassword, mode, userName, className) {
+    if (!functions) throw new Error("Firebase 未連線");
+    const callable = httpsCallable(functions, "deleteScoresSecure");
+    const result = await callable({ teacherPassword, mode, userName, className });
+    return result.data;
+};
+
+/**
+ * 回復測試教師資料（需教師密碼）
+ * @param {string} teacherPassword
+ * @param {string} [teacherName] - 預設 "測試老師"
+ */
+window.seedTestTeacher = async function (teacherPassword, teacherName) {
+    if (!functions) throw new Error("Firebase 未連線");
+    const callable = httpsCallable(functions, "seedTestTeacher");
+    const result = await callable({ teacherPassword, teacherName });
+    return result.data;
+};
+
 window.addEventListener('DOMContentLoaded', () => {
     const p = window.location.pathname;
     const isMap = p.includes('map.html');

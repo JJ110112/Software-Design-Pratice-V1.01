@@ -266,3 +266,119 @@ exports.saveRosterSecure = onCall(
     return { success: true };
   }
 );
+
+/**
+ * 刪除學生成績：單一學生或全部
+ * data.teacherPassword: 教師密碼
+ * data.mode: "single" | "all"
+ * data.userName: (mode=single 時) 要刪除的學生姓名
+ * data.className: (mode=single 時，選填) 指定班級
+ */
+exports.deleteScoresSecure = onCall(
+  { region: "asia-east1", cors: true },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "必須登入");
+    }
+    const { teacherPassword, mode, userName, className } = request.data;
+    if (teacherPassword !== TEACHER_PASSWORD) {
+      throw new HttpsError("permission-denied", "教師密碼錯誤");
+    }
+
+    let q;
+    if (mode === "all") {
+      // 刪除全部（排除測試用帳號）
+      q = db.collection("scores");
+    } else if (mode === "single" && userName) {
+      q = db.collection("scores").where("userName", "==", userName);
+      if (className) {
+        q = q.where("className", "==", className);
+      }
+    } else {
+      throw new HttpsError("invalid-argument", "請指定 mode 和 userName");
+    }
+
+    const snapshot = await q.get();
+    if (snapshot.empty) return { success: true, deleted: 0 };
+
+    // Batch delete (max 500 per batch)
+    let deleted = 0;
+    const docs = snapshot.docs;
+    for (let i = 0; i < docs.length; i += 500) {
+      const batch = db.batch();
+      docs.slice(i, i + 500).forEach((d) => batch.delete(d.ref));
+      await batch.commit();
+      deleted += Math.min(500, docs.length - i);
+    }
+
+    // 清除排行榜摘要（下次結算會重建）
+    try { await db.doc("summaries/leaderboard").delete(); } catch(e) {}
+
+    return { success: true, deleted };
+  }
+);
+
+/**
+ * 回復測試教師資料（產生全星滿的成績）
+ */
+exports.seedTestTeacher = onCall(
+  { region: "asia-east1", cors: true },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "必須登入");
+    }
+    const { teacherPassword, teacherName } = request.data;
+    if (teacherPassword !== TEACHER_PASSWORD) {
+      throw new HttpsError("permission-denied", "教師密碼錯誤");
+    }
+
+    const name = teacherName || "測試老師";
+    const gameModes = [
+      "連連看", "記憶翻牌遊戲", "中英選擇題",
+      "程式碼朗讀練習", "一行程式碼翻譯", "錯誤找找看",
+      "程式碼排列重組", "程式與結果配對", "逐行中文注解填空",
+      "打字-關鍵字", "打字-單行", "打字-完整", "看中文寫程式",
+      "程式填空", "獨立全程式撰寫", "錯誤程式除錯"
+    ];
+    const qIDs = ["SETUP", "Q1", "Q2", "Q3", "Q4", "Q5",
+      "1060306", "1060307", "1060308",
+      "Q1_T01", "Q1_T02", "Q1_T03",
+      "Q2_T01", "Q2_T02", "Q2_T03",
+      "Q3_T01", "Q3_T02", "Q3_T03",
+      "Q4_T01"
+    ];
+
+    const batch500 = [];
+    let currentBatch = db.batch();
+    let count = 0;
+
+    for (const mode of gameModes) {
+      for (const qID of qIDs) {
+        const ref = db.collection("scores").doc();
+        currentBatch.set(ref, {
+          className: "測試用",
+          userName: name,
+          qID,
+          gameMode: mode,
+          timeSpent: Math.floor(Math.random() * 60) + 10,
+          status: "PASS",
+          stars: 3,
+          timestamp: new Date().toISOString(),
+          uid: request.auth.uid,
+        });
+        count++;
+        if (count % 500 === 0) {
+          batch500.push(currentBatch);
+          currentBatch = db.batch();
+        }
+      }
+    }
+    batch500.push(currentBatch);
+
+    for (const b of batch500) {
+      await b.commit();
+    }
+
+    return { success: true, records: count, teacherName: name };
+  }
+);

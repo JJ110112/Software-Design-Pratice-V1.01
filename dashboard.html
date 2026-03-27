@@ -140,6 +140,22 @@
         </div>
     </div>
 
+    <!-- 教師管理工具 -->
+    <div class="card" style="margin-bottom:20px;border:1px solid var(--danger);">
+        <h3 style="color:var(--danger);margin-top:0;">🔧 教師管理工具（需要密碼）</h3>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">
+            <div>
+                <label style="display:block;font-size:.8rem;color:var(--muted);margin-bottom:4px;">刪除單一學生成績</label>
+                <div style="display:flex;gap:6px;">
+                    <input id="del-student-name" type="text" placeholder="輸入學生姓名" style="width:140px;">
+                    <button id="btn-del-single" style="background:var(--danger);">刪除該生</button>
+                </div>
+            </div>
+            <button id="btn-del-all" style="background:var(--danger);">⚠️ 刪除全部成績</button>
+            <button id="btn-seed-teacher" style="background:var(--success);">🔄 回復測試教師資料</button>
+        </div>
+    </div>
+
     <!-- 紀錄明細（分頁） -->
     <div class="table-wrapper">
         <table>
@@ -177,6 +193,42 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // 當切換下拉選單，不用重新 fetch，只需 refresh UI
     document.getElementById('filter-class').addEventListener('change', renderDashboard);
+
+    // ── 教師管理工具 ──
+    document.getElementById('btn-del-single').addEventListener('click', async () => {
+        const name = document.getElementById('del-student-name').value.trim();
+        if (!name) { alert('請輸入學生姓名'); return; }
+        const pwd = prompt(`確定要刪除「${name}」的所有成績？\n請輸入教師密碼：`);
+        if (!pwd) return;
+        try {
+            const r = await window.deleteScores(pwd, 'single', name);
+            alert(`✅ 已刪除 ${r.deleted} 筆成績`);
+            document.getElementById('del-student-name').value = '';
+            fetchData();
+        } catch(e) { alert('❌ ' + (e.message || '操作失敗')); }
+    });
+
+    document.getElementById('btn-del-all').addEventListener('click', async () => {
+        if (!confirm('⚠️ 確定要刪除全部學生成績？此操作無法復原！')) return;
+        const pwd = prompt('請輸入教師密碼：');
+        if (!pwd) return;
+        try {
+            const r = await window.deleteScores(pwd, 'all');
+            alert(`✅ 已刪除全部 ${r.deleted} 筆成績`);
+            fetchData();
+        } catch(e) { alert('❌ ' + (e.message || '操作失敗')); }
+    });
+
+    document.getElementById('btn-seed-teacher').addEventListener('click', async () => {
+        const name = prompt('請輸入測試教師名稱（預設：測試老師）：') || '測試老師';
+        const pwd = prompt('請輸入教師密碼：');
+        if (!pwd) return;
+        try {
+            const r = await window.seedTestTeacher(pwd, name);
+            alert(`✅ 已建立「${r.teacherName}」的測試資料（${r.records} 筆，全 3 星）`);
+            fetchData();
+        } catch(e) { alert('❌ ' + (e.message || '操作失敗')); }
+    });
 
     // 延遲 1 秒等模組內的 Firebase 載入完畢，安全呼叫
     setTimeout(async () => {
