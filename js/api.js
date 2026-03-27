@@ -178,22 +178,23 @@ window.saveScore = async function (className, userName, qID, gameMode, timeSpent
         timestamp: new Date().toISOString()
     };
 
-    // 1. 永遠先寫入本地快取（樂觀更新，確保星星立即可見）
     const cacheKey = `fb_cache_${newRecord.userName}`;
-    cacheAppend(cacheKey, newRecord);
 
-    // 2. 透過 Cloud Function 寫入（後端驗證，前端無法直接寫 scores）
+    // 1. 透過 Cloud Function 寫入（後端驗證）
     if (!_saveScoreCallable) {
         console.warn("⚠️ saveScore: Cloud Function 未就緒，成績僅存本地", newRecord.qID, newRecord.gameMode);
         let localScores = JSON.parse(localStorage.getItem('local_scores') || '[]');
         localScores.push(newRecord);
         localStorage.setItem('local_scores', JSON.stringify(localScores));
+        cacheAppend(cacheKey, newRecord);
         return { success: true, localOnly: true };
     }
 
     try {
         const result = await _saveScoreCallable(newRecord);
+        // 2. 成功後才寫入快取（帶上 server 回傳的 id，避免 sync 時重複）
         newRecord.id = result.data.id;
+        cacheAppend(cacheKey, newRecord);
         console.log("✅ Cloud Function 寫入成功:", newRecord.qID, newRecord.gameMode, "stars:", newRecord.stars);
         return { success: true, id: result.data.id };
     } catch (e) {
@@ -202,6 +203,7 @@ window.saveScore = async function (className, userName, qID, gameMode, timeSpent
         let localScores = JSON.parse(localStorage.getItem('local_scores') || '[]');
         localScores.push(newRecord);
         localStorage.setItem('local_scores', JSON.stringify(localScores));
+        cacheAppend(cacheKey, newRecord);
         return { success: false, error: e, backedUp: true };
     }
 };

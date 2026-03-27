@@ -222,7 +222,7 @@ exports.saveScoreSecure = onCall(
       timeSpent,
       status,
       stars,
-      timestamp: new Date().toISOString(),
+      timestamp: data.timestamp || new Date().toISOString(),
       uid,
     };
 
