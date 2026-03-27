@@ -110,34 +110,24 @@ window.syncOnMapLoad = async function (userName) {
     if (!db || !userName) return;
     // 先嘗試上傳離線成績
     await window.syncOfflineScores(userName);
-    // 節流：10 分鐘內不重複查 Firestore
+    // 節流：2 分鐘內不重複查 Firestore
     const lastSyncKey = `last_sync_${userName}`;
     const lastSync = parseInt(localStorage.getItem(lastSyncKey) || '0');
-    if (Date.now() - lastSync < SYNC_COOLDOWN) return;
+    if (Date.now() - lastSync < 120000) return;
     localStorage.setItem(lastSyncKey, String(Date.now()));
-    // 背景從 Firestore 撈取最新，與快取合併
+    // 從 Firestore 撈取最新，直接覆蓋快取（確保一致性）
     try {
         const q = query(collection(db, "scores"), where("userName", "==", userName));
         const snapshot = await getDocs(q);
-        const fbResults = [];
-        snapshot.forEach(doc => {
-            const data = doc.data();
-            data.id = doc.id;
+        const results = [];
+        snapshot.forEach(d => {
+            const data = d.data();
+            data.id = d.id;
             data.gameMode = normalizeMode(data.gameMode);
-            fbResults.push(data);
+            results.push(data);
         });
         const cacheKey = `fb_cache_${userName}`;
-        const cached = cacheGet(cacheKey) || [];
-        const cachedIds = new Set(cached.filter(r => r.id).map(r => r.id));
-        const cachedKeys = new Set(cached.map(r => `${r.qID}_${r.gameMode}_${r.timestamp}`));
-        let added = 0;
-        fbResults.forEach(r => {
-            if (r.id && !cachedIds.has(r.id)) {
-                const key = `${r.qID}_${r.gameMode}_${r.timestamp}`;
-                if (!cachedKeys.has(key)) { cached.push(r); added++; }
-            }
-        });
-        if (added > 0) cacheSet(cacheKey, cached);
+        cacheSet(cacheKey, results);
     } catch (e) {
         console.error("背景同步失敗:", e);
     }
@@ -320,7 +310,7 @@ window.getScoresForUser = async function (userName) {
 
     const cacheKey = `fb_cache_${userName}`;
     const cached = cacheGet(cacheKey);
-    if (cached) return mergeLocalScores(cached, userName);
+    if (cached && cached.length > 0) return mergeLocalScores(cached, userName);
 
     try {
         const q = query(
