@@ -263,7 +263,7 @@ window.getAllScoresForDashboard = async function () {
         cacheSet(sysCacheKey, filtered);
         return filtered;
     } catch (e) {
-        console.error("載入儀表板資料失敗:", e);
+        console.error("載入儀表板資料失敗:", e.code, e.message, e);
         return [];
     }
 };

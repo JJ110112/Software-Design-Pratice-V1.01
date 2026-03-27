@@ -304,10 +304,11 @@ async function fetchData() {
 
         // 撈取原始資料
         rawData = await window.getAllScoresForDashboard();
+        console.log("儀表板資料筆數:", rawData.length);
         renderDashboard();
     } catch(e) {
-        console.error(e);
-        alert("資料載入失敗，請檢查 Firebase 連線或金鑰設定。");
+        console.error("儀表板載入失敗:", e);
+        alert("資料載入失敗：" + (e.message || e));
     } finally {
         btn.textContent = "↻ 刷新資料";
         btn.disabled = false;
