@@ -485,6 +485,13 @@ document.addEventListener('DOMContentLoaded', () => {
             loginUser(displayClass, parseInt(no), name, persist);
             initAuthUI();
             loginModal.style.display = 'none';
+
+            // 測試教師直接導向儀表板
+            if (cls === '__TEST__') {
+                window.location.href = 'dashboard.html';
+                return;
+            }
+
             const btnDoLogin = document.getElementById('btn-do-login');
             btnDoLogin.textContent = '讀取中...';
             btnDoLogin.disabled = true;

@@ -248,7 +248,7 @@ window.getAllScoresForDashboard = async function () {
     }
 
     const sysCacheKey = 'fb_cache_dashboard_teacher';
-    const DASH_TTL = 14400000; // 4 小時
+    const DASH_TTL = 300000; // 5 分鐘
     try {
         const raw = localStorage.getItem(sysCacheKey);
         if (raw) { const obj = JSON.parse(raw); if (Date.now() - obj.time < DASH_TTL) return obj.data; }
