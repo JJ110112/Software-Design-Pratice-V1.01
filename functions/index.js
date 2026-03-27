@@ -116,8 +116,8 @@ exports.dailyLeaderboardRebuild = onSchedule(
 exports.rebuildLeaderboard = onCall(
   { region: "asia-east1", cors: true },
   async (request) => {
-    // Rate limit: 5 分鐘內不可重複結算
-    const RATE_LIMIT_MS = 5 * 60 * 1000;
+    // Rate limit: 1 分鐘內不可重複結算
+    const RATE_LIMIT_MS = 60 * 1000;
     const leaderboardDoc = await db.doc("summaries/leaderboard").get();
 
     if (leaderboardDoc.exists) {
@@ -378,6 +378,9 @@ exports.seedTestTeacher = onCall(
     for (const b of batch500) {
       await b.commit();
     }
+
+    // 自動結算排行榜
+    await rebuildLeaderboard();
 
     return { success: true, records: count, teacherName: name };
   }

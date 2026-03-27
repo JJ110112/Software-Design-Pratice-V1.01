@@ -225,18 +225,19 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     document.getElementById('btn-seed-teacher').addEventListener('click', async () => {
-        const pwd = prompt('回復測試教師（測試老師 + 蔡明耀）全 3 星資料\n請輸入教師密碼：');
+        const pwd = prompt('一鍵回復測試教師（測試老師 + 蔡明耀）全 3 星 + 自動結算排行榜\n\n請輸入教師密碼：');
         if (!pwd) return;
+        const btn = document.getElementById('btn-seed-teacher');
+        btn.textContent = '回復中...'; btn.disabled = true;
         try {
             const r1 = await window.seedTestTeacher(pwd, '測試老師');
             const r2 = await window.seedTestTeacher(pwd, '蔡明耀');
-            // 清除相關快取
-            localStorage.removeItem('fb_cache_測試老師');
-            localStorage.removeItem('fb_cache_蔡明耀');
-            localStorage.removeItem('fb_cache_overall_ranking_v2');
-            alert(`✅ 已回復測試教師資料\n測試老師: ${r1.records} 筆\n蔡明耀: ${r2.records} 筆`);
+            // 清除所有快取
+            Object.keys(localStorage).filter(k => k.startsWith('fb_cache_') || k.startsWith('last_sync_')).forEach(k => localStorage.removeItem(k));
+            alert(`✅ 完成！\n測試老師: ${r1.records} 筆\n蔡明耀: ${r2.records} 筆\n排行榜已自動結算`);
             fetchData();
         } catch(e) { alert('❌ ' + (e.message || '操作失敗')); }
+        finally { btn.textContent = '🔄 回復測試教師資料'; btn.disabled = false; }
     });
 
     document.getElementById('btn-rebuild-ranking').addEventListener('click', async () => {
