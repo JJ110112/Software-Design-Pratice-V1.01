@@ -196,13 +196,10 @@ exports.saveScoreSecure = onCall(
       throw new HttpsError("invalid-argument", "破關時間異常");
     }
 
-    // 5. UID 防連刷（同一 UID + 同一關卡，10 秒內不接受第二次）
+    // 5. UID 防連刷（同一 UID，10 秒內不接受第二次寫入）
     const uid = request.auth.uid;
     const recentQuery = await db.collection("scores")
       .where("uid", "==", uid)
-      .where("qID", "==", qID)
-      .where("gameMode", "==", gameMode)
-      .orderBy("timestamp", "desc")
       .limit(1)
       .get();
 
