@@ -298,6 +298,7 @@ h1 {
 <!-- Top Bar -->
 <div class="top-bar">
     <span id="user-status" class="user-strip"></span>
+    <a id="btn-dashboard" href="dashboard.html" class="btn-sm" style="display:none;text-decoration:none;background:#a78bfa;">📊 儀表板</a>
     <button id="btn-logout" class="btn-sm" style="display:none;">登出</button>
 </div>
 
@@ -389,12 +390,14 @@ async function initAuthUI() {
         }
         statusEl.innerHTML = `<span class="name">${user.className} ${user.name}</span> ${starsStr} 已登入`;
         btnLogout.style.display = 'inline-block';
+        document.getElementById('btn-dashboard').style.display = user.className === '測試用' ? 'inline-block' : 'none';
         playLabel.textContent = '繼續練習';
         document.getElementById('login-modal').style.display = 'none';
         document.getElementById('btn-cancel-login').style.display = 'inline-block';
     } else {
         statusEl.innerHTML = '';
         btnLogout.style.display = 'none';
+        document.getElementById('btn-dashboard').style.display = 'none';
         playLabel.textContent = '開始練習';
         document.getElementById('btn-cancel-login').style.display = 'inline-block';
     }
