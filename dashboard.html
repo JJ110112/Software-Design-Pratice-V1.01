@@ -204,6 +204,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!pwd) return;
         try {
             const r = await window.deleteScores(pwd, 'single', name);
+            localStorage.removeItem(`fb_cache_${name}`);
             alert(`✅ 已刪除 ${r.deleted} 筆成績`);
             document.getElementById('del-student-name').value = '';
             fetchData();
@@ -216,18 +217,24 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!pwd) return;
         try {
             const r = await window.deleteScores(pwd, 'all');
+            // 清除所有快取
+            Object.keys(localStorage).filter(k => k.startsWith('fb_cache_') || k.startsWith('last_sync_')).forEach(k => localStorage.removeItem(k));
             alert(`✅ 已刪除全部 ${r.deleted} 筆成績`);
             fetchData();
         } catch(e) { alert('❌ ' + (e.message || '操作失敗')); }
     });
 
     document.getElementById('btn-seed-teacher').addEventListener('click', async () => {
-        const name = prompt('請輸入測試教師名稱（預設：測試老師）：') || '測試老師';
-        const pwd = prompt('請輸入教師密碼：');
+        const pwd = prompt('回復測試教師（測試老師 + 蔡明耀）全 3 星資料\n請輸入教師密碼：');
         if (!pwd) return;
         try {
-            const r = await window.seedTestTeacher(pwd, name);
-            alert(`✅ 已建立「${r.teacherName}」的測試資料（${r.records} 筆，全 3 星）`);
+            const r1 = await window.seedTestTeacher(pwd, '測試老師');
+            const r2 = await window.seedTestTeacher(pwd, '蔡明耀');
+            // 清除相關快取
+            localStorage.removeItem('fb_cache_測試老師');
+            localStorage.removeItem('fb_cache_蔡明耀');
+            localStorage.removeItem('fb_cache_overall_ranking_v2');
+            alert(`✅ 已回復測試教師資料\n測試老師: ${r1.records} 筆\n蔡明耀: ${r2.records} 筆`);
             fetchData();
         } catch(e) { alert('❌ ' + (e.message || '操作失敗')); }
     });
