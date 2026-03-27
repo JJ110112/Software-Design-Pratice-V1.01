@@ -68,17 +68,14 @@ function cacheSet(key, data) {
 
 function cacheAppend(key, newRecord) {
     try {
-        const raw = localStorage.getItem(key);
-        if (!raw) {
-            // 快取不存在或已過期，建立新快取
+        // 用 cacheGet 檢查 TTL，過期的快取自動丟棄
+        let data = cacheGet(key);
+        if (!data) {
             cacheSet(key, [newRecord]);
-            return;
+        } else {
+            data.push(newRecord);
+            cacheSet(key, data);
         }
-        const obj = JSON.parse(raw);
-        if (!Array.isArray(obj.data)) obj.data = [];
-        obj.data.push(newRecord);
-        obj.time = Date.now(); // 更新快取時間，避免過期
-        localStorage.setItem(key, JSON.stringify(obj));
     } catch (e) {}
 }
 
@@ -97,7 +94,7 @@ window.syncOnLogin = async function (userName) {
  */
 window.syncOnLogout = function (userName) {
     if (userName) localStorage.removeItem(`fb_cache_${userName}`);
-    localStorage.removeItem('fb_cache_overall_ranking');
+    localStorage.removeItem('fb_cache_overall_ranking_v2');
     localStorage.removeItem('fb_cache_dashboard_teacher');
 };
 
@@ -148,7 +145,11 @@ window.syncOfflineScores = async function (userName) {
         catch (e) { remaining.push(record); }
     }
     localStorage.setItem('local_scores', JSON.stringify(remaining));
-    if (uploaded > 0) console.log(`✅ 離線成績補傳（透過 Cloud Function）: ${uploaded} 筆`);
+    if (uploaded > 0) {
+        console.log(`✅ 離線成績補傳（透過 Cloud Function）: ${uploaded} 筆`);
+        // 清除該使用者快取，強制下次從 Firestore 拉取有正確 id 的資料
+        if (userName) localStorage.removeItem(`fb_cache_${userName}`);
+    }
 };
 
 /**
@@ -199,15 +200,20 @@ window.saveScore = async function (className, userName, qID, gameMode, timeSpent
 };
 
 /**
- * 從 Firestore 取得各關卡排行榜
+ * 從 Firestore 取得各關卡排行榜（5 分鐘快取）
  */
 window.getLeaderboard = async function (qID, gameMode) {
     if (!db) {
-        return [
-            { className: "資訊二", userName: "王小明", timeSpent: 35, timestamp: new Date().toISOString() },
-            { className: "電子二", userName: "林小華", timeSpent: 42, timestamp: new Date().toISOString() }
-        ];
+        return [];
     }
+
+    // 快取 5 分鐘
+    const lbCacheKey = `fb_cache_lb_${qID}_${gameMode}`;
+    const LB_TTL = 300000;
+    try {
+        const raw = localStorage.getItem(lbCacheKey);
+        if (raw) { const obj = JSON.parse(raw); if (Date.now() - obj.time < LB_TTL) return obj.data; }
+    } catch(e) {}
 
     try {
         const q = query(
@@ -215,13 +221,16 @@ window.getLeaderboard = async function (qID, gameMode) {
             where("qID", "==", qID),
             where("gameMode", "==", gameMode),
             where("status", "==", "PASS"),
-            orderBy("timeSpent", "asc"),
-            limit(10)
+            limit(50)
         );
         const snapshot = await getDocs(q);
         const results = [];
-        snapshot.forEach(doc => results.push(doc.data()));
-        return results;
+        snapshot.forEach(d => results.push(d.data()));
+        // 前端排序（避免複合索引需求）
+        results.sort((a, b) => (a.timeSpent || 0) - (b.timeSpent || 0));
+        const top10 = results.slice(0, 10);
+        try { localStorage.setItem(lbCacheKey, JSON.stringify({ time: Date.now(), data: top10 })); } catch(e) {}
+        return top10;
     } catch (e) {
         console.error("載入排行榜失敗:", e);
         return [];
@@ -230,7 +239,7 @@ window.getLeaderboard = async function (qID, gameMode) {
 
 /**
  * 教師儀表板專用 API
- * ✅ 改動：limit 500 → 50，改用 localStorage 快取
+ * 讀取預結算的 summaries/dashboard（1 次讀取），回退到限量查詢
  */
 window.getAllScoresForDashboard = async function () {
     if (!db) {
@@ -245,20 +254,25 @@ window.getAllScoresForDashboard = async function () {
     } catch(e) {}
 
     try {
-        // 撈全部成績供統計（不用 orderBy 避免索引問題，前端排序）
-        const snapshot = await getDocs(collection(db, "scores"));
-        const results = [];
-        snapshot.forEach(d => {
-            const data = d.data();
-            data.id = d.id;
-            results.push(data);
-        });
+        // 優先讀取預結算的 summary（1 次讀取）
+        const summarySnap = await getDoc(doc(db, "summaries", "dashboard"));
+        if (summarySnap.exists()) {
+            const data = summarySnap.data().records || [];
+            cacheSet(sysCacheKey, data);
+            console.log("儀表板載入完成（summary）:", data.length, "筆");
+            return data;
+        }
 
+        // 回退：限量讀取最近 200 筆（避免全表掃描）
+        console.warn("⚠️ summaries/dashboard 不存在，回退到限量查詢");
+        const q = query(collection(db, "scores"), limit(200));
+        const snapshot = await getDocs(q);
+        const results = [];
+        snapshot.forEach(d => { const data = d.data(); data.id = d.id; results.push(data); });
         const filtered = results.filter(r => r.className !== '測試用');
-        // 前端依 timestamp 降序排序
         filtered.sort((a, b) => (b.timestamp || '').localeCompare(a.timestamp || ''));
         cacheSet(sysCacheKey, filtered);
-        console.log("儀表板載入完成:", filtered.length, "筆");
+        console.log("儀表板載入完成（回退）:", filtered.length, "筆");
         return filtered;
     } catch (e) {
         console.error("載入儀表板資料失敗:", e.code, e.message, e);
@@ -431,9 +445,9 @@ function _computeRanking(results) {
     return rankingList;
 }
 
-/** 回退：summary 不存在時即時撈全量（僅首次，之後由結算產生 summary） */
+/** 回退：summary 不存在時限量撈取（避免全表掃描） */
 async function _fallbackLiveRanking(classFilter) {
-    const q = query(collection(db, "scores"), where("status", "==", "PASS"));
+    const q = query(collection(db, "scores"), where("status", "==", "PASS"), limit(500));
     const snapshot = await getDocs(q);
     const results = [];
     snapshot.forEach(d => { const data = d.data(); data.id = d.id; results.push(data); });

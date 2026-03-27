@@ -72,23 +72,35 @@ function computeRanking(results) {
  * 執行結算：讀取 scores → 計算 → 寫入 summaries/leaderboard
  */
 async function rebuildLeaderboard() {
-  const snapshot = await db
-    .collection("scores")
-    .where("status", "==", "PASS")
-    .get();
+  // 撈全部成績（一次讀取，供排行榜 + 儀表板共用）
+  const allSnapshot = await db.collection("scores").get();
+  const allResults = [];
+  allSnapshot.forEach((doc) => allResults.push(doc.data()));
 
-  const results = [];
-  snapshot.forEach((doc) => results.push(doc.data()));
+  const passResults = allResults.filter((r) => r.status === "PASS");
+  const ranking = computeRanking(passResults);
 
-  const ranking = computeRanking(results);
+  // 儀表板摘要：過濾測試帳號，只保留最近 500 筆
+  const dashData = allResults
+    .filter((r) => r.className !== "測試用")
+    .sort((a, b) => (b.timestamp || "").localeCompare(a.timestamp || ""))
+    .slice(0, 500);
 
-  await db.doc("summaries/leaderboard").set({
+  // 批次寫入兩份摘要
+  const batch = db.batch();
+  batch.set(db.doc("summaries/leaderboard"), {
     ranking,
     updatedAt: new Date().toISOString(),
-    totalRecords: results.length,
+    totalRecords: passResults.length,
   });
+  batch.set(db.doc("summaries/dashboard"), {
+    records: dashData,
+    updatedAt: new Date().toISOString(),
+    totalRecords: dashData.length,
+  });
+  await batch.commit();
 
-  return { studentCount: ranking.length, totalRecords: results.length };
+  return { studentCount: ranking.length, totalRecords: allResults.length, dashboardRecords: dashData.length };
 }
 
 /**
