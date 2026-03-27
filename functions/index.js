@@ -114,7 +114,7 @@ exports.dailyLeaderboardRebuild = onSchedule(
  * 速率限制：5 分鐘內不可重複呼叫
  */
 exports.rebuildLeaderboard = onCall(
-  { region: "asia-east1" },
+  { region: "asia-east1", cors: true },
   async (request) => {
     // Rate limit: 5 分鐘內不可重複結算
     const RATE_LIMIT_MS = 5 * 60 * 1000;
@@ -155,7 +155,7 @@ exports.rebuildLeaderboard = onCall(
  * - 驗證欄位型態與範圍
  */
 exports.saveScoreSecure = onCall(
-  { region: "asia-east1" },
+  { region: "asia-east1", cors: true },
   async (request) => {
     // 1. 驗證身份（必須已登入，匿名也算）
     if (!request.auth) {
@@ -242,7 +242,7 @@ exports.saveScoreSecure = onCall(
 const TEACHER_PASSWORD = "sw-design-2024-teacher";
 
 exports.saveRosterSecure = onCall(
-  { region: "asia-east1" },
+  { region: "asia-east1", cors: true },
   async (request) => {
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "必須登入");
