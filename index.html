@@ -403,10 +403,16 @@ async function initAuthUI() {
     }
 }
 
-function showLoginModal() {
+async function showLoginModal() {
     const loginModal = document.getElementById('login-modal');
     const classSelect = document.getElementById('sel-class');
     classSelect.innerHTML = '<option value="">請選擇班級</option>';
+
+    // 嘗試從 Firestore 載入最新名冊
+    if (typeof window.loadClassRoster === 'function') {
+        try { await window.loadClassRoster(); } catch(e) {}
+    }
+
     if (typeof CLASS_ROSTER !== 'undefined') {
         Object.keys(CLASS_ROSTER).forEach(cls => {
             classSelect.innerHTML += `<option value="${cls}">${cls}</option>`;

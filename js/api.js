@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
-import { getFirestore, collection, addDoc, query, where, orderBy, getDocs, limit, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, query, where, orderBy, getDocs, limit, doc, setDoc, getDoc, deleteField } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore.js";
 
 // TODO: 請將以下 firebaseConfig 替換為您的 Firebase 專案金鑰
 const firebaseConfig = {
@@ -535,6 +535,64 @@ window.getUserStarStats = async function (userName) {
         stageStars,
         modeStars
     };
+};
+
+// ── 班級學生名冊管理 ──
+
+/**
+ * 從 Firestore 載入名冊（config/roster），並更新全域 CLASS_ROSTER
+ * 本地快取 1 小時
+ */
+window.loadClassRoster = async function () {
+    const CACHE_KEY = 'fb_cache_roster';
+    const ROSTER_TTL = 3600000; // 1 小時
+    try {
+        const raw = localStorage.getItem(CACHE_KEY);
+        if (raw) {
+            const obj = JSON.parse(raw);
+            if (Date.now() - obj.time < ROSTER_TTL) {
+                if (typeof CLASS_ROSTER !== 'undefined') Object.assign(CLASS_ROSTER, obj.data);
+                return obj.data;
+            }
+        }
+    } catch(e) {}
+
+    if (!db) return typeof CLASS_ROSTER !== 'undefined' ? CLASS_ROSTER : {};
+
+    try {
+        const snap = await getDoc(doc(db, "config", "roster"));
+        if (snap.exists()) {
+            const roster = snap.data().classes || {};
+            try { localStorage.setItem(CACHE_KEY, JSON.stringify({ time: Date.now(), data: roster })); } catch(e) {}
+            if (typeof CLASS_ROSTER !== 'undefined') {
+                // 清空再合併，確保刪除的班級也能反映
+                Object.keys(CLASS_ROSTER).forEach(k => delete CLASS_ROSTER[k]);
+                Object.assign(CLASS_ROSTER, roster);
+            }
+            return roster;
+        }
+    } catch(e) {
+        console.error("載入名冊失敗:", e);
+    }
+    return typeof CLASS_ROSTER !== 'undefined' ? CLASS_ROSTER : {};
+};
+
+/**
+ * 儲存整份名冊到 Firestore
+ */
+window.saveClassRoster = async function (roster) {
+    if (!db) throw new Error("Firebase 未連線");
+    await setDoc(doc(db, "config", "roster"), {
+        classes: roster,
+        updatedAt: new Date().toISOString()
+    });
+    // 更新本地快取
+    try { localStorage.setItem('fb_cache_roster', JSON.stringify({ time: Date.now(), data: roster })); } catch(e) {}
+    // 同步全域變數
+    if (typeof CLASS_ROSTER !== 'undefined') {
+        Object.keys(CLASS_ROSTER).forEach(k => delete CLASS_ROSTER[k]);
+        Object.assign(CLASS_ROSTER, roster);
+    }
 };
 
 window.addEventListener('DOMContentLoaded', () => {

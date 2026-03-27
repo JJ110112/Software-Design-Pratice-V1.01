@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>班級學生管理</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0c1220; --surface: #1a2236; --surface2: #212d45;
+            --border: #2e3f5c; --accent: #38bdf8; --purple: #a78bfa;
+            --success: #10b981; --danger: #f43f5e; --text: #e2e8f0; --muted: #64748b;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: var(--bg); color: var(--text); font-family: 'Noto Sans TC', sans-serif; padding: 20px; }
+        .container { max-width: 900px; margin: 0 auto; }
+
+        header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;
+                 margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid var(--border); }
+        h1 { font-size: 1.5rem; color: var(--accent); }
+        .header-btns { display: flex; gap: 8px; align-items: center; }
+        .header-btns a { color: var(--muted); text-decoration: none; font-size: .85rem; }
+
+        .btn { padding: 8px 16px; border: none; border-radius: 8px; cursor: pointer; font-weight: 700;
+               font-family: inherit; font-size: .85rem; color: #fff; }
+        .btn-primary { background: var(--accent); color: #000; }
+        .btn-success { background: var(--success); }
+        .btn-danger { background: var(--danger); }
+        .btn-purple { background: var(--purple); color: #000; }
+        .btn:disabled { opacity: .5; cursor: not-allowed; }
+        .btn-sm { padding: 5px 10px; font-size: .8rem; }
+
+        /* 班級列 */
+        .class-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; align-items: center; }
+        .class-tab { padding: 8px 18px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px;
+                     cursor: pointer; font-weight: 500; font-size: .9rem; color: var(--text); transition: all .2s; }
+        .class-tab:hover { border-color: var(--accent); }
+        .class-tab.active { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 700; }
+        .class-tab .del-class { margin-left: 6px; color: rgba(0,0,0,.4); font-size: .75rem; cursor: pointer; }
+        .class-tab .del-class:hover { color: var(--danger); }
+
+        /* 學生表格 */
+        .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+        .card h3 { margin-bottom: 12px; font-size: 1rem; color: var(--muted); }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+        th { color: var(--muted); font-size: .85rem; font-weight: 500; }
+        tr:hover td { background: rgba(255,255,255,.02); }
+        .del-btn { background: none; border: none; color: var(--danger); cursor: pointer; font-size: 1rem; padding: 2px 6px; }
+        .del-btn:hover { background: rgba(244,63,94,.15); border-radius: 4px; }
+
+        /* 新增區 */
+        .add-section { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; margin-top: 12px; }
+        .add-section input { padding: 8px 12px; background: var(--surface2); border: 1px solid var(--border);
+                             color: var(--text); border-radius: 6px; font-family: inherit; font-size: .9rem; }
+        .add-section input[type="number"] { width: 80px; }
+        .add-section input[type="text"] { width: 140px; }
+
+        /* 貼上區 */
+        .paste-zone { margin-top: 16px; }
+        .paste-zone textarea { width: 100%; min-height: 100px; padding: 12px; background: var(--surface2);
+                               border: 1px solid var(--border); border-radius: 8px; color: var(--text);
+                               font-family: 'JetBrains Mono', monospace; font-size: .85rem; resize: vertical; }
+        .paste-zone p { color: var(--muted); font-size: .8rem; margin: 6px 0; }
+        .paste-preview { margin-top: 8px; max-height: 200px; overflow-y: auto; }
+        .paste-preview table { font-size: .85rem; }
+
+        /* 訊息 */
+        .toast { position: fixed; top: 20px; right: 20px; padding: 12px 20px; border-radius: 8px;
+                 font-weight: 600; z-index: 999; opacity: 0; transition: opacity .3s; font-size: .9rem; }
+        .toast.show { opacity: 1; }
+        .toast-success { background: var(--success); color: #fff; }
+        .toast-error { background: var(--danger); color: #fff; }
+
+        /* Modal */
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: none;
+                         align-items: center; justify-content: center; z-index: 100; }
+        .modal-overlay.show { display: flex; }
+        .modal-box { background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+                     padding: 24px; width: 90%; max-width: 400px; }
+        .modal-box h3 { margin-bottom: 16px; }
+        .modal-box input { width: 100%; padding: 10px; background: var(--surface2); border: 1px solid var(--border);
+                           border-radius: 6px; color: var(--text); font-size: 1rem; margin-bottom: 12px; }
+        .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+
+        /* 手機 */
+        @media (max-width: 768px) {
+            body { padding: 10px; }
+            header { flex-direction: column; align-items: flex-start; }
+            .add-section { flex-direction: column; align-items: stretch; }
+            .add-section input { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="toast" class="toast"></div>
+
+<!-- 新增班級 Modal -->
+<div class="modal-overlay" id="modal-add-class">
+    <div class="modal-box">
+        <h3>新增班級</h3>
+        <input type="text" id="input-new-class" placeholder="輸入班級名稱（如：資訊三）" autofocus>
+        <div class="modal-actions">
+            <button class="btn btn-sm" style="background:var(--surface2);" onclick="document.getElementById('modal-add-class').classList.remove('show')">取消</button>
+            <button class="btn btn-sm btn-primary" id="btn-confirm-add-class">確認新增</button>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+    <header>
+        <h1>👥 班級學生管理</h1>
+        <div class="header-btns">
+            <button class="btn btn-success" id="btn-save">💾 儲存到雲端</button>
+            <a href="dashboard.html">← 返回儀表板</a>
+        </div>
+    </header>
+
+    <!-- 班級 Tab -->
+    <div class="class-tabs" id="class-tabs">
+        <!-- 動態產生 -->
+    </div>
+
+    <!-- 學生列表 -->
+    <div class="card" id="student-panel" style="display:none;">
+        <h3 id="panel-title">學生名單</h3>
+        <table>
+            <thead>
+                <tr><th style="width:60px;">座號</th><th>姓名</th><th style="width:60px;">操作</th></tr>
+            </thead>
+            <tbody id="tb-students"></tbody>
+        </table>
+
+        <!-- 手動新增 -->
+        <div class="add-section">
+            <input type="number" id="input-no" placeholder="座號" min="1">
+            <input type="text" id="input-name" placeholder="姓名">
+            <button class="btn btn-sm btn-primary" id="btn-add-student">＋ 新增</button>
+        </div>
+
+        <!-- 貼上匯入 -->
+        <div class="paste-zone">
+            <p>📋 批次匯入：從 Google Sheet 複製「座號＋姓名」兩欄，貼到下方（支援 Tab 或空白分隔）</p>
+            <textarea id="paste-input" placeholder="1&#9;李大明&#10;2&#9;王小華&#10;3&#9;張三"></textarea>
+            <div class="paste-preview" id="paste-preview"></div>
+            <button class="btn btn-sm btn-purple" id="btn-paste-import" style="margin-top:8px;">匯入貼上內容</button>
+        </div>
+    </div>
+</div>
+
+<script src="js/users.js"></script>
+<script type="module" src="js/api.js?v=10"></script>
+<script>
+// ═══════════════════════════════════════════
+//  狀態
+// ═══════════════════════════════════════════
+let roster = {};      // { className: [ {no, name}, ... ] }
+let activeClass = ''; // 當前選擇的班級
+let dirty = false;    // 有未儲存的變更
+
+function toast(msg, type = 'success') {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = `toast toast-${type} show`;
+    setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+// ═══════════════════════════════════════════
+//  渲染
+// ═══════════════════════════════════════════
+function renderTabs() {
+    const container = document.getElementById('class-tabs');
+    container.innerHTML = '';
+    Object.keys(roster).forEach(cls => {
+        const tab = document.createElement('div');
+        tab.className = 'class-tab' + (cls === activeClass ? ' active' : '');
+        tab.innerHTML = `${cls} <span class="badge" style="font-size:.75rem;color:var(--muted);">(${roster[cls].length})</span>
+            <span class="del-class" title="刪除班級 ${cls}">✕</span>`;
+        tab.addEventListener('click', (e) => {
+            if (e.target.classList.contains('del-class')) {
+                deleteClass(cls);
+                return;
+            }
+            activeClass = cls;
+            renderTabs();
+            renderStudents();
+        });
+        container.appendChild(tab);
+    });
+    // 新增班級按鈕
+    const addBtn = document.createElement('div');
+    addBtn.className = 'class-tab';
+    addBtn.style.cssText = 'border-style:dashed;color:var(--accent);';
+    addBtn.textContent = '＋ 新增班級';
+    addBtn.addEventListener('click', () => {
+        document.getElementById('input-new-class').value = '';
+        document.getElementById('modal-add-class').classList.add('show');
+        setTimeout(() => document.getElementById('input-new-class').focus(), 100);
+    });
+    container.appendChild(addBtn);
+}
+
+function renderStudents() {
+    const panel = document.getElementById('student-panel');
+    if (!activeClass || !roster[activeClass]) {
+        panel.style.display = 'none';
+        return;
+    }
+    panel.style.display = 'block';
+    document.getElementById('panel-title').textContent = `${activeClass} — 學生名單（${roster[activeClass].length} 人）`;
+
+    const tbody = document.getElementById('tb-students');
+    const students = roster[activeClass].slice().sort((a, b) => a.no - b.no);
+    tbody.innerHTML = students.map(s => `
+        <tr>
+            <td>${s.no}</td>
+            <td>${s.name}</td>
+            <td><button class="del-btn" data-no="${s.no}" data-name="${s.name}" title="刪除 ${s.name}">🗑</button></td>
+        </tr>
+    `).join('');
+}
+
+// ═══════════════════════════════════════════
+//  CRUD
+// ═══════════════════════════════════════════
+function addClass(name) {
+    name = name.trim();
+    if (!name) return;
+    if (roster[name]) { toast('班級已存在', 'error'); return; }
+    roster[name] = [];
+    activeClass = name;
+    dirty = true;
+    renderTabs();
+    renderStudents();
+    toast(`班級「${name}」已新增`);
+}
+
+function deleteClass(name) {
+    if (!confirm(`確定要刪除班級「${name}」及其所有學生？`)) return;
+    delete roster[name];
+    if (activeClass === name) activeClass = Object.keys(roster)[0] || '';
+    dirty = true;
+    renderTabs();
+    renderStudents();
+    toast(`班級「${name}」已刪除`);
+}
+
+function addStudent(no, name) {
+    no = parseInt(no);
+    name = (name || '').trim();
+    if (!no || !name) { toast('請輸入座號和姓名', 'error'); return false; }
+    if (!activeClass) return false;
+    const list = roster[activeClass];
+    if (list.some(s => s.no === no)) { toast(`座號 ${no} 已存在`, 'error'); return false; }
+    list.push({ no, name });
+    dirty = true;
+    renderStudents();
+    return true;
+}
+
+function deleteStudent(no, name) {
+    if (!confirm(`確定刪除 ${no}號 ${name}？`)) return;
+    roster[activeClass] = roster[activeClass].filter(s => !(s.no === parseInt(no) && s.name === name));
+    dirty = true;
+    renderStudents();
+    renderTabs();
+    toast(`已刪除 ${name}`);
+}
+
+// ═══════════════════════════════════════════
+//  貼上解析
+// ═══════════════════════════════════════════
+function parsePasteText(text) {
+    const lines = text.split(/\n/).filter(l => l.trim());
+    const results = [];
+    for (const line of lines) {
+        // 支援 Tab、多空白、逗號分隔
+        const parts = line.trim().split(/[\t,]+|\s{2,}/);
+        if (parts.length >= 2) {
+            const no = parseInt(parts[0]);
+            const name = parts.slice(1).join('').trim();
+            if (no && name) results.push({ no, name });
+        } else {
+            // 嘗試從開頭取數字
+            const m = line.trim().match(/^(\d+)\s*(.+)/);
+            if (m) results.push({ no: parseInt(m[1]), name: m[2].trim() });
+        }
+    }
+    return results;
+}
+
+function renderPastePreview() {
+    const text = document.getElementById('paste-input').value;
+    const preview = document.getElementById('paste-preview');
+    if (!text.trim()) { preview.innerHTML = ''; return; }
+    const parsed = parsePasteText(text);
+    if (parsed.length === 0) {
+        preview.innerHTML = '<p style="color:var(--danger);font-size:.85rem;">無法解析，請確認格式</p>';
+        return;
+    }
+    preview.innerHTML = `<p style="color:var(--success);font-size:.85rem;">解析到 ${parsed.length} 位學生：</p>
+        <table><thead><tr><th>座號</th><th>姓名</th></tr></thead><tbody>
+        ${parsed.map(s => `<tr><td>${s.no}</td><td>${s.name}</td></tr>`).join('')}
+        </tbody></table>`;
+}
+
+// ═══════════════════════════════════════════
+//  事件綁定
+// ═══════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+    // 載入名冊
+    setTimeout(async () => {
+        try {
+            if (typeof window.loadClassRoster === 'function') {
+                roster = await window.loadClassRoster();
+                // deep clone 避免直接改到 CLASS_ROSTER
+                roster = JSON.parse(JSON.stringify(roster));
+            } else {
+                roster = JSON.parse(JSON.stringify(typeof CLASS_ROSTER !== 'undefined' ? CLASS_ROSTER : {}));
+            }
+        } catch(e) {
+            console.error(e);
+            roster = JSON.parse(JSON.stringify(typeof CLASS_ROSTER !== 'undefined' ? CLASS_ROSTER : {}));
+        }
+        activeClass = Object.keys(roster)[0] || '';
+        renderTabs();
+        renderStudents();
+    }, 800);
+
+    // 新增班級
+    document.getElementById('btn-confirm-add-class').addEventListener('click', () => {
+        addClass(document.getElementById('input-new-class').value);
+        document.getElementById('modal-add-class').classList.remove('show');
+    });
+    document.getElementById('input-new-class').addEventListener('keydown', e => {
+        if (e.key === 'Enter') document.getElementById('btn-confirm-add-class').click();
+    });
+
+    // 新增學生
+    document.getElementById('btn-add-student').addEventListener('click', () => {
+        const ok = addStudent(document.getElementById('input-no').value, document.getElementById('input-name').value);
+        if (ok) {
+            document.getElementById('input-no').value = '';
+            document.getElementById('input-name').value = '';
+            document.getElementById('input-no').focus();
+            renderTabs();
+        }
+    });
+    document.getElementById('input-name').addEventListener('keydown', e => {
+        if (e.key === 'Enter') document.getElementById('btn-add-student').click();
+    });
+
+    // 刪除學生（委派）
+    document.getElementById('tb-students').addEventListener('click', e => {
+        const btn = e.target.closest('.del-btn');
+        if (btn) deleteStudent(btn.dataset.no, btn.dataset.name);
+    });
+
+    // 貼上預覽
+    document.getElementById('paste-input').addEventListener('input', renderPastePreview);
+
+    // 貼上匯入
+    document.getElementById('btn-paste-import').addEventListener('click', () => {
+        if (!activeClass) { toast('請先選擇班級', 'error'); return; }
+        const text = document.getElementById('paste-input').value;
+        const parsed = parsePasteText(text);
+        if (parsed.length === 0) { toast('無資料可匯入', 'error'); return; }
+
+        let added = 0, skipped = 0;
+        const existing = new Set(roster[activeClass].map(s => s.no));
+        parsed.forEach(s => {
+            if (existing.has(s.no)) { skipped++; return; }
+            roster[activeClass].push(s);
+            existing.add(s.no);
+            added++;
+        });
+        dirty = true;
+        renderStudents();
+        renderTabs();
+        document.getElementById('paste-input').value = '';
+        document.getElementById('paste-preview').innerHTML = '';
+        toast(`已匯入 ${added} 人` + (skipped ? `，跳過 ${skipped} 人（座號重複）` : ''));
+    });
+
+    // 儲存到雲端
+    document.getElementById('btn-save').addEventListener('click', async () => {
+        const btn = document.getElementById('btn-save');
+        btn.textContent = '儲存中...';
+        btn.disabled = true;
+        try {
+            if (typeof window.saveClassRoster !== 'function') {
+                toast('API 尚未載入', 'error');
+                return;
+            }
+            await window.saveClassRoster(roster);
+            dirty = false;
+            toast('✅ 名冊已儲存到雲端');
+        } catch(e) {
+            console.error(e);
+            toast('❌ 儲存失敗：' + e.message, 'error');
+        } finally {
+            btn.textContent = '💾 儲存到雲端';
+            btn.disabled = false;
+        }
+    });
+
+    // 離開提醒
+    window.addEventListener('beforeunload', e => {
+        if (dirty) { e.preventDefault(); e.returnValue = ''; }
+    });
+});
+</script>
+</body>
+</html>

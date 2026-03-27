@@ -145,7 +145,7 @@ if (getCurrentUser()) resetIdleTimer();
 (function enforceLogin() {
     const path = window.location.pathname;
     const isIndex = path.endsWith('index.html') || path === '/' || path.endsWith('/Software%20Design%20Pratice/') || path.endsWith('/Software-Design-Pratice-V1.01/');
-    const isPublic = isIndex || path.endsWith('dashboard.html') || path.endsWith('leaderboard.html');
+    const isPublic = isIndex || path.endsWith('dashboard.html') || path.endsWith('leaderboard.html') || path.endsWith('manage-roster.html');
     if (!getCurrentUser() && !isPublic) {
         window.location.href = '../index.html';
     }
