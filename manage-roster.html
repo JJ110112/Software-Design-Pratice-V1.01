@@ -176,8 +176,8 @@ function renderTabs() {
     Object.keys(roster).forEach(cls => {
         const tab = document.createElement('div');
         tab.className = 'class-tab' + (cls === activeClass ? ' active' : '');
-        tab.innerHTML = `${cls} <span class="badge" style="font-size:.75rem;color:var(--muted);">(${roster[cls].length})</span>
-            <span class="del-class" title="刪除班級 ${cls}">✕</span>`;
+        tab.innerHTML = `${escapeHTML(cls)} <span class="badge" style="font-size:.75rem;color:var(--muted);">(${roster[cls].length})</span>
+            <span class="del-class" title="刪除班級 ${escapeHTML(cls)}">✕</span>`;
         tab.addEventListener('click', (e) => {
             if (e.target.classList.contains('del-class')) {
                 deleteClass(cls);
@@ -216,8 +216,8 @@ function renderStudents() {
     tbody.innerHTML = students.map(s => `
         <tr>
             <td>${s.no}</td>
-            <td>${s.name}</td>
-            <td><button class="del-btn" data-no="${s.no}" data-name="${s.name}" title="刪除 ${s.name}">🗑</button></td>
+            <td>${escapeHTML(s.name)}</td>
+            <td><button class="del-btn" data-no="${s.no}" data-name="${escapeHTML(s.name)}" title="刪除 ${escapeHTML(s.name)}">🗑</button></td>
         </tr>
     `).join('');
 }

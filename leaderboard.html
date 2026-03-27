@@ -95,6 +95,7 @@
     </div>
 </div>
 
+<script src="js/users.js"></script>
 <script type="module" src="js/api.js?v=10"></script>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
@@ -151,8 +152,8 @@ async function fetchAndRender() {
                 <div class="rank-item" data-rank="${rank}">
                     <div class="rank-num">${rank <= 3 ? ['🥇', '🥈', '🥉'][rank-1] : rank}</div>
                     <div class="player-info">
-                        <div class="player-name">${record.userName || '匿名英雄'}</div>
-                        <div class="player-class"><span style="color:var(--accent)">${record.className || '-'}</span> &nbsp;&bull;&nbsp; <span style="color:#94a3b8;">總耗時 ${formatTime(record.totalBestTime)}</span></div>
+                        <div class="player-name">${escapeHTML(record.userName) || '匿名英雄'}</div>
+                        <div class="player-class"><span style="color:var(--accent)">${escapeHTML(record.className) || '-'}</span> &nbsp;&bull;&nbsp; <span style="color:#94a3b8;">總耗時 ${formatTime(record.totalBestTime)}</span></div>
                     </div>
                     <div class="score-info" style="display: flex; gap: 20px;">
                         <div style="text-align: center;">

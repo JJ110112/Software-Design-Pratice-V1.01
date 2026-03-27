@@ -1,5 +1,5 @@
 const { onSchedule } = require("firebase-functions/v2/scheduler");
-const { onRequest } = require("firebase-functions/v2/https");
+const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
 
 admin.initializeApp();
@@ -110,22 +110,41 @@ exports.dailyLeaderboardRebuild = onSchedule(
 );
 
 /**
- * HTTP 端點：手動觸發結算（供儀表板按鈕或 cURL 使用）
- * POST https://<region>-software-design-pratice.cloudfunctions.net/rebuildLeaderboard
+ * Callable 端點：手動觸發結算（供儀表板按鈕使用）
+ * 速率限制：5 分鐘內不可重複呼叫
  */
-exports.rebuildLeaderboard = onRequest(
-  { region: "asia-east1", cors: true },
-  async (req, res) => {
+exports.rebuildLeaderboard = onCall(
+  { region: "asia-east1" },
+  async (request) => {
+    // Rate limit: 5 分鐘內不可重複結算
+    const RATE_LIMIT_MS = 5 * 60 * 1000;
+    const leaderboardDoc = await db.doc("summaries/leaderboard").get();
+
+    if (leaderboardDoc.exists) {
+      const data = leaderboardDoc.data();
+      if (data.updatedAt) {
+        const lastUpdated = new Date(data.updatedAt).getTime();
+        const elapsed = Date.now() - lastUpdated;
+        if (elapsed < RATE_LIMIT_MS) {
+          const remainingSec = Math.ceil((RATE_LIMIT_MS - elapsed) / 1000);
+          throw new HttpsError(
+            "resource-exhausted",
+            `請稍候再試，距離上次結算不足 5 分鐘（剩餘 ${remainingSec} 秒）`
+          );
+        }
+      }
+    }
+
     try {
       const result = await rebuildLeaderboard();
-      res.json({
+      return {
         success: true,
-        message: `排行榜結算完成`,
+        message: "排行榜結算完成",
         ...result,
-      });
+      };
     } catch (e) {
       console.error("結算失敗:", e);
-      res.status(500).json({ success: false, error: e.message });
+      throw new HttpsError("internal", e.message);
     }
   }
 );

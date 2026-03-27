@@ -1,0 +1,61 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── scores 集合：學生成績 ──
+    match /scores/{docId} {
+      // 任何人可讀（排行榜、儀表板需要）
+      allow read: if true;
+
+      // 寫入限制：只允許新增，不可更新或刪除
+      allow create: if
+        // 必要欄位存在且型態正確
+        request.resource.data.keys().hasAll(['className', 'userName', 'qID', 'gameMode', 'timeSpent', 'status', 'stars', 'timestamp'])
+        && request.resource.data.className is string
+        && request.resource.data.userName is string
+        && request.resource.data.qID is string
+        && request.resource.data.gameMode is string
+        && request.resource.data.timeSpent is number
+        && request.resource.data.status is string
+        && request.resource.data.stars is number
+        && request.resource.data.timestamp is string
+        // 欄位值範圍限制
+        && request.resource.data.stars >= 0
+        && request.resource.data.stars <= 3
+        && request.resource.data.timeSpent >= 0
+        && request.resource.data.timeSpent <= 36000
+        && request.resource.data.status in ['PASS', 'FAIL']
+        // 字串長度限制（防止灌垃圾資料）
+        && request.resource.data.className.size() <= 20
+        && request.resource.data.userName.size() <= 20
+        && request.resource.data.qID.size() <= 30
+        && request.resource.data.gameMode.size() <= 30
+        // 文件大小上限
+        && request.resource.size() < 2048;
+
+      // 禁止更新與刪除
+      allow update, delete: if false;
+    }
+
+    // ── summaries 集合：排行榜結算摘要 ──
+    match /summaries/{docId} {
+      // 任何人可讀
+      allow read: if true;
+      // 只允許 Cloud Functions (admin SDK) 寫入，前端禁止
+      allow write: if false;
+    }
+
+    // ── config 集合：班級名冊等設定 ──
+    match /config/{docId} {
+      // 任何人可讀（登入頁需要載入名冊）
+      allow read: if true;
+      // 寫入限制：文件大小上限 50KB（防止灌入巨量資料）
+      allow write: if request.resource.size() < 51200;
+    }
+
+    // ── 其他集合：預設全部拒絕 ──
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

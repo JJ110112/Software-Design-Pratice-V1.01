@@ -278,10 +278,10 @@ function renderTable(data) {
         tbody.innerHTML += `
             <tr>
                 <td>${timeStr}</td>
-                <td>${r.className || '-'}</td>
-                <td>${r.userName || '訪客'}</td>
-                <td>${r.qID}</td>
-                <td>${r.gameMode}</td>
+                <td>${escapeHTML(r.className) || '-'}</td>
+                <td>${escapeHTML(r.userName) || '訪客'}</td>
+                <td>${escapeHTML(r.qID)}</td>
+                <td>${escapeHTML(r.gameMode)}</td>
                 <td>${r.timeSpent} 秒</td>
                 <td>${statusTag}</td>
             </tr>
@@ -458,8 +458,8 @@ function sortAndRenderStudents() {
         const barW = Math.min(r.progress, 100);
         return `<tr>
             <td>${r.no}</td>
-            <td style="text-align:left;font-weight:600;">${r.name}</td>
-            <td>${r.className}</td>
+            <td style="text-align:left;font-weight:600;">${escapeHTML(r.name)}</td>
+            <td>${escapeHTML(r.className)}</td>
             <td class="${practiceCls}">${r.stars}</td>
             <td class="${practiceCls}">${r.clears}</td>
             <td class="${practiceCls}">${r.attempts === 0 ? '<span style="color:var(--danger);">未練習</span>' : r.attempts}</td>

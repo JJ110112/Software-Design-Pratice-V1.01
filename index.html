@@ -388,7 +388,7 @@ async function initAuthUI() {
             const stats = await window.getUserStarStats(user.name);
             starsStr = `(⭐ ${stats.currentStars} / ${stats.totalPossibleStars})`;
         }
-        statusEl.innerHTML = `<span class="name">${user.className} ${user.name}</span> ${starsStr} 已登入`;
+        statusEl.innerHTML = `<span class="name">${escapeHTML(user.className)} ${escapeHTML(user.name)}</span> ${starsStr} 已登入`;
         btnLogout.style.display = 'inline-block';
         document.getElementById('btn-dashboard').style.display = user.className === '測試用' ? 'inline-block' : 'none';
         playLabel.textContent = '繼續練習';
@@ -462,7 +462,7 @@ document.addEventListener('DOMContentLoaded', () => {
             studentSelect.disabled = false;
             studentSelect.innerHTML = '<option value="">請選擇座號與姓名</option>';
             CLASS_ROSTER[cls].forEach(student => {
-                studentSelect.innerHTML += `<option value="${student.no}|${student.name}">${student.no}號 ${student.name}</option>`;
+                studentSelect.innerHTML += `<option value="${student.no}|${escapeHTML(student.name)}">${student.no}號 ${escapeHTML(student.name)}</option>`;
             });
         } else {
             studentSelect.disabled = true;

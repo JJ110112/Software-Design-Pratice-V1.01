@@ -444,35 +444,6 @@ async function _fallbackLiveRanking(classFilter) {
  * 教師一鍵結算：讀取全量 scores → 計算排名 → 寫入 summaries/leaderboard
  * 全站只需這一次大量讀取，之後所有人都讀 1 個 document
  */
-window.rebuildLeaderboardSummary = async function () {
-    if (!db) throw new Error("Firebase 未連線，無法結算");
-
-    // 1. 讀取全部 PASS 紀錄
-    const q = query(collection(db, "scores"), where("status", "==", "PASS"));
-    const snapshot = await getDocs(q);
-    const results = [];
-    snapshot.forEach(d => { const data = d.data(); data.id = d.id; results.push(data); });
-
-    // 2. 計算排名
-    const ranking = _computeRanking(results);
-
-    // 3. 寫入單一 summary document
-    const summaryRef = doc(db, "summaries", "leaderboard");
-    await setDoc(summaryRef, {
-        ranking: ranking,
-        updatedAt: new Date().toISOString(),
-        totalRecords: results.length
-    });
-
-    // 4. 更新本地快取
-    try { localStorage.setItem('fb_cache_overall_ranking_v2', JSON.stringify({ time: Date.now(), data: ranking })); } catch(e) {}
-
-    // 5. 清除舊版快取
-    localStorage.removeItem('fb_cache_overall_ranking');
-
-    return { studentCount: ranking.length, totalRecords: results.length };
-};
-
 // ── Global dynamic styling for Stages ──
 const MODE_TO_STAGE = {
     '連連看': 1, '記憶翻牌遊戲': 1, '中英選擇題': 1,
@@ -650,7 +621,8 @@ window.addEventListener('DOMContentLoaded', () => {
             window.getUserStarStats(user.name).then(stats => {
                 const starBadge = document.createElement('div');
                 starBadge.style.cssText = 'background: rgba(0,0,0,0.3); padding: 4px 12px; border-radius: 20px; font-weight: bold; font-size: 0.85rem; color: #fbbf24; border: 1px solid rgba(251,191,36,0.3); z-index: 8500; white-space: nowrap; margin-left: auto; margin-right: clamp(170px, 15vw, 210px); flex-shrink: 0;';
-                const userInfoSpan = `<span style="color: #e2e8f0; font-weight: normal; margin-right: 10px;">${user.className || ''} <span style="font-weight: 800; color: #fff;">${user.name}</span></span>`;
+                const esc = window.escapeHTML || (s => s);
+                const userInfoSpan = `<span style="color: #e2e8f0; font-weight: normal; margin-right: 10px;">${esc(user.className) || ''} <span style="font-weight: 800; color: #fff;">${esc(user.name)}</span></span>`;
                 starBadge.innerHTML = `${userInfoSpan}⭐ ${stats.currentStars} / ${stats.totalPossibleStars}`;
                 topBar.appendChild(starBadge);
             });

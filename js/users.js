@@ -1,3 +1,10 @@
+// ── XSS 防護 ──
+function escapeHTML(str) {
+    if (str == null) return '';
+    return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+window.escapeHTML = escapeHTML;
+
 const CLASS_ROSTER = {
     "資訊二": [
         { no: 1, name: "李亦澄" },
