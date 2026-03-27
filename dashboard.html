@@ -153,6 +153,8 @@
             </div>
             <button id="btn-del-all" style="background:var(--danger);">⚠️ 刪除全部成績</button>
             <button id="btn-seed-teacher" style="background:var(--success);">🔄 回復測試教師資料</button>
+            <button id="btn-rebuild-ranking" style="background:#fbbf24;color:#000;">🏆 結算排行榜</button>
+            <button id="btn-clear-cache" style="background:var(--surface2);">🗑️ 清除本地快取</button>
         </div>
     </div>
 
@@ -228,6 +230,31 @@ document.addEventListener('DOMContentLoaded', () => {
             alert(`✅ 已建立「${r.teacherName}」的測試資料（${r.records} 筆，全 3 星）`);
             fetchData();
         } catch(e) { alert('❌ ' + (e.message || '操作失敗')); }
+    });
+
+    document.getElementById('btn-rebuild-ranking').addEventListener('click', async () => {
+        const pwd = prompt('請輸入教師密碼：');
+        if (!pwd) return;
+        const btn = document.getElementById('btn-rebuild-ranking');
+        btn.textContent = '結算中...'; btn.disabled = true;
+        try {
+            if (typeof window.rebuildLeaderboardSummary !== 'function') {
+                // 透過 Cloud Function 結算
+                const { getFunctions, httpsCallable } = await import("https://www.gstatic.com/firebasejs/10.9.0/firebase-functions.js");
+                const fn = getFunctions(undefined, "asia-east1");
+                const callable = httpsCallable(fn, "rebuildLeaderboard");
+                const r = await callable({ teacherPassword: pwd });
+                alert(`✅ 排行榜結算完成！${r.data.studentCount} 位學生、${r.data.totalRecords} 筆紀錄`);
+            }
+        } catch(e) { alert('❌ ' + (e.message || '結算失敗')); }
+        finally { btn.textContent = '🏆 結算排行榜'; btn.disabled = false; }
+    });
+
+    document.getElementById('btn-clear-cache').addEventListener('click', () => {
+        const keys = Object.keys(localStorage).filter(k => k.startsWith('fb_cache_') || k.startsWith('last_sync_'));
+        keys.forEach(k => localStorage.removeItem(k));
+        alert(`✅ 已清除 ${keys.length} 筆本地快取，重新載入頁面`);
+        location.reload();
     });
 
     // 延遲 1 秒等模組內的 Firebase 載入完畢，安全呼叫
