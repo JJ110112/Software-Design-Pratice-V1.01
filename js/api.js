@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
-import { getFirestore, collection, addDoc, query, where, orderBy, getDocs, limit } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, query, where, orderBy, getDocs, limit, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore.js";
 
 // TODO: 請將以下 firebaseConfig 替換為您的 Firebase 專案金鑰
 const firebaseConfig = {
@@ -336,90 +336,141 @@ window.getScoresForUser = async function (userName) {
  * 取得綜合排行榜
  * ✅ 改動：改用 localStorage 快取，TTL 30 分鐘
  */
+/**
+ * 讀取排行榜（從預先結算的 leaderboard_summary 單一 Document）
+ * 每位學生只消耗 1 次讀取，不再撈全量 scores
+ */
 window.getOverallRanking = async function (classFilter = "ALL") {
     try {
-        let results = [];
+        // 本地快取（10 分鐘 TTL，減少重複讀取同一份 summary）
+        const sysCacheKey = 'fb_cache_overall_ranking_v2';
+        const CACHE_TTL_RANK = 600000; // 10 分鐘
+        try {
+            const raw = localStorage.getItem(sysCacheKey);
+            if (raw) {
+                const obj = JSON.parse(raw);
+                if (Date.now() - obj.time < CACHE_TTL_RANK) {
+                    return _filterRanking(obj.data, classFilter);
+                }
+            }
+        } catch(e) {}
+
         if (!db) {
-            results = JSON.parse(localStorage.getItem('local_scores') || '[]');
-        } else {
-            // 排行榜專用快取：4 小時 TTL，無 limit（需要全量資料計算排名）
-            const sysCacheKey = 'fb_cache_overall_ranking';
-            const RANKING_TTL = 14400000; // 4 小時
-            try {
-                const raw = localStorage.getItem(sysCacheKey);
-                if (raw) {
-                    const obj = JSON.parse(raw);
-                    if (Date.now() - obj.time < RANKING_TTL) {
-                        results = obj.data;
-                    }
-                }
-            } catch(e) {}
-            if (results.length === 0) {
-                const q = query(
-                    collection(db, "scores"),
-                    where("status", "==", "PASS")
-                );
-                const snapshot = await getDocs(q);
-                snapshot.forEach(doc => {
-                    const data = doc.data();
-                    data.id = doc.id;
-                    results.push(data);
-                });
-                try { localStorage.setItem(sysCacheKey, JSON.stringify({ time: Date.now(), data: results })); } catch(e) {}
-            }
+            // 離線：用 local_scores 即時計算
+            const localScores = JSON.parse(localStorage.getItem('local_scores') || '[]');
+            const ranking = _computeRanking(localScores);
+            return _filterRanking(ranking, classFilter);
         }
 
-        let filtered = results.filter(r => r.status === "PASS" && r.className !== '測試用');
-        if (classFilter !== "ALL") {
-            filtered = filtered.filter(r => r.className === classFilter);
+        // 讀取單一 summary document（1 次讀取）
+        const summaryRef = doc(db, "summaries", "leaderboard");
+        const summarySnap = await getDoc(summaryRef);
+
+        if (summarySnap.exists()) {
+            const data = summarySnap.data();
+            const ranking = data.ranking || [];
+            try { localStorage.setItem(sysCacheKey, JSON.stringify({ time: Date.now(), data: ranking })); } catch(e) {}
+            return _filterRanking(ranking, classFilter);
         }
 
-        const studentMap = {};
-        filtered.forEach(r => {
-            const key = `${r.className}_${r.userName}`;
-            if (!studentMap[key]) {
-                studentMap[key] = {
-                    className: r.className,
-                    userName: r.userName,
-                    bestLevelInfo: {}
-                };
-            }
-            const s = studentMap[key];
-            const levelKey = `${r.qID}_${r.gameMode}`;
-            const currentStars = r.stars !== undefined ? r.stars : 1;
-            const currentTime = parseInt(r.timeSpent) || 0;
-
-            if (!s.bestLevelInfo[levelKey]) {
-                s.bestLevelInfo[levelKey] = { stars: currentStars, timeSpent: currentTime };
-            } else {
-                const currentBest = s.bestLevelInfo[levelKey];
-                if (currentStars > currentBest.stars || (currentStars === currentBest.stars && currentTime < currentBest.timeSpent)) {
-                    s.bestLevelInfo[levelKey] = { stars: currentStars, timeSpent: currentTime };
-                }
-            }
-        });
-
-        const rankingList = Object.values(studentMap).map(s => {
-            let totalStars = 0, totalBestTime = 0, uniqueClears = 0;
-            for (let k in s.bestLevelInfo) {
-                totalStars += s.bestLevelInfo[k].stars;
-                totalBestTime += s.bestLevelInfo[k].timeSpent;
-                uniqueClears++;
-            }
-            return { className: s.className, userName: s.userName, stars: totalStars, uniqueClears, totalBestTime };
-        });
-
-        rankingList.sort((a, b) => {
-            if (b.stars !== a.stars) return b.stars - a.stars;
-            if (a.totalBestTime !== b.totalBestTime) return a.totalBestTime - b.totalBestTime;
-            return b.uniqueClears - a.uniqueClears;
-        });
-
-        return rankingList;
+        // summary 不存在（尚未結算過）：回退到即時計算
+        console.warn("⚠️ leaderboard_summary 尚未建立，使用即時計算");
+        return await _fallbackLiveRanking(classFilter);
     } catch (e) {
         console.error("載入綜合排行榜失敗:", e);
         return [];
     }
+};
+
+/** 排行榜班級篩選 */
+function _filterRanking(ranking, classFilter) {
+    if (classFilter === "ALL") return ranking;
+    return ranking.filter(r => r.className === classFilter);
+}
+
+/** 從原始 scores 計算排名（結算 & 回退共用） */
+function _computeRanking(results) {
+    const filtered = results.filter(r => r.status === "PASS" && r.className !== '測試用');
+    const studentMap = {};
+    filtered.forEach(r => {
+        const key = `${r.className}_${r.userName}`;
+        if (!studentMap[key]) {
+            studentMap[key] = { className: r.className, userName: r.userName, bestLevelInfo: {} };
+        }
+        const s = studentMap[key];
+        const levelKey = `${r.qID}_${r.gameMode}`;
+        const currentStars = r.stars !== undefined ? r.stars : 1;
+        const currentTime = parseInt(r.timeSpent) || 0;
+        if (!s.bestLevelInfo[levelKey]) {
+            s.bestLevelInfo[levelKey] = { stars: currentStars, timeSpent: currentTime };
+        } else {
+            const best = s.bestLevelInfo[levelKey];
+            if (currentStars > best.stars || (currentStars === best.stars && currentTime < best.timeSpent)) {
+                s.bestLevelInfo[levelKey] = { stars: currentStars, timeSpent: currentTime };
+            }
+        }
+    });
+
+    const rankingList = Object.values(studentMap).map(s => {
+        let totalStars = 0, totalBestTime = 0, uniqueClears = 0;
+        for (let k in s.bestLevelInfo) {
+            totalStars += s.bestLevelInfo[k].stars;
+            totalBestTime += s.bestLevelInfo[k].timeSpent;
+            uniqueClears++;
+        }
+        return { className: s.className, userName: s.userName, stars: totalStars, uniqueClears, totalBestTime };
+    });
+
+    rankingList.sort((a, b) => {
+        if (b.stars !== a.stars) return b.stars - a.stars;
+        if (a.totalBestTime !== b.totalBestTime) return a.totalBestTime - b.totalBestTime;
+        return b.uniqueClears - a.uniqueClears;
+    });
+    return rankingList;
+}
+
+/** 回退：summary 不存在時即時撈全量（僅首次，之後由結算產生 summary） */
+async function _fallbackLiveRanking(classFilter) {
+    const q = query(collection(db, "scores"), where("status", "==", "PASS"));
+    const snapshot = await getDocs(q);
+    const results = [];
+    snapshot.forEach(d => { const data = d.data(); data.id = d.id; results.push(data); });
+    const ranking = _computeRanking(results);
+    try { localStorage.setItem('fb_cache_overall_ranking_v2', JSON.stringify({ time: Date.now(), data: ranking })); } catch(e) {}
+    return _filterRanking(ranking, classFilter);
+}
+
+/**
+ * 教師一鍵結算：讀取全量 scores → 計算排名 → 寫入 summaries/leaderboard
+ * 全站只需這一次大量讀取，之後所有人都讀 1 個 document
+ */
+window.rebuildLeaderboardSummary = async function () {
+    if (!db) throw new Error("Firebase 未連線，無法結算");
+
+    // 1. 讀取全部 PASS 紀錄
+    const q = query(collection(db, "scores"), where("status", "==", "PASS"));
+    const snapshot = await getDocs(q);
+    const results = [];
+    snapshot.forEach(d => { const data = d.data(); data.id = d.id; results.push(data); });
+
+    // 2. 計算排名
+    const ranking = _computeRanking(results);
+
+    // 3. 寫入單一 summary document
+    const summaryRef = doc(db, "summaries", "leaderboard");
+    await setDoc(summaryRef, {
+        ranking: ranking,
+        updatedAt: new Date().toISOString(),
+        totalRecords: results.length
+    });
+
+    // 4. 更新本地快取
+    try { localStorage.setItem('fb_cache_overall_ranking_v2', JSON.stringify({ time: Date.now(), data: ranking })); } catch(e) {}
+
+    // 5. 清除舊版快取
+    localStorage.removeItem('fb_cache_overall_ranking');
+
+    return { studentCount: ranking.length, totalRecords: results.length };
 };
 
 // ── Global dynamic styling for Stages ──

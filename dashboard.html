@@ -87,6 +87,7 @@
                 <option value="電子二">電子二</option>
             </select>
             <button id="btn-refresh">↻ 刷新資料</button>
+            <button id="btn-rebuild-ranking" style="background:#fbbf24;color:#000;" title="讀取全部成績，重新計算排行榜並寫入單一摘要文件">🏆 結算排行榜</button>
             <a href="index.html" style="margin-left:10px; color: var(--muted); text-decoration: none;">返回首頁</a>
         </div>
     </header>
@@ -165,7 +166,7 @@
 </div>
 
 <script src="js/users.js"></script>
-<script type="module" src="js/api.js?v=9"></script>
+<script type="module" src="js/api.js?v=10"></script>
 <script>
 let rawData = [];
 let chart1, chart2;
@@ -178,6 +179,27 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // 當切換下拉選單，不用重新 fetch，只需 refresh UI
     document.getElementById('filter-class').addEventListener('change', renderDashboard);
+
+    // 結算排行榜按鈕
+    document.getElementById('btn-rebuild-ranking').addEventListener('click', async () => {
+        const btn = document.getElementById('btn-rebuild-ranking');
+        btn.textContent = '結算中...';
+        btn.disabled = true;
+        try {
+            if (typeof window.rebuildLeaderboardSummary !== 'function') {
+                alert('API 模組尚未載入，請稍候再試');
+                return;
+            }
+            const result = await window.rebuildLeaderboardSummary();
+            alert(`✅ 排行榜結算完成！\n共 ${result.studentCount} 位學生、${result.totalRecords} 筆紀錄`);
+        } catch(e) {
+            console.error(e);
+            alert('❌ 結算失敗：' + e.message);
+        } finally {
+            btn.textContent = '🏆 結算排行榜';
+            btn.disabled = false;
+        }
+    });
 
     // 延遲 1 秒等模組內的 Firebase 載入完畢，安全呼叫
     setTimeout(fetchData, 800);
