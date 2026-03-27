@@ -46,6 +46,31 @@
         tr:hover td { background: rgba(255,255,255,0.02); }
         .status-pass { color: var(--success); font-weight: bold; background: rgba(16,185,129,0.1); padding: 4px 8px; border-radius: 4px; }
         .status-fail { color: var(--danger); font-weight: bold; background: rgba(244,63,94,0.1); padding: 4px 8px; border-radius: 4px; }
+
+        /* ── 學生練習狀況表 ── */
+        .student-status-section { margin-bottom: 20px; }
+        .student-status-section h2 { color: var(--accent); font-size: 1.2rem; margin: 0 0 12px; }
+        .student-table-wrapper { background: var(--surface); border-radius: 12px; border: 1px solid var(--border); overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .student-table { width: 100%; border-collapse: collapse; text-align: center; white-space: nowrap; }
+        .student-table th, .student-table td { padding: 10px 14px; border-bottom: 1px solid var(--border); }
+        .student-table th { background: rgba(0,0,0,0.2); color: var(--muted); font-weight: 500; font-size: 0.85rem; cursor: pointer; user-select: none; position: relative; }
+        .student-table th:hover { color: var(--accent); }
+        .student-table th .sort-arrow { margin-left: 4px; font-size: 0.7rem; }
+        .student-table tr:hover td { background: rgba(255,255,255,0.02); }
+        .student-table .no-practice { color: var(--danger); font-weight: 600; }
+        .student-table .has-practice { color: var(--success); }
+        .progress-bar { display: inline-block; width: 60px; height: 8px; background: var(--surface2); border-radius: 4px; overflow: hidden; vertical-align: middle; margin-left: 6px; }
+        .progress-bar-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--accent), var(--purple)); }
+
+        /* 手機 RWD */
+        @media (max-width: 768px) {
+            body { padding: 10px; }
+            header { flex-direction: column; gap: 10px; align-items: flex-start; }
+            .controls { flex-wrap: wrap; }
+            .dashboard-grid { grid-template-columns: 1fr; }
+            .charts-wrapper { grid-template-columns: 1fr; }
+            .student-table th, .student-table td { padding: 8px 10px; font-size: 0.8rem; }
+        }
     </style>
     <!-- Chart.js 引入 -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -92,6 +117,30 @@
         </div>
     </div>
 
+    <!-- 學生練習狀況 -->
+    <div class="student-status-section">
+        <h2>📋 學生練習狀況一覽（含未練習學生）</h2>
+        <div class="student-table-wrapper">
+            <table class="student-table" id="student-status-table">
+                <thead>
+                    <tr>
+                        <th data-col="no">座號 <span class="sort-arrow"></span></th>
+                        <th data-col="name">姓名 <span class="sort-arrow"></span></th>
+                        <th data-col="className">班級 <span class="sort-arrow"></span></th>
+                        <th data-col="stars">⭐ 星星 <span class="sort-arrow"></span></th>
+                        <th data-col="clears">破關數 <span class="sort-arrow"></span></th>
+                        <th data-col="attempts">挑戰次數 <span class="sort-arrow"></span></th>
+                        <th data-col="lastActive">最後練習 <span class="sort-arrow"></span></th>
+                        <th data-col="progress">進度 <span class="sort-arrow"></span></th>
+                    </tr>
+                </thead>
+                <tbody id="tb-student-status">
+                    <tr><td colspan="8" style="text-align:center;color:var(--muted);">載入中...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
     <!-- 紀錄明細（分頁） -->
     <div class="table-wrapper">
         <table>
@@ -115,6 +164,7 @@
     </div>
 </div>
 
+<script src="js/users.js"></script>
 <script type="module" src="js/api.js?v=9"></script>
 <script>
 let rawData = [];
@@ -186,6 +236,9 @@ function renderDashboard() {
         }
     }
     document.getElementById('stat-hardest').textContent = highestFailRate > 0 ? `${hardestQ} (${Math.round(highestFailRate*100)}% 失敗率)` : "目前無特別困難";
+
+    // ========== 學生練習狀況 ==========
+    buildStudentStatus(data);
 
     // ========== Table Render (分頁) ==========
     renderTable(data);
@@ -318,6 +371,108 @@ function renderCharts(data) {
         }
     });
 }
+
+// ═══════════════════════════════════════════
+//  學生練習狀況表（含排序）
+// ═══════════════════════════════════════════
+const MAX_STARS = 912;
+let studentRows = [];
+let sortCol = 'stars';
+let sortAsc = false;
+
+function buildStudentStatus(data) {
+    const filterCls = document.getElementById('filter-class').value;
+
+    // 彙整每位學生的練習資料
+    const practiceMap = {};
+    data.forEach(r => {
+        const key = `${r.className}_${r.userName}`;
+        if (!practiceMap[key]) {
+            practiceMap[key] = { attempts: 0, passes: 0, bestLevels: {}, lastTime: 0 };
+        }
+        const p = practiceMap[key];
+        p.attempts++;
+        if (r.status === 'PASS') {
+            p.passes++;
+            const lk = `${r.qID}_${r.gameMode}`;
+            const st = r.stars !== undefined ? r.stars : 1;
+            if (!p.bestLevels[lk] || st > p.bestLevels[lk]) p.bestLevels[lk] = st;
+        }
+        const ts = new Date(r.timestamp).getTime();
+        if (ts > p.lastTime) p.lastTime = ts;
+    });
+
+    // 建立所有學生列表（含未練習）
+    studentRows = [];
+    const classes = filterCls === 'ALL' ? Object.keys(CLASS_ROSTER) : [filterCls];
+    classes.forEach(cls => {
+        if (!CLASS_ROSTER[cls]) return;
+        CLASS_ROSTER[cls].forEach(s => {
+            const key = `${cls}_${s.name}`;
+            const p = practiceMap[key];
+            const totalStars = p ? Object.values(p.bestLevels).reduce((a, b) => a + b, 0) : 0;
+            const clears = p ? Object.keys(p.bestLevels).length : 0;
+            studentRows.push({
+                no: s.no,
+                name: s.name,
+                className: cls,
+                stars: totalStars,
+                clears: clears,
+                attempts: p ? p.attempts : 0,
+                lastActive: p ? p.lastTime : 0,
+                progress: Math.round(totalStars / MAX_STARS * 100)
+            });
+        });
+    });
+
+    sortAndRenderStudents();
+}
+
+function sortAndRenderStudents() {
+    studentRows.sort((a, b) => {
+        let va = a[sortCol], vb = b[sortCol];
+        if (typeof va === 'string') { va = va.localeCompare ? va : ''; vb = vb.localeCompare ? vb : ''; return sortAsc ? va.localeCompare(vb) : vb.localeCompare(va); }
+        return sortAsc ? va - vb : vb - va;
+    });
+
+    const tbody = document.getElementById('tb-student-status');
+    if (studentRows.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--muted);">無學生資料</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = studentRows.map(r => {
+        const lastStr = r.lastActive ? (() => { const d = new Date(r.lastActive); return `${d.getMonth()+1}/${d.getDate()} ${d.getHours()}:${d.getMinutes().toString().padStart(2,'0')}`; })() : '-';
+        const practiceCls = r.attempts === 0 ? 'no-practice' : 'has-practice';
+        const barW = Math.min(r.progress, 100);
+        return `<tr>
+            <td>${r.no}</td>
+            <td style="text-align:left;font-weight:600;">${r.name}</td>
+            <td>${r.className}</td>
+            <td class="${practiceCls}">${r.stars}</td>
+            <td class="${practiceCls}">${r.clears}</td>
+            <td class="${practiceCls}">${r.attempts === 0 ? '<span style="color:var(--danger);">未練習</span>' : r.attempts}</td>
+            <td>${lastStr}</td>
+            <td>${r.progress}%<div class="progress-bar"><div class="progress-bar-fill" style="width:${barW}%"></div></div></td>
+        </tr>`;
+    }).join('');
+
+    // 更新排序箭頭
+    document.querySelectorAll('#student-status-table th').forEach(th => {
+        const arrow = th.querySelector('.sort-arrow');
+        if (!arrow) return;
+        arrow.textContent = th.dataset.col === sortCol ? (sortAsc ? '▲' : '▼') : '';
+    });
+}
+
+// 欄位點擊排序
+document.getElementById('student-status-table').addEventListener('click', e => {
+    const th = e.target.closest('th[data-col]');
+    if (!th) return;
+    const col = th.dataset.col;
+    if (sortCol === col) { sortAsc = !sortAsc; } else { sortCol = col; sortAsc = col === 'no' || col === 'name' || col === 'className'; }
+    sortAndRenderStudents();
+});
 </script>
 </body>
 </html>
