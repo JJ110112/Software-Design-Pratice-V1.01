@@ -171,7 +171,7 @@ window.saveScore = async function (className, userName, qID, gameMode, timeSpent
         className: className || "未分班",
         userName: userName || "訪客",
         qID: qID || "Q1",
-        gameMode: gameMode || "未知模式",
+        gameMode: normalizeMode(gameMode || "未知模式"),
         timeSpent: Number(timeSpent) || 0,
         status: status || "PASS",
         stars: Number(stars) || 1,
