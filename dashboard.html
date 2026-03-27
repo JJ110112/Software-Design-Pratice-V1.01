@@ -185,6 +185,7 @@
 <script type="module" src="js/api.js?v=10"></script>
 <script>
 let rawData = [];
+let fullRankingData = [];
 let chart1, chart2;
 let currentPage = 1;
 const PAGE_SIZE = 20;
@@ -302,9 +303,12 @@ async function fetchData() {
             return;
         }
 
-        // 撈取原始資料
-        rawData = await window.getAllScoresForDashboard();
-        console.log("儀表板資料筆數:", rawData.length);
+        // 同時撈取「近期紀錄」與「全站排行（精確星星數）」
+        [rawData, fullRankingData] = await Promise.all([
+            window.getAllScoresForDashboard(),
+            typeof window.getOverallRanking === 'function' ? window.getOverallRanking("ALL") : []
+        ]);
+        console.log("儀表板資料筆數:", rawData.length, "排行榜人數:", fullRankingData.length);
         renderDashboard();
     } catch(e) {
         console.error("儀表板載入失敗:", e);
@@ -491,24 +495,24 @@ let sortAsc = false;
 function buildStudentStatus(data) {
     const filterCls = document.getElementById('filter-class').value;
 
-    // 彙整每位學生的練習資料
+    // 從近期 500 筆紀錄，彙整每位學生的近期活躍資料
     const practiceMap = {};
     data.forEach(r => {
         const key = `${r.className}_${r.userName}`;
         if (!practiceMap[key]) {
-            practiceMap[key] = { attempts: 0, passes: 0, bestLevels: {}, lastTime: 0 };
+            practiceMap[key] = { attempts: 0, lastTime: 0 };
         }
         const p = practiceMap[key];
         p.attempts++;
-        if (r.status === 'PASS') {
-            p.passes++;
-            const lk = `${r.qID}_${r.gameMode}`;
-            const st = r.stars !== undefined ? r.stars : 1;
-            if (!p.bestLevels[lk] || st > p.bestLevels[lk]) p.bestLevels[lk] = st;
-        }
         const ts = new Date(r.timestamp).getTime();
         if (ts > p.lastTime) p.lastTime = ts;
     });
+
+    // 從全站排行榜取得精確的星星/破關數（不受 500 筆截斷影響）
+    const rankMap = {};
+    if (fullRankingData) {
+        fullRankingData.forEach(r => rankMap[`${r.className}_${r.userName}`] = r);
+    }
 
     // 建立所有學生列表（含未練習）
     studentRows = [];
@@ -518,8 +522,9 @@ function buildStudentStatus(data) {
         CLASS_ROSTER[cls].forEach(s => {
             const key = `${cls}_${s.name}`;
             const p = practiceMap[key];
-            const totalStars = p ? Object.values(p.bestLevels).reduce((a, b) => a + b, 0) : 0;
-            const clears = p ? Object.keys(p.bestLevels).length : 0;
+            const rank = rankMap[key];
+            const totalStars = rank ? rank.stars : 0;
+            const clears = rank ? rank.uniqueClears : 0;
             studentRows.push({
                 no: s.no,
                 name: s.name,
