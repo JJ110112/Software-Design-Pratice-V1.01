@@ -245,22 +245,20 @@ window.getAllScoresForDashboard = async function () {
     } catch(e) {}
 
     try {
-        // 撈最近 500 筆供統計（快取 4 小時）
-        const q = query(
-            collection(db, "scores"),
-            orderBy("timestamp", "desc"),
-            limit(500)
-        );
-        const snapshot = await getDocs(q);
+        // 撈全部成績供統計（不用 orderBy 避免索引問題，前端排序）
+        const snapshot = await getDocs(collection(db, "scores"));
         const results = [];
-        snapshot.forEach(doc => {
-            const data = doc.data();
-            data.id = doc.id;
+        snapshot.forEach(d => {
+            const data = d.data();
+            data.id = d.id;
             results.push(data);
         });
 
         const filtered = results.filter(r => r.className !== '測試用');
+        // 前端依 timestamp 降序排序
+        filtered.sort((a, b) => (b.timestamp || '').localeCompare(a.timestamp || ''));
         cacheSet(sysCacheKey, filtered);
+        console.log("儀表板載入完成:", filtered.length, "筆");
         return filtered;
     } catch (e) {
         console.error("載入儀表板資料失敗:", e.code, e.message, e);
