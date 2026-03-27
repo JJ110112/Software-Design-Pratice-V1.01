@@ -102,17 +102,16 @@ window.syncOnLogout = function (userName) {
  * 回到 map 頁面時：節流背景同步（每 10 分鐘最多一次）
  * 快取有效時直接用快取，不額外查 Firestore
  */
-const SYNC_COOLDOWN = 600000; // 10 分鐘
 window.syncOnMapLoad = async function (userName) {
     if (!db || !userName) return;
     // 先嘗試上傳離線成績
     await window.syncOfflineScores(userName);
-    // 節流：2 分鐘內不重複查 Firestore
-    const lastSyncKey = `last_sync_${userName}`;
-    const lastSync = parseInt(localStorage.getItem(lastSyncKey) || '0');
-    if (Date.now() - lastSync < 120000) return;
-    localStorage.setItem(lastSyncKey, String(Date.now()));
-    // 從 Firestore 撈取最新，直接覆蓋快取（確保一致性）
+
+    // 若已有未過期的快取，信任本地資料，不查 Firestore
+    const cacheKey = `fb_cache_${userName}`;
+    if (cacheGet(cacheKey)) return;
+
+    // 快取不存在或已過期，才從 Firestore 拉一次
     try {
         const q = query(collection(db, "scores"), where("userName", "==", userName));
         const snapshot = await getDocs(q);
@@ -123,7 +122,6 @@ window.syncOnMapLoad = async function (userName) {
             data.gameMode = normalizeMode(data.gameMode);
             results.push(data);
         });
-        const cacheKey = `fb_cache_${userName}`;
         cacheSet(cacheKey, results);
     } catch (e) {
         console.error("背景同步失敗:", e);

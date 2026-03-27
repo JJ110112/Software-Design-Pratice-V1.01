@@ -5,6 +5,9 @@ const admin = require("firebase-admin");
 admin.initializeApp();
 const db = admin.firestore();
 
+// 記憶體層級防連刷（不耗 DB 讀取，Cloud Function 實例回收時自動清除）
+const _lastSaveByUid = {};
+
 /**
  * 從全部 scores 計算排行榜
  */
@@ -123,13 +126,13 @@ exports.dailyLeaderboardRebuild = onSchedule(
 
 /**
  * Callable 端點：手動觸發結算（供儀表板按鈕使用）
- * 速率限制：5 分鐘內不可重複呼叫
+ * 速率限制：30 分鐘內不可重複呼叫（全表掃描極耗配額）
  */
 exports.rebuildLeaderboard = onCall(
   { region: "asia-east1", cors: true },
   async (request) => {
-    // Rate limit: 1 分鐘內不可重複結算
-    const RATE_LIMIT_MS = 60 * 1000;
+    // Rate limit: 30 分鐘內不可重複結算
+    const RATE_LIMIT_MS = 30 * 60 * 1000;
     const leaderboardDoc = await db.doc("summaries/leaderboard").get();
 
     if (leaderboardDoc.exists) {
@@ -141,7 +144,7 @@ exports.rebuildLeaderboard = onCall(
           const remainingSec = Math.ceil((RATE_LIMIT_MS - elapsed) / 1000);
           throw new HttpsError(
             "resource-exhausted",
-            `請稍候再試，距離上次結算不足 5 分鐘（剩餘 ${remainingSec} 秒）`
+            `請稍候再試，距離上次結算不足 30 分鐘（剩餘 ${Math.ceil(remainingSec/60)} 分鐘）`
           );
         }
       }
@@ -208,19 +211,13 @@ exports.saveScoreSecure = onCall(
       throw new HttpsError("invalid-argument", "破關時間異常");
     }
 
-    // 5. UID 防連刷（同一 UID，10 秒內不接受第二次寫入）
+    // 5. UID 防連刷（記憶體層級，不耗 DB 讀取）
     const uid = request.auth.uid;
-    const recentQuery = await db.collection("scores")
-      .where("uid", "==", uid)
-      .limit(1)
-      .get();
-
-    if (!recentQuery.empty) {
-      const lastTime = new Date(recentQuery.docs[0].data().timestamp).getTime();
-      if (Date.now() - lastTime < 10000) {
-        throw new HttpsError("resource-exhausted", "提交過於頻繁，請稍候再試");
-      }
+    const now = Date.now();
+    if (_lastSaveByUid[uid] && now - _lastSaveByUid[uid] < 5000) {
+      throw new HttpsError("resource-exhausted", "提交過於頻繁，請稍候再試");
     }
+    _lastSaveByUid[uid] = now;
 
     // 6. 寫入 Firestore（使用 admin SDK，不受 Security Rules 限制）
     const record = {

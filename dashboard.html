@@ -268,8 +268,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 延遲 1 秒等模組內的 Firebase 載入完畢，安全呼叫
     setTimeout(async () => {
-        // 進入時清除儀表板快取，確保顯示最新資料
-        localStorage.removeItem('fb_cache_dashboard_teacher');
+        // 信任 DASH_TTL (5分鐘) 快取，不強制清除，避免每次 F5 都打 Firestore
 
         // 動態載入班級下拉選項
         if (typeof window.loadClassRoster === 'function') {
