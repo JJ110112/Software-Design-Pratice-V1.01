@@ -1,5 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
 import { getFirestore, collection, addDoc, query, where, orderBy, getDocs, limit, doc, setDoc, getDoc, deleteField } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore.js";
+import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js";
+import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-functions.js";
 
 // TODO: 請將以下 firebaseConfig 替換為您的 Firebase 專案金鑰
 const firebaseConfig = {
@@ -12,14 +14,24 @@ const firebaseConfig = {
     measurementId: "G-5MRVDNK2PQ"
 };
 
-let app, db;
+let app, db, auth, functions, _saveScoreCallable;
 
 // 檢查是否已填入有效金鑰
 if (firebaseConfig.apiKey && firebaseConfig.apiKey !== "YOUR_API_KEY_HERE") {
     try {
         app = initializeApp(firebaseConfig);
         db = getFirestore(app);
+        auth = getAuth(app);
+        functions = getFunctions(app, "asia-east1");
+        _saveScoreCallable = httpsCallable(functions, "saveScoreSecure");
         console.log("🔥 Firebase Firestore 連線成功");
+
+        // 自動匿名登入（取得 UID，讓 Security Rules 能驗證身份）
+        signInAnonymously(auth).then(() => {
+            console.log("🔑 匿名登入成功，UID:", auth.currentUser?.uid);
+        }).catch(e => {
+            console.warn("⚠️ 匿名登入失敗（離線模式）:", e.code);
+        });
     } catch (e) {
         console.error("Firebase 初始化失敗:", e);
     }
@@ -135,18 +147,18 @@ window.syncOnMapLoad = async function (userName) {
  * 離線成績重試：把 local_scores 中未上傳的補傳到 Firestore
  */
 window.syncOfflineScores = async function (userName) {
-    if (!db) return;
+    if (!_saveScoreCallable) return;
     let localScores = JSON.parse(localStorage.getItem('local_scores') || '[]');
     if (localScores.length === 0) return;
     const toUpload = userName ? localScores.filter(s => s.userName === userName) : localScores;
     const remaining = userName ? localScores.filter(s => s.userName !== userName) : [];
     let uploaded = 0;
     for (const record of toUpload) {
-        try { await addDoc(collection(db, "scores"), record); uploaded++; }
+        try { await _saveScoreCallable(record); uploaded++; }
         catch (e) { remaining.push(record); }
     }
     localStorage.setItem('local_scores', JSON.stringify(remaining));
-    if (uploaded > 0) console.log(`✅ 離線成績補傳: ${uploaded} 筆`);
+    if (uploaded > 0) console.log(`✅ 離線成績補傳（透過 Cloud Function）: ${uploaded} 筆`);
 };
 
 /**
@@ -170,9 +182,9 @@ window.saveScore = async function (className, userName, qID, gameMode, timeSpent
     const cacheKey = `fb_cache_${newRecord.userName}`;
     cacheAppend(cacheKey, newRecord);
 
-    // 2. 嘗試寫入 Firestore
-    if (!db) {
-        console.warn("⚠️ saveScore: db 未初始化，成績僅存本地", newRecord.qID, newRecord.gameMode);
+    // 2. 透過 Cloud Function 寫入（後端驗證，前端無法直接寫 scores）
+    if (!_saveScoreCallable) {
+        console.warn("⚠️ saveScore: Cloud Function 未就緒，成績僅存本地", newRecord.qID, newRecord.gameMode);
         let localScores = JSON.parse(localStorage.getItem('local_scores') || '[]');
         localScores.push(newRecord);
         localStorage.setItem('local_scores', JSON.stringify(localScores));
@@ -180,13 +192,13 @@ window.saveScore = async function (className, userName, qID, gameMode, timeSpent
     }
 
     try {
-        const docRef = await addDoc(collection(db, "scores"), newRecord);
-        newRecord.id = docRef.id;
-        console.log("✅ Firestore 寫入成功:", newRecord.qID, newRecord.gameMode, "stars:", newRecord.stars);
-        return { success: true, id: docRef.id };
+        const result = await _saveScoreCallable(newRecord);
+        newRecord.id = result.data.id;
+        console.log("✅ Cloud Function 寫入成功:", newRecord.qID, newRecord.gameMode, "stars:", newRecord.stars);
+        return { success: true, id: result.data.id };
     } catch (e) {
-        console.error("❌ Firestore 寫入失敗:", e.code, e.message);
-        // Firestore 失敗，存到 local_scores 備份，下次登入時重試
+        console.error("❌ Cloud Function 寫入失敗:", e.code, e.message);
+        // 失敗時存到 local_scores 備份，下次登入時重試
         let localScores = JSON.parse(localStorage.getItem('local_scores') || '[]');
         localScores.push(newRecord);
         localStorage.setItem('local_scores', JSON.stringify(localScores));

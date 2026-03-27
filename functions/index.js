@@ -148,3 +148,68 @@ exports.rebuildLeaderboard = onCall(
     }
   }
 );
+
+/**
+ * 安全成績寫入：前端透過 onCall 呼叫，後端驗證後寫入 Firestore
+ * - 必須有 Firebase Auth（匿名登入即可）
+ * - 驗證欄位型態與範圍
+ */
+exports.saveScoreSecure = onCall(
+  { region: "asia-east1" },
+  async (request) => {
+    // 1. 驗證身份（必須已登入，匿名也算）
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "必須登入才能儲存成績");
+    }
+
+    const data = request.data;
+
+    // 2. 驗證必要欄位存在
+    const required = ["className", "userName", "qID", "gameMode", "timeSpent", "status", "stars"];
+    for (const field of required) {
+      if (data[field] === undefined || data[field] === null) {
+        throw new HttpsError("invalid-argument", `缺少必要欄位: ${field}`);
+      }
+    }
+
+    // 3. 驗證型態與範圍
+    const className = String(data.className).slice(0, 20);
+    const userName = String(data.userName).slice(0, 20);
+    const qID = String(data.qID).slice(0, 30);
+    const gameMode = String(data.gameMode).slice(0, 30);
+    const timeSpent = Number(data.timeSpent) || 0;
+    const status = String(data.status);
+    const stars = Number(data.stars) || 0;
+
+    if (!["PASS", "FAIL"].includes(status)) {
+      throw new HttpsError("invalid-argument", "status 必須是 PASS 或 FAIL");
+    }
+    if (stars < 0 || stars > 3) {
+      throw new HttpsError("invalid-argument", "stars 必須介於 0-3");
+    }
+    if (timeSpent < 0 || timeSpent > 36000) {
+      throw new HttpsError("invalid-argument", "timeSpent 超出合理範圍");
+    }
+
+    // 4. 寫入 Firestore（使用 admin SDK，不受 Security Rules 限制）
+    const record = {
+      className,
+      userName,
+      qID,
+      gameMode,
+      timeSpent,
+      status,
+      stars,
+      timestamp: new Date().toISOString(),
+      uid: request.auth.uid,
+    };
+
+    try {
+      const docRef = await db.collection("scores").add(record);
+      return { success: true, id: docRef.id };
+    } catch (e) {
+      console.error("寫入成績失敗:", e);
+      throw new HttpsError("internal", "寫入失敗");
+    }
+  }
+);
