@@ -384,8 +384,11 @@ document.addEventListener('DOMContentLoaded', () => {
         toast(`已匯入 ${added} 人` + (skipped ? `，跳過 ${skipped} 人（座號重複）` : ''));
     });
 
-    // 儲存到雲端
+    // 儲存到雲端（需要教師密碼）
     document.getElementById('btn-save').addEventListener('click', async () => {
+        const pwd = prompt('請輸入教師密碼：');
+        if (!pwd) return;
+
         const btn = document.getElementById('btn-save');
         btn.textContent = '儲存中...';
         btn.disabled = true;
@@ -394,12 +397,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 toast('API 尚未載入', 'error');
                 return;
             }
-            await window.saveClassRoster(roster);
+            await window.saveClassRoster(roster, pwd);
             dirty = false;
             toast('✅ 名冊已儲存到雲端');
         } catch(e) {
             console.error(e);
-            toast('❌ 儲存失敗：' + e.message, 'error');
+            const msg = e.message || '';
+            toast(msg.includes('密碼') ? '❌ 教師密碼錯誤' : '❌ 儲存失敗：' + msg, 'error');
         } finally {
             btn.textContent = '💾 儲存到雲端';
             btn.disabled = false;

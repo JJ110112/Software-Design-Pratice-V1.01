@@ -191,7 +191,29 @@ exports.saveScoreSecure = onCall(
       throw new HttpsError("invalid-argument", "timeSpent 超出合理範圍");
     }
 
-    // 4. 寫入 Firestore（使用 admin SDK，不受 Security Rules 限制）
+    // 4. 防範非人為的破關時間（低於 3 秒為異常）
+    if (status === "PASS" && timeSpent < 3) {
+      throw new HttpsError("invalid-argument", "破關時間異常");
+    }
+
+    // 5. UID 防連刷（同一 UID + 同一關卡，10 秒內不接受第二次）
+    const uid = request.auth.uid;
+    const recentQuery = await db.collection("scores")
+      .where("uid", "==", uid)
+      .where("qID", "==", qID)
+      .where("gameMode", "==", gameMode)
+      .orderBy("timestamp", "desc")
+      .limit(1)
+      .get();
+
+    if (!recentQuery.empty) {
+      const lastTime = new Date(recentQuery.docs[0].data().timestamp).getTime();
+      if (Date.now() - lastTime < 10000) {
+        throw new HttpsError("resource-exhausted", "提交過於頻繁，請稍候再試");
+      }
+    }
+
+    // 6. 寫入 Firestore（使用 admin SDK，不受 Security Rules 限制）
     const record = {
       className,
       userName,
@@ -201,7 +223,7 @@ exports.saveScoreSecure = onCall(
       status,
       stars,
       timestamp: new Date().toISOString(),
-      uid: request.auth.uid,
+      uid,
     };
 
     try {
@@ -211,5 +233,36 @@ exports.saveScoreSecure = onCall(
       console.error("寫入成績失敗:", e);
       throw new HttpsError("internal", "寫入失敗");
     }
+  }
+);
+
+/**
+ * 教師名冊安全寫入：需要教師密碼
+ */
+const TEACHER_PASSWORD = "sw-design-2024-teacher";
+
+exports.saveRosterSecure = onCall(
+  { region: "asia-east1" },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "必須登入");
+    }
+
+    const { teacherPassword, classes } = request.data;
+
+    if (teacherPassword !== TEACHER_PASSWORD) {
+      throw new HttpsError("permission-denied", "教師密碼錯誤");
+    }
+
+    if (!classes || typeof classes !== "object") {
+      throw new HttpsError("invalid-argument", "名冊資料格式錯誤");
+    }
+
+    await db.doc("config/roster").set({
+      classes,
+      updatedAt: new Date().toISOString(),
+    });
+
+    return { success: true };
   }
 );

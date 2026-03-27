@@ -561,14 +561,12 @@ window.loadClassRoster = async function () {
 };
 
 /**
- * 儲存整份名冊到 Firestore
+ * 儲存整份名冊（透過 Cloud Function + 教師密碼驗證）
  */
-window.saveClassRoster = async function (roster) {
-    if (!db) throw new Error("Firebase 未連線");
-    await setDoc(doc(db, "config", "roster"), {
-        classes: roster,
-        updatedAt: new Date().toISOString()
-    });
+window.saveClassRoster = async function (roster, teacherPassword) {
+    if (!functions) throw new Error("Firebase 未連線");
+    const callable = httpsCallable(functions, "saveRosterSecure");
+    await callable({ classes: roster, teacherPassword });
     // 更新本地快取
     try { localStorage.setItem('fb_cache_roster', JSON.stringify({ time: Date.now(), data: roster })); } catch(e) {}
     // 同步全域變數

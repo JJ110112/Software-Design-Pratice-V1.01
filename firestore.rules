@@ -19,10 +19,9 @@ service cloud.firestore {
 
     // ── config 集合：班級名冊等設定 ──
     match /config/{docId} {
-      // 任何人可讀（登入頁需要載入名冊）
       allow read: if true;
-      // 寫入：必須已登入 + 文件大小上限 50KB
-      allow write: if request.auth != null && request.resource.size() < 51200;
+      // 前端禁止寫入，只能透過 Cloud Functions (admin SDK) + 教師密碼
+      allow write: if false;
     }
 
     // ── 其他集合：預設全部拒絕 ──
