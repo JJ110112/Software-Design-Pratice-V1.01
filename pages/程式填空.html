@@ -764,6 +764,7 @@
 
               // 紀錄最後一次點擊的空格，讓提示按鈕優先顯示該格的提示
               inp.addEventListener('focus', () => { lastFocusedBlank = { el: inp, ans: seg.ans, hint: seg.hint }; });
+              inp.addEventListener('paste', e => e.preventDefault()); // 防貼上作弊
               inp.addEventListener('keydown', e => {
                 if (e.key === 'Enter') { e.preventDefault(); doCheck(); }
               });

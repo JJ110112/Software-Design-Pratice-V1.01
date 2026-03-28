@@ -552,8 +552,12 @@ document.getElementById('btn-again').addEventListener('click', () => {
     clickedLines.clear();
 });
 
+// 提示次數追蹤（影響星星計算）
+let totalHintsUsed = 0;
+
 // Hint button: show the zh explanation of the next unclicked line
 document.getElementById('btn-hint').addEventListener('click', () => {
+    totalHintsUsed++;
     const hintArea = document.getElementById('hint-area');
     // Find the first unclicked line that has a zh
     let nextIdx = -1;
@@ -574,15 +578,18 @@ document.getElementById('btn-hint').addEventListener('click', () => {
 
 function showResult() {
     let stars = 3;
+    if (totalHintsUsed > 0 && totalHintsUsed <= 3) stars = 2;
+    if (totalHintsUsed > 3) stars = 1;
+
     let finalScoreSpan = document.getElementById('final-score');
     if (finalScoreSpan) {
         finalScoreSpan.innerHTML = `
             <div class="star-display-container" style="margin-top: 10px; width: 100%; display: flex; flex-direction: column; align-items: center;">
                 <div style="display: flex; justify-content: center; align-items: center; gap: 12px; margin-bottom: 5px; flex-wrap: nowrap;">
-                    ${Array(3).fill(0).map((_, i) => `<span style="font-size: 2.5rem; filter: drop-shadow(0 0 12px rgba(251,191,36,0.8)); transform: scale(1.1); transition: all 0.3s ease; line-height: 1;">⭐</span>`).join('')}
+                    ${Array(3).fill(0).map((_, i) => `<span style="font-size: 2.5rem; filter: ${i < stars ? 'drop-shadow(0 0 12px rgba(251,191,36,0.8))' : 'grayscale(100%) opacity(20%)'}; transform: scale(${i < stars ? 1.1 : 1}); transition: all 0.3s ease; line-height: 1;">⭐</span>`).join('')}
                 </div>
                 <div style="font-size: 0.85rem; color: var(--green); text-align: center; margin-top: 10px; font-weight:700;">
-                    已成功點擊並聆聽所有步驟
+                    已成功點擊並聆聽所有步驟${totalHintsUsed > 0 ? `（使用 ${totalHintsUsed} 次提示）` : ''}
                 </div>
             </div>
         `;
@@ -620,9 +627,9 @@ function setupNextLevelButton() {
         };
     } else if (currentIndex === LEVEL_SEQUENCE.length - 1) {
         nextBtn.style.display = 'block';
-        nextBtn.innerHTML = '🎯 進入第二階段 (一行程式碼對譯)';
+        nextBtn.innerHTML = '🗺️ 回到關卡地圖';
         nextBtn.onclick = () => {
-            window.location.href = '一行程式碼翻譯.html?q=SETUP&t=T01';
+            window.location.href = 'map.html?tab=map';
         };
     } else {
         nextBtn.style.display = 'none';

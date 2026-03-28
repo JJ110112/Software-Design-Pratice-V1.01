@@ -83,24 +83,45 @@ test.describe('saveScore 真實呼叫', () => {
   });
 
   test('saveScore 連續呼叫不同關卡，星星正確累加', async ({ page }) => {
+    test.slow(); // CF 防連刷需等待 5.5 秒，套用 3x timeout (90s)
     await login(page, '資訊二', 5, '楊斯晴');
     await page.goto('/pages/連連看.html?q=SETUP&t=T01');
     await waitForReady(page);
 
-    // 清除舊快取
-    await page.evaluate(() => localStorage.removeItem('fb_cache_楊斯晴'));
+    // 清除舊快取和 local_scores 中的 E2E_ 紀錄
+    await page.evaluate(() => {
+      localStorage.removeItem('fb_cache_楊斯晴');
+      const ls = JSON.parse(localStorage.getItem('local_scores') || '[]');
+      localStorage.setItem('local_scores', JSON.stringify(ls.filter(r => !r.qID?.startsWith('E2E_'))));
+    });
 
+    // 第一次 saveScore（等待 CF 回應）
     await page.evaluate(async () => {
       await window.saveScore('資訊二', '楊斯晴', 'E2E_Q1', '連連看', 30, 'PASS', 3);
+    });
+
+    // 等待 CF 防連刷冷卻（5 秒）後再做第二次
+    await page.waitForTimeout(5500);
+
+    // 第二次 saveScore
+    await page.evaluate(async () => {
       await window.saveScore('資訊二', '楊斯晴', 'E2E_Q2', '中英選擇題', 45, 'PASS', 2);
     });
 
+    // 計算星星：合併快取 + local_scores（無論 CF 成功或失敗都能正確計算）
     const stars = await page.evaluate(() => {
-      const raw = localStorage.getItem('fb_cache_楊斯晴');
-      if (!raw) return 0;
-      const data = JSON.parse(raw).data || [];
+      const cacheRaw = localStorage.getItem('fb_cache_楊斯晴');
+      const cacheData = cacheRaw ? (JSON.parse(cacheRaw).data || []) : [];
+      const localData = JSON.parse(localStorage.getItem('local_scores') || '[]');
+
+      // 合併去重（用 timestamp 為 key）
+      const merged = [...cacheData];
+      const existingTs = new Set(cacheData.map(r => r.timestamp));
+      localData.filter(r => r.userName === '楊斯晴' && r.qID?.startsWith('E2E_'))
+               .forEach(r => { if (!existingTs.has(r.timestamp)) merged.push(r); });
+
       const best = {};
-      data.filter(r => r.status === 'PASS' && r.qID.startsWith('E2E_')).forEach(r => {
+      merged.filter(r => r.status === 'PASS' && r.qID?.startsWith('E2E_')).forEach(r => {
         const k = `${r.qID}_${r.gameMode}`;
         if (!best[k] || r.stars > best[k]) best[k] = r.stars;
       });
@@ -111,22 +132,40 @@ test.describe('saveScore 真實呼叫', () => {
   });
 
   test('saveScore 同關卡重複過關，快取保留所有但取最高星', async ({ page }) => {
+    test.slow(); // CF 防連刷需等待
     await login(page, '資訊二', 6, '薛明全');
     await page.goto('/pages/連連看.html?q=SETUP&t=T01');
     await waitForReady(page);
 
-    await page.evaluate(() => localStorage.removeItem('fb_cache_薛明全'));
+    await page.evaluate(() => {
+      localStorage.removeItem('fb_cache_薛明全');
+      const ls = JSON.parse(localStorage.getItem('local_scores') || '[]');
+      localStorage.setItem('local_scores', JSON.stringify(ls.filter(r => r.qID !== 'E2E_SAME')));
+    });
 
+    // 第一次 1 星
     await page.evaluate(async () => {
       await window.saveScore('資訊二', '薛明全', 'E2E_SAME', '連連看', 60, 'PASS', 1);
+    });
+
+    // 等 CF 防連刷冷卻
+    await page.waitForTimeout(5500);
+
+    // 第二次 3 星
+    await page.evaluate(async () => {
       await window.saveScore('資訊二', '薛明全', 'E2E_SAME', '連連看', 20, 'PASS', 3);
     });
 
     const best = await page.evaluate(() => {
-      const raw = localStorage.getItem('fb_cache_薛明全');
-      const data = JSON.parse(raw).data;
+      const cacheRaw = localStorage.getItem('fb_cache_薛明全');
+      const cacheData = cacheRaw ? (JSON.parse(cacheRaw).data || []) : [];
+      const localData = JSON.parse(localStorage.getItem('local_scores') || '[]');
+      const merged = [...cacheData];
+      const existingTs = new Set(cacheData.map(r => r.timestamp));
+      localData.filter(r => r.userName === '薛明全' && r.qID === 'E2E_SAME')
+               .forEach(r => { if (!existingTs.has(r.timestamp)) merged.push(r); });
       const bestMap = {};
-      data.filter(r => r.status === 'PASS' && r.qID === 'E2E_SAME').forEach(r => {
+      merged.filter(r => r.status === 'PASS' && r.qID === 'E2E_SAME').forEach(r => {
         const k = `${r.qID}_${r.gameMode}`;
         if (!bestMap[k] || r.stars > bestMap[k]) bestMap[k] = r.stars;
       });

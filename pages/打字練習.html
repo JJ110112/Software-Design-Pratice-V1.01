@@ -965,10 +965,11 @@ function showAllClear() {
   // WPM > 120 視為作弊（貼上或其他手段），不給星星
   let stars = 3;
   if (avgWpm > 120) stars = 0;
+  else if (sessionTimeSum < 5) stars = 0;
   else if (avgWpm < 30) stars = 2;
   else if (avgWpm < 20) stars = 1;
 
-  const cheatWarning = stars === 0 ? '<div style="color:var(--red);font-weight:700;margin-top:12px;">⚠️ 偵測到異常速度 (WPM > 120)，本次不計星星</div>' : '';
+  const cheatWarning = stars === 0 ? `<div style="color:var(--red);font-weight:700;margin-top:12px;">⚠️ ${avgWpm > 120 ? '偵測到異常速度 (WPM > 120)' : '完成時間過短 (< 5 秒)'}，本次不計星星</div>` : '';
   document.getElementById('all-clear-stats').innerHTML = `
     <div class="clear-stat-chip"><span class="cv" style="color:${avgWpm > 120 ? 'var(--red)' : 'var(--accent2)'}">${avgWpm}</span><span class="cl">平均 WPM</span></div>
     <div class="clear-stat-chip"><span class="cv" style="color:var(--gold)">${sessionTimeSum}s</span><span class="cl">總用時</span></div>
