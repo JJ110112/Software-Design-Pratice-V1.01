@@ -91,11 +91,13 @@ window.syncOnLogin = async function (userName) {
 
 /**
  * 登出時：清除該使用者的快取
+ * ⚠️ 排行榜快取 fb_cache_overall_ranking_v2 不可清除（全站共用，費時重建）
  */
 window.syncOnLogout = function (userName) {
     if (userName) localStorage.removeItem(`fb_cache_${userName}`);
-    localStorage.removeItem('fb_cache_overall_ranking_v2');
+    // 儀表板快取屬於教師工作階段，登出時清除
     localStorage.removeItem('fb_cache_dashboard_teacher');
+    // ⚠️ 不清除 fb_cache_overall_ranking_v2（排行榜快取不可清除）
 };
 
 /**
@@ -130,30 +132,66 @@ window.syncOnMapLoad = async function (userName) {
 
 /**
  * 離線成績重試：把 local_scores 中未上傳的補傳到 Firestore
+ * Guard：需要 _saveScoreCallable（Cloud Function）且 Firebase 已連線
  */
 window.syncOfflineScores = async function (userName) {
-    if (!_saveScoreCallable) return;
+    if (!_saveScoreCallable || !db) return; // 離線時直接跳過
     let localScores = JSON.parse(localStorage.getItem('local_scores') || '[]');
     if (localScores.length === 0) return;
     const toUpload = userName ? localScores.filter(s => s.userName === userName) : localScores;
-    const remaining = userName ? localScores.filter(s => s.userName !== userName) : [];
     let uploaded = 0;
     for (const record of toUpload) {
-        try { await _saveScoreCallable(record); uploaded++; }
-        catch (e) { remaining.push(record); }
+        try {
+            const result = await _saveScoreCallable(record);
+            uploaded++;
+            // 補上 server id：更新快取中對應的暫時紀錄（用 timestamp 比對）
+            if (result?.data?.id && record.userName) {
+                try {
+                    const cacheKey = `fb_cache_${record.userName}`;
+                    const raw = localStorage.getItem(cacheKey);
+                    if (raw) {
+                        const obj = JSON.parse(raw);
+                        if (Array.isArray(obj.data)) {
+                            const entry = obj.data.find(r =>
+                                r.timestamp === record.timestamp && r.qID === record.qID && !r.id
+                            );
+                            if (entry) entry.id = result.data.id;
+                            localStorage.setItem(cacheKey, JSON.stringify(obj));
+                        }
+                    }
+                } catch (_) {}
+            }
+            // 從包含最新異動的 local_scores 移除該筆 (避免覆蓋其他非同步寫入)
+            try {
+                let currentLocal = JSON.parse(localStorage.getItem('local_scores') || '[]');
+                const idx = currentLocal.findIndex(r => 
+                    r.userName === record.userName && 
+                    r.qID === record.qID && 
+                    r.timestamp === record.timestamp
+                );
+                if (idx !== -1) {
+                    currentLocal.splice(idx, 1);
+                    localStorage.setItem('local_scores', JSON.stringify(currentLocal));
+                }
+            } catch (_) {}
+        }
+        catch (e) {
+            console.error("離線成績上傳失敗:", e);
+        }
     }
-    localStorage.setItem('local_scores', JSON.stringify(remaining));
     if (uploaded > 0) {
         console.log(`✅ 離線成績補傳（透過 Cloud Function）: ${uploaded} 筆`);
-        // 清除該使用者快取，強制下次從 Firestore 拉取有正確 id 的資料
-        if (userName) localStorage.removeItem(`fb_cache_${userName}`);
     }
 };
 
 /**
  * 儲存使用者的過關成績到 Firestore
- * 策略：先寫入本地快取（樂觀更新），再嘗試寫 Firestore
- *        如果 Firestore 失敗，同時存入 local_scores 備份
+ * 策略（樂觀更新）：
+ *   1. 立即寫入本地快取（不含 id，確保用戶不需等待 CF 就能看到進度）
+ *   2. 同時寫入 local_scores 備份（離線保底）
+ *   3. 非同步呼叫 Cloud Function（後端驗證）
+ *   4. CF 成功後：補上 server id 到快取，並從 local_scores 移除
+ *   5. CF 失敗後：local_scores 備份保留，等下次登入重試
  */
 window.saveScore = async function (className, userName, qID, gameMode, timeSpent, status = "PASS", stars = 3) {
     const newRecord = {
@@ -169,30 +207,65 @@ window.saveScore = async function (className, userName, qID, gameMode, timeSpent
 
     const cacheKey = `fb_cache_${newRecord.userName}`;
 
-    // 1. 透過 Cloud Function 寫入（後端驗證）
-    if (!_saveScoreCallable) {
-        console.warn("⚠️ saveScore: Cloud Function 未就緒，成績僅存本地", newRecord.qID, newRecord.gameMode);
+    // ── Step 1: 樂觀更新 ── 立即寫入本地快取（不等 CF）
+    cacheAppend(cacheKey, newRecord);
+
+    // ── Step 2: 寫入 local_scores 備份（CF 失敗時保底）
+    try {
         let localScores = JSON.parse(localStorage.getItem('local_scores') || '[]');
-        localScores.push(newRecord);
+        localScores.push({ ...newRecord });
         localStorage.setItem('local_scores', JSON.stringify(localScores));
-        cacheAppend(cacheKey, newRecord);
+    } catch (_) {}
+
+    // ── Step 3: Cloud Function 未就緒（離線模式）直接返回 ──
+    if (!_saveScoreCallable) {
+        console.warn("⚠️ saveScore: Cloud Function 未就緒，成績已存本地快取", newRecord.qID, newRecord.gameMode);
         return { success: true, localOnly: true };
     }
 
+    // ── Step 4: 非同步呼叫 Cloud Function ──
     try {
         const result = await _saveScoreCallable(newRecord);
-        // 2. 成功後才寫入快取（帶上 server 回傳的 id，避免 sync 時重複）
-        newRecord.id = result.data.id;
-        cacheAppend(cacheKey, newRecord);
+        const serverId = result?.data?.id;
+
+        // Step 4a: 從 local_scores 移除已成功上傳的那一筆（用 timestamp 比對）
+        try {
+            let localScores = JSON.parse(localStorage.getItem('local_scores') || '[]');
+            const idx = localScores.findIndex(
+                r => r.userName === newRecord.userName &&
+                     r.qID === newRecord.qID &&
+                     r.timestamp === newRecord.timestamp
+            );
+            if (idx !== -1) {
+                localScores.splice(idx, 1);
+                localStorage.setItem('local_scores', JSON.stringify(localScores));
+            }
+        } catch (_) {}
+
+        // Step 4b: 補上 server id 到快取中的暫時紀錄
+        if (serverId) {
+            try {
+                const raw = localStorage.getItem(cacheKey);
+                if (raw) {
+                    const obj = JSON.parse(raw);
+                    if (Array.isArray(obj.data)) {
+                        const entry = obj.data.find(r =>
+                            r.timestamp === newRecord.timestamp &&
+                            r.qID === newRecord.qID &&
+                            !r.id
+                        );
+                        if (entry) entry.id = serverId;
+                        localStorage.setItem(cacheKey, JSON.stringify(obj));
+                    }
+                }
+            } catch (_) {}
+        }
+
         console.log("✅ Cloud Function 寫入成功:", newRecord.qID, newRecord.gameMode, "stars:", newRecord.stars);
-        return { success: true, id: result.data.id };
+        return { success: true, id: serverId };
     } catch (e) {
-        console.error("❌ Cloud Function 寫入失敗:", e.code, e.message);
-        // 失敗時存到 local_scores 備份，下次登入時重試
-        let localScores = JSON.parse(localStorage.getItem('local_scores') || '[]');
-        localScores.push(newRecord);
-        localStorage.setItem('local_scores', JSON.stringify(localScores));
-        cacheAppend(cacheKey, newRecord);
+        // Step 5: CF 失敗 → local_scores 已有備份，等下次登入 syncOfflineScores 重試
+        console.error("❌ Cloud Function 寫入失敗（已備份到 local_scores）:", e.code, e.message);
         return { success: false, error: e, backedUp: true };
     }
 };

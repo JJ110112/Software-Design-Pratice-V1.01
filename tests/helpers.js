@@ -10,7 +10,8 @@ async function mockLogin(page, baseURL) {
       className: '測試班',
       no: 1,
       name: '測試學生',
-      loginTime: new Date().toISOString()
+      loginTime: new Date().toISOString(),
+      lastActive: new Date().toISOString()
     }));
   });
 }

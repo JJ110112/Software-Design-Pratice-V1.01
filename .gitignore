@@ -4,3 +4,7 @@ playwright-report/
 .claude/
 document/系統文件.md
 **/service-account-key.json
+agent/.env
+agent/__pycache__/
+agent/.langgraph_api/
+test-out.txt

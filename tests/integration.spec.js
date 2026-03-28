@@ -53,7 +53,7 @@ test.describe('快取狀態', () => {
     expect(cacheAfter === null || cacheAfter === 'expired').toBe(true);
   });
 
-  test('Bug E: 登出時清除正確的排行榜快取 key (_v2)', async ({ page }) => {
+  test('Bug E: 登出時排行榜快取保留（v2），儀表板快取清除', async ({ page }) => {
     await page.goto('/');
     await page.evaluate(() => {
       // 設定排行榜快取（v2 版）
@@ -80,13 +80,15 @@ test.describe('快取狀態', () => {
     });
     await page.waitForTimeout(500);
 
-    // 登出後快取應被清除
+    // 登出後：
+    // - 排行榜快取應【保留】（全站共用，費時重建，禁止清除）
+    // - 儀表板快取應被清除（屬於教師工作階段）
     const after = await page.evaluate(() => ({
       ranking: localStorage.getItem('fb_cache_overall_ranking_v2'),
       dashboard: localStorage.getItem('fb_cache_dashboard_teacher')
     }));
-    expect(after.ranking).toBeNull();
-    expect(after.dashboard).toBeNull();
+    expect(after.ranking).not.toBeNull(); // ✅ 排行榜快取應保留
+    expect(after.dashboard).toBeNull();   // ✅ 儀表板快取應清除
   });
 
   test('Bug B: local_scores 不應在成功上傳後殘留', async ({ page }) => {
@@ -267,7 +269,7 @@ test.describe('多使用者切換', () => {
     expect(studentCache).toBeNull();
   });
 
-  test('切換帳號後排行榜快取應被清除', async ({ page }) => {
+  test('切換帳號後排行榜快取應保留（全站共用）', async ({ page }) => {
     await page.goto('/');
     // 設定排行榜快取
     await page.evaluate(() => {
@@ -287,11 +289,11 @@ test.describe('多使用者切換', () => {
     });
     await page.waitForTimeout(300);
 
-    // 排行榜快取應被清除
+    // 排行榜快取應【保留】（全站共用，費時重建，禁止清除）
     const ranking = await page.evaluate(() =>
       localStorage.getItem('fb_cache_overall_ranking_v2')
     );
-    expect(ranking).toBeNull();
+    expect(ranking).not.toBeNull(); // ✅ 應保留，不應清除
   });
 });
 
