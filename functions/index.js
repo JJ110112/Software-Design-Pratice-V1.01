@@ -293,7 +293,7 @@ exports.deleteScoresSecure = onCall(
 
     let q;
     if (mode === "all") {
-      // 刪除全部（排除測試用帳號）
+      // 刪除全部學生成績（保留測試教師）
       q = db.collection("scores");
     } else if (mode === "single" && userName) {
       q = db.collection("scores").where("userName", "==", userName);
@@ -307,9 +307,15 @@ exports.deleteScoresSecure = onCall(
     const snapshot = await q.get();
     if (snapshot.empty) return { success: true, deleted: 0 };
 
+    // 過濾：mode=all 時保留測試教師資料
+    let docs = snapshot.docs;
+    if (mode === "all") {
+      docs = docs.filter((d) => d.data().className !== "測試用");
+    }
+    if (docs.length === 0) return { success: true, deleted: 0 };
+
     // Batch delete (max 500 per batch)
     let deleted = 0;
-    const docs = snapshot.docs;
     for (let i = 0; i < docs.length; i += 500) {
       const batch = db.batch();
       docs.slice(i, i + 500).forEach((d) => batch.delete(d.ref));
