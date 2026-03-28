@@ -8,3 +8,4 @@ agent/.env
 agent/__pycache__/
 agent/.langgraph_api/
 test-out.txt
+functions/node_modules/
