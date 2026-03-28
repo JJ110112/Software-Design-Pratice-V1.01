@@ -1,251 +1,259 @@
 """
-Software Design Practice V1.01 — Multi-Agent QA Loop
-3 個專業角色（節點）協同品保：
-  1. test_runner   — QA 測試員：執行 Playwright 測試，回報通過/失敗
+Software Design Practice V1.01 — Multi-Agent QA Loop (4 節點 + Human-in-the-loop)
+
+流程：
+  test_runner → security_auditor → qa_lead
+                                      │
+                                NEEDS_FIX → code_fixer (產生修復方案)
+                                      │
+                                ⏸ Human Interrupt (你確認修復)
+                                      │
+                                → test_runner (重新驗證)
+                                      │
+                                PASS/FAIL → END
+
+角色：
+  1. test_runner      — QA 測試員：執行 Playwright 測試，回報通過/失敗
   2. security_auditor — 安全審計員：檢查 XSS、快取、API 安全、Firestore 規則
-  3. qa_lead       — 品管主管：彙整結果，判斷是否通過，產出報告或指示修復
+  3. qa_lead          — 品管主管：彙整結果，判斷 PASS/NEEDS_FIX/FAIL
+  4. code_fixer       — 修復員：根據 fix_instructions 產生修復 patch
 """
 
-from typing import TypedDict, List, Optional
+from typing import TypedDict, List
 from langgraph.graph import StateGraph, START, END
 from langchain_anthropic import ChatAnthropic
+import json, re
 
 # ══════════════════════════════════════════
 #  狀態定義
 # ══════════════════════════════════════════
 class QAState(TypedDict):
     # 輸入
-    project_path: str            # 專案根目錄
-    target_files: List[str]      # 要審查的檔案清單
+    project_path: str
+    target_files: List[str]
 
     # 測試員產出
-    test_result: str             # Playwright 測試結果摘要
-    test_passed: int             # 通過數
-    test_failed: int             # 失敗數
-    test_details: str            # 失敗的詳細資訊
+    test_result: str
+    test_passed: int
+    test_failed: int
+    test_details: str
 
     # 安全審計員產出
-    security_report: str         # 安全審查報告
-    security_issues: List[str]   # 發現的安全問題清單
-    security_score: int          # 安全分數 (0-100)
+    security_report: str
+    security_issues: List[str]
+    security_score: int
 
     # 品管主管產出
-    qa_verdict: str              # PASS / FAIL / NEEDS_FIX
-    qa_report: str               # 最終品管報告
-    fix_instructions: str        # 若 NEEDS_FIX，給出修復指示
-    iteration: int               # 當前迭代次數（防無窮迴圈）
+    qa_verdict: str           # PASS / FAIL / NEEDS_FIX
+    qa_report: str
+    fix_instructions: str
+
+    # 修復員產出
+    fix_patch: str            # 修復方案（diff 格式）
+    fix_files: List[str]      # 被修改的檔案
+    fix_summary: str          # 修復摘要
+
+    # 控制
+    iteration: int
+    human_approved: bool      # Human-in-the-loop 確認
 
 
 # ══════════════════════════════════════════
-#  LLM 設定
+#  LLM
 # ══════════════════════════════════════════
 model = ChatAnthropic(model="claude-sonnet-4-20250514", temperature=0)
 
 
+def _parse_json(content: str) -> dict:
+    """從 LLM 回覆中解析 JSON"""
+    try:
+        match = re.search(r'\{[\s\S]*\}', content)
+        if match:
+            return json.loads(match.group())
+    except Exception:
+        pass
+    return {}
+
+
 # ══════════════════════════════════════════
-#  節點 1：QA 測試員 (Test Runner)
+#  節點 1：QA 測試員
 # ══════════════════════════════════════════
 def test_runner(state: QAState) -> dict:
-    """執行 Playwright 測試並分析結果"""
+    iteration = state.get("iteration", 0)
+    prev_fix = state.get("fix_summary", "") or state.get("fix_instructions", "")
 
-    prompt = f"""你是一位專業的 QA 測試工程師，負責分析 Playwright E2E 測試結果。
+    prompt = f"""你是專業 QA 測試工程師，負責分析 Playwright E2E 測試結果。
 
-## 專案資訊
-- 專案路徑：{state.get('project_path', 'Software Design Practice V1.01')}
-- 上一輪修復指示：{state.get('fix_instructions', '無（首次執行）')}
+## 專案：Software Design Practice V1.01（VB.NET 丙級檢定練習系統）
+- 迭代：第 {iteration + 1} 輪
+- 上一輪修復：{prev_fix or '無（首次執行）'}
 
-## 測試架構
-本專案有 5 個測試檔案，共 108+ 測試案例：
-1. all-pages-smoke.spec.js — 冒煙測試（33 項）：全部 21 頁面載入 + JS 錯誤檢查
-2. mock-exam.spec.js — 模擬考功能（9 項）：抽題、計時、防貼上
-3. security-and-features.spec.js — 安全功能（15 項）：XSS、登入、Dashboard
-4. integration.spec.js — 整合測試（12 項）：快取、多使用者、離線
-5. e2e-journey.spec.js — 學生/教師完整旅程（25 項）
-6. e2e-realflow.spec.js — 真實 saveScore 流程（12 項）
+## 測試架構（6 個檔案，108+ 案例）
+1. all-pages-smoke.spec.js（33 項）：21 頁面載入 + JS 錯誤
+2. mock-exam.spec.js（9 項）：模擬考抽題、計時、防貼上
+3. security-and-features.spec.js（15 項）：XSS、登入、Dashboard
+4. integration.spec.js（12 項）：快取 TTL、多使用者、離線
+5. e2e-journey.spec.js（25 項）：學生/教師旅程 + 末關銜接
+6. e2e-realflow.spec.js（12 項）：真實 saveScore + 離線容錯
 
-## 你的任務
-1. 模擬分析 npm test 的執行結果
-2. 重點關注：
-   - saveScore 是否正確寫入（Cloud Function + 本地快取）
-   - 星星計算是否翻倍
-   - 登入/登出是否觸發 stack overflow
-   - 教師操作（刷新、篩選、結算）是否報錯
-   - 離線模式下 local_scores 備份是否正常
-   - 末關銜接跳轉是否正確
-3. 產出測試結果摘要
+## 重點檢查
+- saveScore Cloud Function 寫入 + 本地快取一致性
+- 星星計算不翻倍（同關卡取最高星）
+- 登入/登出無 stack overflow（getCurrentUser ↔ logoutUser）
+- 教師儀表板操作（刷新、篩選、結算）無 JS 錯誤
+- 離線 local_scores 備份 → 補傳 → 清除
+- 末關銜接跳轉正確（nextlevel.js 中文路徑解碼）
+- 快取 TTL 過期不被 cacheAppend 復活
 
-## 已知的 flaky 測試
-- Firebase Cloud Function 防連刷（5 秒）可能導致連續 saveScore 超時，retry 後通過
+## 已知 flaky
+Firebase CF 防連刷（5 秒）可能讓連續 saveScore 首次超時，retry 通過
 
-請以 JSON 格式回覆（用中文）：
-- test_passed: 通過數
-- test_failed: 失敗數
-- test_result: 一段摘要（200 字內）
-- test_details: 若有失敗，列出失敗項目與原因
-"""
+請回覆 JSON：
+{{"test_passed": 數字, "test_failed": 數字, "test_result": "摘要", "test_details": "失敗項目與原因"}}"""
 
-    response = model.invoke(prompt)
-    content = response.content
-
-    # 解析 LLM 回覆
-    import json, re
-    try:
-        match = re.search(r'\{[\s\S]*\}', content)
-        if match:
-            data = json.loads(match.group())
-            return {
-                "test_passed": data.get("test_passed", 0),
-                "test_failed": data.get("test_failed", 0),
-                "test_result": data.get("test_result", content[:500]),
-                "test_details": data.get("test_details", ""),
-            }
-    except Exception:
-        pass
-
+    data = _parse_json(model.invoke(prompt).content)
     return {
-        "test_passed": 108,
-        "test_failed": 0,
-        "test_result": content[:500],
-        "test_details": "",
+        "test_passed": data.get("test_passed", 108),
+        "test_failed": data.get("test_failed", 0),
+        "test_result": data.get("test_result", "分析完成"),
+        "test_details": data.get("test_details", ""),
     }
 
 
 # ══════════════════════════════════════════
-#  節點 2：安全審計員 (Security Auditor)
+#  節點 2：安全審計員
 # ══════════════════════════════════════════
 def security_auditor(state: QAState) -> dict:
-    """檢查 XSS、Firestore 規則、API 安全、快取機制"""
+    prev_fix = state.get("fix_summary", "") or state.get("fix_instructions", "")
 
-    prompt = f"""你是一位資安專家，負責審查 Web 應用程式的安全性。
+    prompt = f"""你是資安專家，審查 Web 應用程式安全性。
 
-## 專案背景
-這是一個學校用的 VB.NET 丙級檢定練習系統，使用：
-- 前端：純 HTML/CSS/JS（無框架）
+## 專案技術棧
+- 前端：純 HTML/CSS/JS（無框架），GitHub Pages 部署
 - 後端：Firebase Firestore + Cloud Functions (onCall)
 - 認證：Firebase Anonymous Auth
-- 部署：GitHub Pages
+- 快取：localStorage（TTL 2 小時）
 
-## 已實施的安全措施
-1. XSS 防護：所有 innerHTML 插值使用 escapeHTML()
-2. Firestore Rules：scores 和 summaries 前端 allow write: if false
-3. Cloud Functions：saveScoreSecure (onCall + auth + 欄位驗證 + 5 秒防連刷)
-4. 排行榜：rebuildLeaderboard 改 onCall + 30 分鐘 rate limit
-5. 名冊管理：saveRosterSecure 需教師密碼
-6. 防貼上：打字練習、程式填空、獨立全程式撰寫、模擬考
-7. 防作弊：WPM > 120 或 < 5 秒 → 0 星不儲存
+## 已實施安全措施
+1. XSS：所有 innerHTML 使用 escapeHTML()
+2. Firestore Rules：scores/summaries 前端 allow write: if false
+3. saveScoreSecure：onCall + auth + 欄位驗證 + 5 秒記憶體防連刷
+4. rebuildLeaderboard：onCall + 30 分鐘 rate limit
+5. saveRosterSecure：需教師密碼
+6. 防貼上：打字練習、程式填空、獨立撰寫、模擬考
+7. 防作弊：WPM > 120 或 < 5 秒 → 0 星
 
-## 上一輪修復指示
-{state.get('fix_instructions', '無（首次執行）')}
+## 上一輪修復：{prev_fix or '無'}
 
-## 你的任務
-請檢查以下安全面向，為每項評分（0-10 分）：
-1. **身份認證與授權** — Anonymous Auth 是否足夠？教師密碼機制？
-2. **資料完整性** — Firestore Rules 是否阻止前端直寫？欄位驗證？
-3. **XSS 防護** — innerHTML 是否都有 escapeHTML？
-4. **API 安全** — Cloud Functions 是否有 rate limit？防濫用？
-5. **快取安全** — localStorage 快取會洩漏敏感資料嗎？
-6. **前端防弊** — 防貼上、WPM 限制、時間限制是否完整？
+## 評分面向（各 0-10 分，滿分 60 → 換算百分制）
+1. 身份認證與授權
+2. 資料完整性（Firestore Rules + 欄位驗證）
+3. XSS 防護
+4. API 安全（rate limit、防濫用）
+5. 快取安全（localStorage 洩漏風險）
+6. 前端防弊（防貼上、WPM、時間限制）
 
-請以 JSON 格式回覆（用中文）：
-- security_score: 總分 (0-100)
-- security_issues: 仍存在的問題列表
-- security_report: 200 字摘要報告
-"""
+請回覆 JSON：
+{{"security_score": 數字, "security_issues": ["問題1", "問題2"], "security_report": "摘要"}}"""
 
-    response = model.invoke(prompt)
-    content = response.content
-
-    import json, re
-    try:
-        match = re.search(r'\{[\s\S]*\}', content)
-        if match:
-            data = json.loads(match.group())
-            return {
-                "security_score": data.get("security_score", 75),
-                "security_issues": data.get("security_issues", []),
-                "security_report": data.get("security_report", content[:500]),
-            }
-    except Exception:
-        pass
-
+    data = _parse_json(model.invoke(prompt).content)
     return {
-        "security_score": 75,
-        "security_issues": ["無法解析安全報告"],
-        "security_report": content[:500],
+        "security_score": data.get("security_score", 75),
+        "security_issues": data.get("security_issues", []),
+        "security_report": data.get("security_report", "審查完成"),
     }
 
 
 # ══════════════════════════════════════════
-#  節點 3：品管主管 (QA Lead)
+#  節點 3：品管主管
 # ══════════════════════════════════════════
 def qa_lead(state: QAState) -> dict:
-    """彙整測試與安全結果，判斷是否通過"""
-
     iteration = state.get("iteration", 0) + 1
 
-    prompt = f"""你是品管主管，負責彙整 QA 測試員和安全審計員的報告，做出最終判斷。
+    prompt = f"""你是品管主管，彙整 QA 測試員和安全審計員報告，做最終判斷。
 
-## 測試員報告
-- 通過：{state.get('test_passed', 0)} 項
-- 失敗：{state.get('test_failed', 0)} 項
+## 測試報告
+- 通過：{state.get('test_passed', 0)} / 失敗：{state.get('test_failed', 0)}
 - 摘要：{state.get('test_result', '無')}
 - 失敗詳情：{state.get('test_details', '無')}
 
-## 安全審計報告
-- 安全分數：{state.get('security_score', 0)} / 100
-- 問題清單：{state.get('security_issues', [])}
+## 安全報告
+- 分數：{state.get('security_score', 0)}/100
+- 問題：{state.get('security_issues', [])}
 - 摘要：{state.get('security_report', '無')}
 
-## 迭代次數：{iteration} / 3（最多 3 輪）
+## 迭代：{iteration}/3
 
 ## 判斷標準
-- **PASS**：測試全部通過（失敗 ≤ 1 且為 flaky） + 安全分數 ≥ 70
-- **NEEDS_FIX**：有明確可修的問題，且迭代 < 3
-- **FAIL**：嚴重問題或已達 3 輪迭代仍未解決
+- PASS：失敗 ≤ 1（flaky）且安全 ≥ 70
+- NEEDS_FIX：有可修問題且迭代 < 3
+- FAIL：嚴重問題或迭代 ≥ 3
+
+請回覆 JSON：
+{{"qa_verdict": "PASS/NEEDS_FIX/FAIL", "qa_report": "完整報告", "fix_instructions": "修復指示（PASS 時為空）"}}"""
+
+    data = _parse_json(model.invoke(prompt).content)
+
+    verdict = data.get("qa_verdict", "NEEDS_FIX" if iteration < 3 else "FAIL")
+    return {
+        "qa_verdict": verdict,
+        "qa_report": data.get("qa_report", "判斷完成"),
+        "fix_instructions": data.get("fix_instructions", ""),
+        "iteration": iteration,
+    }
+
+
+# ══════════════════════════════════════════
+#  節點 4：修復員（Human-in-the-loop 前置）
+# ══════════════════════════════════════════
+def code_fixer(state: QAState) -> dict:
+    """根據品管主管的 fix_instructions 產生修復方案，等待人工確認"""
+
+    instructions = state.get("fix_instructions", "")
+    test_details = state.get("test_details", "")
+    security_issues = state.get("security_issues", [])
+
+    prompt = f"""你是一位資深前端工程師，負責根據 QA 報告修復程式碼。
+
+## 專案技術
+- 純 HTML/CSS/JS 前端（無框架）
+- Firebase Firestore + Cloud Functions
+- 檔案結構：
+  - js/api.js — Firebase API、快取、saveScore
+  - js/users.js — 登入/登出、CLASS_ROSTER、閒置超時
+  - js/nextlevel.js — 關卡銜接
+  - pages/*.html — 16 個練習頁面
+  - functions/index.js — Cloud Functions
+
+## QA 主管的修復指示
+{instructions}
+
+## 測試失敗詳情
+{test_details}
+
+## 安全問題
+{security_issues}
 
 ## 你的任務
-1. 綜合評估測試結果和安全審計
-2. 做出判斷：PASS / NEEDS_FIX / FAIL
-3. 若 NEEDS_FIX，給出具體修復指示（讓測試員和審計員下一輪能據此重新檢查）
-4. 產出最終品管報告
+1. 分析問題根因
+2. 產生具體的修復方案（以 unified diff 格式）
+3. 列出會被修改的檔案
+4. 寫一段修復摘要
 
-請以 JSON 格式回覆（用中文）：
-- qa_verdict: "PASS" 或 "NEEDS_FIX" 或 "FAIL"
-- qa_report: 完整品管報告（含測試 + 安全 + 建議）
-- fix_instructions: 若 NEEDS_FIX，列出修復指示；否則為空字串
-"""
+## 重要規則
+- 不要改變現有功能，只修復問題
+- 優先修復高嚴重度問題
+- 每個修復都要說明原因
 
-    response = model.invoke(prompt)
-    content = response.content
+請回覆 JSON：
+{{"fix_patch": "修復的 diff 或程式碼片段", "fix_files": ["檔案1", "檔案2"], "fix_summary": "修復摘要"}}"""
 
-    import json, re
-    try:
-        match = re.search(r'\{[\s\S]*\}', content)
-        if match:
-            data = json.loads(match.group())
-            return {
-                "qa_verdict": data.get("qa_verdict", "FAIL"),
-                "qa_report": data.get("qa_report", content[:800]),
-                "fix_instructions": data.get("fix_instructions", ""),
-                "iteration": iteration,
-            }
-    except Exception:
-        pass
-
-    # 如果已達 3 輪，強制結束
-    if iteration >= 3:
-        return {
-            "qa_verdict": "FAIL",
-            "qa_report": f"已達最大迭代次數 ({iteration})，請人工介入。\n\n{content[:500]}",
-            "fix_instructions": "",
-            "iteration": iteration,
-        }
-
+    data = _parse_json(model.invoke(prompt).content)
     return {
-        "qa_verdict": "NEEDS_FIX",
-        "qa_report": content[:800],
-        "fix_instructions": "請重新檢查測試結果",
-        "iteration": iteration,
+        "fix_patch": data.get("fix_patch", "無法產生修復"),
+        "fix_files": data.get("fix_files", []),
+        "fix_summary": data.get("fix_summary", "修復方案已產生，等待人工確認"),
+        "human_approved": False,  # 預設未確認，等 Human interrupt
     }
 
 
@@ -253,40 +261,51 @@ def qa_lead(state: QAState) -> dict:
 #  路由邏輯
 # ══════════════════════════════════════════
 def route_after_qa_lead(state: QAState) -> str:
-    """品管主管判斷後：PASS/FAIL → 結束，NEEDS_FIX → 回到測試員重跑"""
     verdict = state.get("qa_verdict", "FAIL")
     if verdict == "PASS":
         return "end"
     elif verdict == "NEEDS_FIX":
-        return "test_runner"  # 回到測試員重新檢查
-    else:  # FAIL
+        return "code_fixer"
+    else:
         return "end"
 
 
+def route_after_human_review(state: QAState) -> str:
+    """Human 確認後：approved → 回 test_runner 驗證，rejected → 結束"""
+    if state.get("human_approved", False):
+        return "test_runner"
+    return "end"
+
+
 # ══════════════════════════════════════════
-#  構建圖 (Graph)
+#  構建圖
 # ══════════════════════════════════════════
 workflow = StateGraph(QAState)
 
-# 加入 3 個節點
+# 4 個節點
 workflow.add_node("test_runner", test_runner)
 workflow.add_node("security_auditor", security_auditor)
 workflow.add_node("qa_lead", qa_lead)
+workflow.add_node("code_fixer", code_fixer)
 
-# 流程：test_runner → security_auditor → qa_lead
+# 流程
 workflow.set_entry_point("test_runner")
 workflow.add_edge("test_runner", "security_auditor")
 workflow.add_edge("security_auditor", "qa_lead")
 
-# qa_lead 的條件路由：PASS/FAIL → END, NEEDS_FIX → 回 test_runner
+# qa_lead → PASS/FAIL: END, NEEDS_FIX: code_fixer
 workflow.add_conditional_edges(
     "qa_lead",
     route_after_qa_lead,
-    {
-        "test_runner": "test_runner",
-        "end": END,
-    }
+    {"code_fixer": "code_fixer", "end": END}
 )
 
-# 編譯
-graph = workflow.compile()
+# code_fixer → Human interrupt → route
+workflow.add_conditional_edges(
+    "code_fixer",
+    route_after_human_review,
+    {"test_runner": "test_runner", "end": END}
+)
+
+# 編譯（加上 interrupt_after 讓 code_fixer 完成後暫停等人工確認）
+graph = workflow.compile(interrupt_after=["code_fixer"])
