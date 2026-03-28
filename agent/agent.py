@@ -81,7 +81,7 @@ def _run_playwright() -> dict:
             timeout=300,  # 5 分鐘上限
             shell=True,
         )
-        output = result.stdout + "\n" + result.stderr
+        output = (result.stdout or "") + "\n" + (result.stderr or "")
 
         # 解析結果：找 "X passed" 和 "X failed"
         passed = 0
@@ -176,24 +176,22 @@ def security_auditor(state: QAState) -> dict:
         except Exception:
             files_content[f] = "(檔案不存在或無法讀取)"
 
-    prompt = f"""你是資安專家，根據以下真實程式碼審查安全性。
+    prompt = f"""你是資安專家，根據以下真實程式碼審查這個「學校內部練習系統」的安全性。
+
+## 重要上下文（評分時必須考慮）
+- 這是學校內部使用的練習系統，不是金融或醫療系統
+- Firebase API Key 暴露在前端是**正常且官方建議的做法**（Firebase 用 Security Rules 保護，不是靠隱藏 API Key）
+- Anonymous Auth 是刻意設計的（學校場景不需要帳號密碼）
+- 前端學生名單可從 Firestore config/roster 動態載入
+- CSRF 不適用於純靜態網站 + Firebase SDK
+- 只需關注「可實際被利用」的安全問題，不要列出架構性的理論風險
 
 ## 測試結果
 - 通過：{state.get('test_passed', 0)}，失敗：{state.get('test_failed', 0)}
 
 ## 關鍵檔案內容
 
-### js/api.js（前 3000 字元）
-```javascript
-{files_content.get('js/api.js', 'N/A')}
-```
-
-### js/users.js（前 3000 字元）
-```javascript
-{files_content.get('js/users.js', 'N/A')}
-```
-
-### firestore.rules
+### firestore.rules（完整）
 ```
 {files_content.get('firestore.rules', 'N/A')}
 ```
@@ -203,16 +201,21 @@ def security_auditor(state: QAState) -> dict:
 {files_content.get('functions/index.js', 'N/A')}
 ```
 
-## 評分面向（各 0-10 分）
-1. 身份認證與授權
-2. 資料完整性（Firestore Rules + 欄位驗證）
-3. XSS 防護（escapeHTML 使用）
-4. API 安全（rate limit、防濫用）
-5. 快取安全
-6. 前端防弊
+### js/api.js（前 2000 字元）
+```javascript
+{files_content.get('js/api.js', 'N/A')[:2000]}
+```
+
+## 評分面向（各 0-10 分，滿分 60 → 換算百分制）
+1. 資料寫入保護 — Firestore Rules 是否阻止前端直寫 scores？
+2. Cloud Function 驗證 — saveScoreSecure 有 auth + 欄位驗證 + 防連刷？
+3. XSS 防護 — innerHTML 是否都有 escapeHTML？
+4. 排行榜保護 — rebuildLeaderboard 有 rate limit？
+5. 名冊管理 — saveRosterSecure 需教師密碼？
+6. 前端防弊 — 防貼上 + WPM/時間限制？
 
 請回覆 JSON：
-{{"security_score": 數字(0-100), "security_issues": ["問題"], "security_report": "摘要(200字內)"}}"""
+{{"security_score": 數字(0-100), "security_issues": ["只列實際可利用的問題"], "security_report": "摘要(200字內)"}}"""
 
     data = _parse_json(model.invoke(prompt).content)
     return {
