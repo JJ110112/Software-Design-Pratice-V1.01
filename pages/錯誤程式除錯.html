@@ -377,12 +377,10 @@ const LEVEL_SEQUENCE = [
 function showWinOverlay() {
     const elapsed = Math.round((Date.now() - startTime) / 1000);
 
-    // 星星：0 錯誤 = 3星, 1~2 錯誤 = 2星, >2 錯誤 = 1星; 提示也影響星星
+    // 星星：依提示次數計算（與其他頁面一致）
     let stars = 3;
-    if (wrongClicks > 0 && wrongClicks <= 2) stars = 2;
-    if (wrongClicks > 2) stars = 1;
-    if (totalHintsUsed > 0 && stars > 2) stars = 2;
-    if (totalHintsUsed > 3 && stars > 1) stars = 1;
+    if (totalHintsUsed > 0 && totalHintsUsed <= 3) stars = 2;
+    if (totalHintsUsed > 3) stars = 1;
 
     const title = QUIZ_DATA[qID] ? `${qID} ${QUIZ_DATA[qID].title} (${tID})` : qID;
     document.getElementById('win-desc').textContent = `成功修復 ${title} 的所有程式錯誤！`;

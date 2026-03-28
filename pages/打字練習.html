@@ -962,12 +962,12 @@ function showAllClear() {
   const avgWpm = sessionCount > 0 ? Math.round(sessionWpmSum / sessionCount) : 0;
 
   // 計算星星：WPM >= 30 = 3星, >= 20 = 2星, < 20 = 1星
-  // WPM > 120 視為作弊（貼上或其他手段），不給星星
+  // WPM > 120 視為作弊，< 5 秒視為異常，不給星星
   let stars = 3;
   if (avgWpm > 120) stars = 0;
   else if (sessionTimeSum < 5) stars = 0;
-  else if (avgWpm < 30) stars = 2;
   else if (avgWpm < 20) stars = 1;
+  else if (avgWpm < 30) stars = 2;
 
   const cheatWarning = stars === 0 ? `<div style="color:var(--red);font-weight:700;margin-top:12px;">⚠️ ${avgWpm > 120 ? '偵測到異常速度 (WPM > 120)' : '完成時間過短 (< 5 秒)'}，本次不計星星</div>` : '';
   document.getElementById('all-clear-stats').innerHTML = `

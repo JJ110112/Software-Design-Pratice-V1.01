@@ -169,7 +169,8 @@ test.describe('學生完整旅程', () => {
     expect(afterLogout.session, '登出後 session 應為空').toBeNull();
     expect(afterLogout.local, '登出後 local 應為空').toBeNull();
     expect(afterLogout.cache, '登出後用戶快取應被清除').toBeNull();
-    expect(afterLogout.ranking, '登出後排行榜快取應被清除').toBeNull();
+    // 排行榜快取全站共用，登出時應保留（禁止清除）
+    // expect(afterLogout.ranking, '登出後排行榜快取應被清除').toBeNull();
     assertNoFatalErrors(errors, 'Step8-登出');
 
     // ── Step 9: 重新登入為另一位學生 ──
@@ -560,4 +561,55 @@ test.describe('全頁面錯誤巡迴', () => {
       expect(jsErrors, `${pg.name} 不應有 JS 執行錯誤`).toHaveLength(0);
     });
   }
+});
+
+// ══════════════════════════════════════════
+//  末關銜接測試（驗證 nextlevel.js 載入 + 中文路徑解碼）
+// ══════════════════════════════════════════
+test.describe('末關銜接', () => {
+  // 驗證各頁面在末關（1060308/T01）載入時不報錯，且 nextlevel.js 可正確解碼中文路徑
+  const LAST_LEVEL_PAGES = [
+    { name: '中英選擇題', url: '/pages/中英選擇題.html?q=1060308&t=T01' },
+    { name: '錯誤找找看', url: '/pages/錯誤找找看.html?q=1060308&t=T01' },
+    { name: '逐行中文注解填空', url: '/pages/逐行中文注解填空.html?q=1060308&t=T01' },
+    { name: '程式填空', url: '/pages/程式填空.html?q=1060308&t=T01' },
+    { name: '獨立全程式撰寫', url: '/pages/獨立全程式撰寫.html?q=1060308&t=T01' },
+  ];
+
+  for (const pg of LAST_LEVEL_PAGES) {
+    test(`[末關] ${pg.name} 載入 1060308 不報錯`, async ({ page }) => {
+      const errors = [];
+      page.on('pageerror', err => errors.push(err.message));
+      await login(page, '資訊二', 1, '李亦澄');
+
+      const response = await page.goto(pg.url, { waitUntil: 'domcontentloaded' });
+      await page.waitForTimeout(1500);
+
+      expect(response.status()).toBe(200);
+      expect(errors.filter(e => e.includes('Maximum call stack'))).toHaveLength(0);
+
+      // 驗證 nextlevel.js 已載入（btn-next-level 元素存在於 DOM）
+      const btnExists = await page.locator('#btn-next-level').count();
+      expect(btnExists, `${pg.name} 應有 btn-next-level 元素`).toBeGreaterThanOrEqual(1);
+
+      // 驗證中文路徑可正確解碼
+      const decoded = await page.evaluate(() => {
+        try {
+          return decodeURIComponent(window.location.pathname.split('/').pop());
+        } catch(e) { return 'DECODE_ERROR'; }
+      });
+      expect(decoded).not.toBe('DECODE_ERROR');
+    });
+  }
+
+  // 錯誤程式除錯有自己的 win overlay，單獨驗證
+  test('[末關] 錯誤程式除錯 載入 1060308 不報錯', async ({ page }) => {
+    const errors = [];
+    page.on('pageerror', err => errors.push(err.message));
+    await login(page, '資訊二', 1, '李亦澄');
+    const response = await page.goto('/pages/錯誤程式除錯.html?q=1060308&t=T01', { waitUntil: 'domcontentloaded' });
+    await page.waitForTimeout(1500);
+    expect(response.status()).toBe(200);
+    expect(errors.filter(e => e.includes('Maximum call stack'))).toHaveLength(0);
+  });
 });
