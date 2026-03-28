@@ -78,8 +78,10 @@ def _run_playwright() -> dict:
             cwd=PROJECT_ROOT,
             capture_output=True,
             text=True,
-            timeout=300,  # 5 分鐘上限
+            timeout=300,
             shell=True,
+            encoding="utf-8",
+            errors="replace",
         )
         output = (result.stdout or "") + "\n" + (result.stderr or "")
 
