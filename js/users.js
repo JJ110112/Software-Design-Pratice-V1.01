@@ -104,9 +104,16 @@ function loginUser(className, studentNo, studentName, persist = false) {
 
 // 工具函式：登出
 function logoutUser() {
-    const user = getCurrentUser();
-    if (user && typeof window.syncOnLogout === 'function') {
-        window.syncOnLogout(user.name);
+    // 直接讀 storage，不呼叫 getCurrentUser（避免閒置檢查觸發無限遞迴）
+    let raw = sessionStorage.getItem(SESSION_KEY);
+    if (!raw) raw = localStorage.getItem(SESSION_KEY);
+    if (raw) {
+        try {
+            const user = JSON.parse(raw);
+            if (user && typeof window.syncOnLogout === 'function') {
+                window.syncOnLogout(user.name);
+            }
+        } catch(e) {}
     }
     sessionStorage.removeItem(SESSION_KEY);
     localStorage.removeItem(SESSION_KEY);
