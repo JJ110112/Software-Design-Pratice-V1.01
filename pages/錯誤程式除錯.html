@@ -175,6 +175,80 @@ const BUGS = {
             { orig: "Loop While i <= s.Length \\ 2 - 1", bug: "Loop Until i <= s.Length \\ 2 - 1", desc: "如果是 Until，條件為真時會停止，因此應為 Loop While 以繼續執行" },
             { orig: "Exit Do", bug: "Exit For", desc: "Do 迴圈中應使用 Exit Do 來跳出" }
         ]
+    },
+    "Q2": {
+        "T01": [
+            { orig: "For i = 1 To n", bug: "For i = 0 To n", desc: "直角三角形第一列印 1 個數字，i 應從 1 開始，0 會多印一列" },
+            { orig: "For j = 1 To i", bug: "For j = 1 To n", desc: "內層迴圈的上限應隨外層 i 增加，不是固定為 n" }
+        ],
+        "T02": [
+            { orig: "Do While j <= i", bug: "Do Until j <= i", desc: "應使用 Do While 讓條件成立時「繼續」，Until 會讓條件成立時停止" },
+            { orig: "j += 1", bug: "j -= 1", desc: "計數器要往上加才能達到上限，減 1 會無窮迴圈" }
+        ],
+        "T03": [
+            { orig: "Loop While j <= i", bug: "Loop Until j <= i", desc: "Loop While 是條件成立繼續，Loop Until 是條件成立停止" },
+            { orig: "i += 1", bug: "i *= 1", desc: "i 乘以 1 永遠不變，會導致無窮迴圈，應用 += 1" }
+        ]
+    },
+    "Q3": {
+        "T01": [
+            { orig: "For i = 2 To n - 1", bug: "For i = 1 To n - 1", desc: "質數判斷從 2 開始除，任何數除以 1 餘數都是 0" },
+            { orig: "If n Mod i = 0 Then", bug: "If n \\ i = 0 Then", desc: "判斷整除應用 Mod（取餘數），不是 \\（整數除法）" }
+        ],
+        "T02": [
+            { orig: "Dim i As Integer = 2", bug: "Dim i As Integer = 0", desc: "除數不能從 0 開始，會造成除以零錯誤" },
+            { orig: "Exit Do", bug: "Exit While", desc: "Do 迴圈中跳出應用 Exit Do，不是 Exit While" }
+        ],
+        "T03": [
+            { orig: "ans = \"not\"", bug: "ans = \"yes\"", desc: "能被整除代表不是質數，標記應為 \"not\"" },
+            { orig: "Loop While i <= n - 1", bug: "Loop Until i <= n - 1", desc: "Loop While 是條件成立繼續，Until 是條件成立停止" }
+        ]
+    },
+    "Q4": {
+        "T01": [
+            { orig: "Dim min As Integer = 99", bug: "Dim min As Integer = 0", desc: "找最小值初始值要設極大（如 99），設 0 會導致比較失敗" },
+            { orig: "If bmi < min Then min = bmi", bug: "If bmi > min Then min = bmi", desc: "找最小值應在 bmi 較小時更新，> 會變成找最大值" }
+        ],
+        "T02": [
+            { orig: "Dim min As Integer = 99", bug: "Dim min As Integer = 0", desc: "找最小值初始值應為極大值，0 會讓所有正常 BMI 都無法更新" },
+            { orig: "i += 1", bug: "i -= 1", desc: "計數器要往上加才能結束迴圈，減 1 會無窮迴圈" }
+        ],
+        "T03": [
+            { orig: "Dim min As Integer = 99", bug: "Dim min As Integer = 0", desc: "找最小值初始值應設極大，0 會讓比較邏輯失效" },
+            { orig: "Loop While i <= 3", bug: "Loop While i < 3", desc: "i 從 1 開始，< 3 只執行 2 次，應用 <= 3 執行 3 次" }
+        ]
+    },
+    "Q5": {
+        "T01": [
+            { orig: "Dim a(2, 2), b(2, 2), c(2, 2) As Integer", bug: "Dim a(2, 2), b(2, 2), c(2, 2) As String", desc: "矩陣要做數學運算，應宣告為 Integer 不是 String" },
+            { orig: "c(i, j) = a(i, j) + b(i, j)", bug: "c(i, j) = a(i, j) * b(i, j)", desc: "題目是矩陣「相加」，運算子應為 + 不是 *" }
+        ],
+        "T02": [
+            { orig: "c(i, j) = a(i, j) + b(i, j)", bug: "c(i, j) = a(j, i) + b(i, j)", desc: "矩陣相加是對應位置相加，a 的索引不應顛倒為 (j,i)" },
+            { orig: "j += 1", bug: "j -= 1", desc: "計數器要往上加才能結束迴圈，減 1 會無窮迴圈" }
+        ],
+        "T03": [
+            { orig: "c(i, j) = a(i, j) + b(i, j)", bug: "c(i, j) = a(i, j) - b(i, j)", desc: "矩陣「相加」應用 +，不是 -" },
+            { orig: "Loop While j <= 2", bug: "Loop Until j <= 2", desc: "Loop While 是條件成立繼續，Until 是條件成立停止" }
+        ]
+    },
+    "1060306": {
+        "T01": [
+            { orig: "Dim data As New List(Of String())", bug: "Dim data As New List(Of Integer)", desc: "讀入的資料包含字串（身分證號碼），應用 String() 不是 Integer" },
+            { orig: "If sum Mod 10 = 0 Then", bug: "If sum Mod 10 = 1 Then", desc: "身分證驗證碼檢查：總和除以 10 餘數為 0 才是合法" }
+        ]
+    },
+    "1060307": {
+        "T01": [
+            { orig: "Dim sum As Integer = 0", bug: "Dim sum As String = 0", desc: "累加用變數應宣告為 Integer，不是 String" },
+            { orig: "RichTextBox1.Text &=", bug: "RichTextBox1.Text =", desc: "使用 &= 附加文字，= 會覆蓋之前的輸出" }
+        ]
+    },
+    "1060308": {
+        "T01": [
+            { orig: "For i = 0 To n - 1", bug: "For i = 1 To n", desc: "陣列索引從 0 開始，應為 0 To n-1" },
+            { orig: "If a(i) > a(i + 1) Then", bug: "If a(i) < a(i + 1) Then", desc: "泡沫排序要把大的往後移，應在 > 時交換" }
+        ]
     }
 };
 
@@ -199,7 +273,7 @@ function loadBug() {
     document.getElementById('btn-hint-debug').disabled = false;
     document.getElementById('btn-hint-debug').style.display = 'inline-flex';
 
-    let bugList = (BUGS[qID] && BUGS[qID][tID]) || (BUGS["Q1"] && BUGS["Q1"]["T01"]) || [];
+    let bugList = (BUGS[qID] && BUGS[qID][tID]) || [];
     if (currentBugIndex >= bugList.length) {
         currentBugIndex = 0;
     }
@@ -264,7 +338,7 @@ let totalHintsUsed = 0;
 
 document.getElementById('btn-next').addEventListener('click', () => {
     currentBugIndex++;
-    let bugList = (BUGS[qID] && BUGS[qID][tID]) || (BUGS["Q1"] && BUGS["Q1"]["T01"]) || [];
+    let bugList = (BUGS[qID] && BUGS[qID][tID]) || [];
     if (currentBugIndex >= bugList.length) {
         showWinOverlay();
         return;
@@ -273,7 +347,7 @@ document.getElementById('btn-next').addEventListener('click', () => {
 });
 
 document.getElementById('btn-hint-debug').addEventListener('click', () => {
-    let bugList = (BUGS[qID] && BUGS[qID][tID]) || (BUGS["Q1"] && BUGS["Q1"]["T01"]) || [];
+    let bugList = (BUGS[qID] && BUGS[qID][tID]) || [];
     if (currentBugIndex >= bugList.length) return;
     let targetBug = bugList[currentBugIndex];
     // Find the bug line index
