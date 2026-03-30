@@ -124,22 +124,25 @@ async function rebuildLeaderboard() {
     lastActive: r.lastActive || ""
   }));
 
-  const batch = db.batch();
-  batch.set(db.doc("summaries/leaderboard"), {
+  // 批次寫入（每 batch 上限 500 操作，需分批）
+  const allWrites = [];
+
+  // 1. summaries
+  allWrites.push({ ref: db.doc("summaries/leaderboard"), data: {
     ranking: leaderboardRanking,
     updatedAt: new Date().toISOString(),
     totalRecords: passResults.length,
-  });
-  batch.set(db.doc("summaries/dashboard"), {
+  }});
+  allWrites.push({ ref: db.doc("summaries/dashboard"), data: {
     records: dashData,
     updatedAt: new Date().toISOString(),
     totalRecords: dashData.length,
-  });
+  }});
 
-  // 將所有學生的進度扁平化寫入 `user_progress` 集合 (這就是單張成績單！)
+  // 2. 將所有學生的進度扁平化寫入 `user_progress` 集合
   ranking.forEach((r) => {
-    const key = `${r.className}_${r.userName}`;
-    batch.set(db.doc(`user_progress/${key}`), {
+    const docId = `${r.className}__${r.userName}`;
+    allWrites.push({ ref: db.doc(`user_progress/${docId}`), data: {
       className: r.className,
       userName: r.userName,
       stars: r.stars,
@@ -148,27 +151,42 @@ async function rebuildLeaderboard() {
       totalAttempts: r.totalAttempts || 0,
       lastActive: r.lastActive || "",
       bestLevelInfo: r.bestLevelInfo || {}
-    }, { merge: true });
+    }, merge: true });
   });
 
-  // 對於只有失敗紀錄，沒有成功紀錄的學生，也要建立基本檔
+  // 3. 對於只有失敗紀錄的學生，也要建立基本檔
+  const rankingKeySet = new Set(ranking.map(r => `${r.className}_${r.userName}`));
   for (const key in activityMap) {
-    if (!ranking.find(r => `${r.className}_${r.userName}` === key)) {
-       const [cls, user] = key.split('_');
-       batch.set(db.doc(`user_progress/${key}`), {
-          className: cls,
-          userName: user,
+    if (!rankingKeySet.has(key)) {
+      const activity = activityMap[key];
+      const sample = allResults.find(r => `${r.className}_${r.userName}` === key);
+      if (sample) {
+        allWrites.push({ ref: db.doc(`user_progress/${sample.className}__${sample.userName}`), data: {
+          className: sample.className,
+          userName: sample.userName,
           stars: 0,
           uniqueClears: 0,
           totalBestTime: 0,
-          totalAttempts: activityMap[key].totalAttempts,
-          lastActive: activityMap[key].lastActive,
+          totalAttempts: activity.totalAttempts,
+          lastActive: activity.lastActive,
           bestLevelInfo: {}
-       }, { merge: true });
+        }, merge: true });
+      }
     }
   }
 
-  await batch.commit();
+  // 分批寫入（每批最多 500 操作）
+  for (let i = 0; i < allWrites.length; i += 500) {
+    const batch = db.batch();
+    allWrites.slice(i, i + 500).forEach(w => {
+      if (w.merge) {
+        batch.set(w.ref, w.data, { merge: true });
+      } else {
+        batch.set(w.ref, w.data);
+      }
+    });
+    await batch.commit();
+  }
 
   return { studentCount: ranking.length, totalRecords: allResults.length, dashboardRecords: dashData.length };
 }
@@ -333,7 +351,7 @@ exports.saveScoreSecure = onCall(
               let ranking = lbData.ranking || [];
 
               // 取出該學生的專屬 user_progress 文件
-              const userProgressRef = db.doc(`user_progress/${className}_${userName}`);
+              const userProgressRef = db.doc(`user_progress/${className}__${userName}`);
               const userProgressDoc = await t.get(userProgressRef);
 
               let userRankingInfo = {

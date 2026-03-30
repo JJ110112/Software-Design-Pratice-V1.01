@@ -423,7 +423,7 @@ window.getScoresForUser = async function (userName) {
             if (window.location.search.includes('dev=1')) return;
             try {
                 // O(1) 極速抓取單一扁平化進度檔
-                const docSnap = await getDoc(doc(db, "user_progress", `${className}_${userName}`));
+                const docSnap = await getDoc(doc(db, "user_progress", `${className}__${userName}`));
                 let results = [];
                 if (docSnap.exists()) {
                     const progress = docSnap.data();
@@ -441,7 +441,7 @@ window.getScoresForUser = async function (userName) {
     if (cached && cached.length > 0) return mergeLocalScores(cached, userName);
 
     try {
-        const docSnap = await getDoc(doc(db, "user_progress", `${className}_${userName}`));
+        const docSnap = await getDoc(doc(db, "user_progress", `${className}__${userName}`));
         let results = [];
         if (docSnap.exists()) {
             const progress = docSnap.data();

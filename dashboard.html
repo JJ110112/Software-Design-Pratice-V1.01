@@ -195,6 +195,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-refresh').addEventListener('click', () => {
         localStorage.removeItem('fb_cache_dashboard_teacher');
         localStorage.removeItem('fb_cache_overall_ranking_v2');
+        _forceRefresh = true;
         fetchData();
     });
     
@@ -290,6 +291,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 800);
 });
 
+let _forceRefresh = false;
+
 async function fetchData() {
     const btn = document.getElementById('btn-refresh');
     btn.textContent = "載入中...";
@@ -302,12 +305,15 @@ async function fetchData() {
             return;
         }
 
+        const force = _forceRefresh;
+        _forceRefresh = false;
+
         // 同時撈取「近期紀錄」與「全站排行（精確星星數）」
         [rawData, fullRankingData] = await Promise.all([
-            window.getAllScoresForDashboard(),
-            typeof window.getOverallRanking === 'function' ? window.getOverallRanking("ALL") : []
+            window.getAllScoresForDashboard(force),
+            typeof window.getOverallRanking === 'function' ? window.getOverallRanking("ALL", force) : []
         ]);
-        console.log("儀表板資料筆數:", rawData.length, "排行榜人數:", fullRankingData.length);
+        console.log("儀表板資料筆數:", rawData.length, "排行榜人數:", fullRankingData.length, force ? "(即時查詢)" : "(快取)");
         renderDashboard();
     } catch(e) {
         console.error("儀表板載入失敗:", e);
