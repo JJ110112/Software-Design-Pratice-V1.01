@@ -361,10 +361,20 @@ exports.saveScoreSecure = onCall(
 /**
  * 教師名冊安全寫入：需要教師密碼
  */
-const TEACHER_PASSWORD = "sw-design-2024-teacher";
+const { defineSecret } = require("firebase-functions/params");
+const teacherPasswordSecret = defineSecret("TEACHER_PASSWORD");
+
+// 讀取教師密碼：優先用 Secret Manager，回退到環境變數
+function getTeacherPassword() {
+  try {
+    const val = teacherPasswordSecret.value();
+    if (val) return val;
+  } catch (_) {}
+  return process.env.TEACHER_PASSWORD || "";
+}
 
 exports.saveRosterSecure = onCall(
-  { region: "asia-east1", cors: true },
+  { region: "asia-east1", cors: true, secrets: [teacherPasswordSecret] },
   async (request) => {
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "必須登入");
@@ -372,7 +382,7 @@ exports.saveRosterSecure = onCall(
 
     const { teacherPassword, classes } = request.data;
 
-    if (teacherPassword !== TEACHER_PASSWORD) {
+    if (teacherPassword !== getTeacherPassword()) {
       throw new HttpsError("permission-denied", "教師密碼錯誤");
     }
 
@@ -397,13 +407,13 @@ exports.saveRosterSecure = onCall(
  * data.className: (mode=single 時，選填) 指定班級
  */
 exports.deleteScoresSecure = onCall(
-  { region: "asia-east1", cors: true },
+  { region: "asia-east1", cors: true, secrets: [teacherPasswordSecret] },
   async (request) => {
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "必須登入");
     }
     const { teacherPassword, mode, userName, className } = request.data;
-    if (teacherPassword !== TEACHER_PASSWORD) {
+    if (teacherPassword !== getTeacherPassword()) {
       throw new HttpsError("permission-denied", "教師密碼錯誤");
     }
 
@@ -454,13 +464,13 @@ exports.deleteScoresSecure = onCall(
  * 回復測試教師資料（產生全星滿的成績）
  */
 exports.seedTestTeacher = onCall(
-  { region: "asia-east1", cors: true },
+  { region: "asia-east1", cors: true, secrets: [teacherPasswordSecret] },
   async (request) => {
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "必須登入");
     }
     const { teacherPassword, teacherName } = request.data;
-    if (teacherPassword !== TEACHER_PASSWORD) {
+    if (teacherPassword !== getTeacherPassword()) {
       throw new HttpsError("permission-denied", "教師密碼錯誤");
     }
 
