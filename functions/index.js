@@ -234,6 +234,79 @@ exports.saveScoreSecure = onCall(
 
     try {
       const docRef = await db.collection("scores").add(record);
+
+      // 增量同步更新 Dashboard 與 Leaderboard，避免全表掃描
+      if (className !== "測試用") {
+        try {
+          await db.runTransaction(async (t) => {
+            const dashRef = db.doc("summaries/dashboard");
+            const lbRef = db.doc("summaries/leaderboard");
+            
+            const [dashDoc, lbDoc] = await Promise.all([
+              t.get(dashRef),
+              t.get(lbRef)
+            ]);
+
+            // 1. 更新 Dashboard (保留最新 500 筆)
+            if (dashDoc.exists) {
+              const dashData = dashDoc.data();
+              let records = dashData.records || [];
+              records.unshift(record); // 插到最前面
+              if (records.length > 500) records = records.slice(0, 500);
+              t.update(dashRef, {
+                records,
+                updatedAt: new Date().toISOString(),
+                totalRecords: (dashData.totalRecords || 0) + 1
+              });
+            }
+
+            // 2. 更新 Leaderboard (只針對該學生的星星數進行重算與排位)
+            if (lbDoc.exists && status === "PASS") {
+              const lbData = lbDoc.data();
+              let ranking = lbData.ranking || [];
+              
+              // 取得該學生所有 PASS 紀錄以正確算星 (輕量化查詢)
+              const userScoresQuery = db.collection("scores")
+                  .where("userName", "==", userName)
+                  .where("className", "==", className)
+                  .where("status", "==", "PASS");
+              const userScoresSnap = await t.get(userScoresQuery);
+
+              let userResults = [];
+              userScoresSnap.forEach(d => userResults.push(d.data()));
+              userResults.push(record); // 加入本次剛新增的紀錄 (保險起見，可能因延遲未拿到)
+              
+              // 透過既有函式計算單一學生最佳狀態
+              const userRankingInfo = computeRanking(userResults)[0];
+
+              if (userRankingInfo) {
+                const studentIdx = ranking.findIndex(r => r.className === className && r.userName === userName);
+                if (studentIdx >= 0) {
+                  ranking[studentIdx] = userRankingInfo;
+                } else {
+                  ranking.push(userRankingInfo);
+                }
+                
+                // 重新排序整個排行榜
+                ranking.sort((a, b) => {
+                  if (b.stars !== a.stars) return b.stars - a.stars;
+                  if (a.totalBestTime !== b.totalBestTime) return a.totalBestTime - b.totalBestTime;
+                  return b.uniqueClears - a.uniqueClears;
+                });
+                
+                t.update(lbRef, {
+                  ranking,
+                  updatedAt: new Date().toISOString(),
+                  totalRecords: (lbData.totalRecords || 0) + 1
+                });
+              }
+            }
+          });
+        } catch (updateErr) {
+          console.error("即時更新摘要失敗:", updateErr);
+        }
+      }
+
       return { success: true, id: docRef.id };
     } catch (e) {
       console.error("寫入成績失敗:", e);
