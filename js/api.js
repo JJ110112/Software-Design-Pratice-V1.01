@@ -403,8 +403,29 @@ window.getScoresForUser = async function (userName) {
 
     const cacheKey = `fb_cache_${userName}`;
     const cached = cacheGet(cacheKey);
+
+    // 💡 優化 2：快取與預讀機制 (Caching & Prefetching)
+    // 本地優先：如果本地有資料，先向調用者返回 (0秒顯示)
+    // 同時在背景向 Firebase 拿最新資料 (異步)，確保下次或 UI 重新重繪時是最新的
+    if (db) {
+        setTimeout(async () => {
+            if (window.location.search.includes('dev=1')) return;
+            try {
+                const q = query(collection(db, "scores"), where("userName", "==", userName));
+                const snapshot = await getDocs(q);
+                const results = [];
+                snapshot.forEach(doc => {
+                    const data = doc.data(); data.id = doc.id; data.gameMode = normalizeMode(data.gameMode); results.push(data);
+                });
+                cacheSet(cacheKey, results);
+            } catch(e) { console.warn("背景同步更新 Firebase 失敗:", e.message); }
+        }, 50);
+    }
+
+    // 0 秒載入：如果有快取且裡面有資料，就直接合併本地分數後回傳，不用等 Firebase
     if (cached && cached.length > 0) return mergeLocalScores(cached, userName);
 
+    // 如果連快取都沒有（例如第一次登入）或是背景執行時，才真正等待 Firebase
     try {
         const q = query(
             collection(db, "scores"),

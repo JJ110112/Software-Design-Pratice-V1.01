@@ -323,8 +323,12 @@ exports.deleteScoresSecure = onCall(
       deleted += Math.min(500, docs.length - i);
     }
 
-    // 清除排行榜摘要（下次結算會重建）
-    try { await db.doc("summaries/leaderboard").delete(); } catch(e) {}
+    // 更新所有的排行榜摘要以立刻反映刪除結果
+    try {
+        await rebuildLeaderboard();
+    } catch(e) {
+        console.error("重新結算失敗:", e);
+    }
 
     return { success: true, deleted };
   }
