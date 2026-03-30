@@ -322,20 +322,36 @@ window.getLeaderboard = async function (qID, gameMode) {
  * 教師儀表板專用 API
  * 讀取預結算的 summaries/dashboard（1 次讀取），回退到限量查詢
  */
-window.getAllScoresForDashboard = async function () {
+window.getAllScoresForDashboard = async function (forceRefresh = false) {
     if (!db) {
         return JSON.parse(localStorage.getItem('local_scores') || '[]');
     }
 
     const sysCacheKey = 'fb_cache_dashboard_teacher';
     const DASH_TTL = 300000; // 5 分鐘
-    try {
-        const raw = localStorage.getItem(sysCacheKey);
-        if (raw) { const obj = JSON.parse(raw); if (Date.now() - obj.time < DASH_TTL) return obj.data; }
-    } catch(e) {}
+    if (!forceRefresh) {
+        try {
+            const raw = localStorage.getItem(sysCacheKey);
+            if (raw) { const obj = JSON.parse(raw); if (Date.now() - obj.time < DASH_TTL) return obj.data; }
+        } catch(e) {}
+    }
 
     try {
-        // 優先讀取預結算的 summary（1 次讀取）
+        if (forceRefresh) {
+            // 教師刷新：直接查詢 Firestore 最新 500 筆
+            console.log("🔄 教師刷新：即時查詢 Firestore scores...");
+            const q = query(collection(db, "scores"), limit(500));
+            const snapshot = await getDocs(q);
+            const results = [];
+            snapshot.forEach(d => { const data = d.data(); data.id = d.id; results.push(data); });
+            const filtered = results.filter(r => r.className !== '測試用');
+            filtered.sort((a, b) => (b.timestamp || '').localeCompare(a.timestamp || ''));
+            cacheSet(sysCacheKey, filtered);
+            console.log("儀表板即時載入完成:", filtered.length, "筆");
+            return filtered;
+        }
+
+        // 一般載入：優先讀取預結算的 summary（1 次讀取）
         const summarySnap = await getDoc(doc(db, "summaries", "dashboard"));
         if (summarySnap.exists()) {
             const data = summarySnap.data().records || [];
@@ -428,7 +444,9 @@ window.getScoresForUser = async function (userName) {
                 if (docSnap.exists()) {
                     const progress = docSnap.data();
                     for (const key in progress.bestLevelInfo) {
-                        const [qID, gameMode] = key.split('_');
+                        const sepIdx = key.lastIndexOf('_');
+                        const qID = key.substring(0, sepIdx);
+                        const gameMode = key.substring(sepIdx + 1);
                         const info = progress.bestLevelInfo[key];
                         results.push({ qID, gameMode: normalizeMode(gameMode), stars: info.stars, timeSpent: info.timeSpent, status: 'PASS' });
                     }
@@ -446,7 +464,9 @@ window.getScoresForUser = async function (userName) {
         if (docSnap.exists()) {
             const progress = docSnap.data();
             for (const key in progress.bestLevelInfo) {
-                const [qID, gameMode] = key.split('_');
+                const sepIdx = key.lastIndexOf('_');
+                const qID = key.substring(0, sepIdx);
+                const gameMode = key.substring(sepIdx + 1);
                 const info = progress.bestLevelInfo[key];
                 results.push({ qID, gameMode: normalizeMode(gameMode), stars: info.stars, timeSpent: info.timeSpent, status: 'PASS' });
             }
@@ -467,26 +487,33 @@ window.getScoresForUser = async function (userName) {
  * 讀取排行榜（從預先結算的 leaderboard_summary 單一 Document）
  * 每位學生只消耗 1 次讀取，不再撈全量 scores
  */
-window.getOverallRanking = async function (classFilter = "ALL") {
+window.getOverallRanking = async function (classFilter = "ALL", forceRefresh = false) {
     try {
         // 本地快取（10 分鐘 TTL，減少重複讀取同一份 summary）
         const sysCacheKey = 'fb_cache_overall_ranking_v2';
         const CACHE_TTL_RANK = 600000; // 10 分鐘
-        try {
-            const raw = localStorage.getItem(sysCacheKey);
-            if (raw) {
-                const obj = JSON.parse(raw);
-                if (Date.now() - obj.time < CACHE_TTL_RANK) {
-                    return _filterRanking(obj.data, classFilter);
+        if (!forceRefresh) {
+            try {
+                const raw = localStorage.getItem(sysCacheKey);
+                if (raw) {
+                    const obj = JSON.parse(raw);
+                    if (Date.now() - obj.time < CACHE_TTL_RANK) {
+                        return _filterRanking(obj.data, classFilter);
+                    }
                 }
-            }
-        } catch(e) {}
+            } catch(e) {}
+        }
 
         if (!db) {
             // 離線：用 local_scores 即時計算
             const localScores = JSON.parse(localStorage.getItem('local_scores') || '[]');
             const ranking = _computeRanking(localScores);
             return _filterRanking(ranking, classFilter);
+        }
+
+        if (forceRefresh) {
+            console.log("🔄 教師刷新：即時計算排行榜...");
+            return await _fallbackLiveRanking(classFilter);
         }
 
         // 讀取單一 summary document（1 次讀取）

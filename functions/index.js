@@ -527,13 +527,34 @@ exports.deleteScoresSecure = onCall(
     }
     if (docs.length === 0) return { success: true, deleted: 0 };
 
-    // Batch delete (max 500 per batch)
+    // 收集被刪除學生的 user_progress doc IDs
+    const affectedStudents = new Set();
+    docs.forEach((d) => {
+      const data = d.data();
+      if (data.className && data.userName) {
+        affectedStudents.add(`${data.className}__${data.userName}`);
+      }
+    });
+
+    // Batch delete scores (max 500 per batch)
     let deleted = 0;
     for (let i = 0; i < docs.length; i += 500) {
       const batch = db.batch();
       docs.slice(i, i + 500).forEach((d) => batch.delete(d.ref));
       await batch.commit();
       deleted += Math.min(500, docs.length - i);
+    }
+
+    // 刪除對應的 user_progress 文件
+    if (affectedStudents.size > 0) {
+      const progressDocs = [...affectedStudents];
+      for (let i = 0; i < progressDocs.length; i += 500) {
+        const batch = db.batch();
+        progressDocs.slice(i, i + 500).forEach((id) => {
+          batch.delete(db.doc(`user_progress/${id}`));
+        });
+        await batch.commit();
+      }
     }
 
     // 更新所有的排行榜摘要以立刻反映刪除結果
