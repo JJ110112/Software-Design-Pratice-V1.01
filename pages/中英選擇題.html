@@ -442,7 +442,9 @@
                     currentQuizQuestionsTotal = Math.min(maxQuestions, Math.max(3, levelWords.length));
                     TOTAL_QUESTIONS = currentQuizQuestionsTotal;
 
-                    pool = unseenLevel.concat(seenLevel);
+                    let otherWords = pool.filter(w => !levelWords.includes(w));
+                    otherWords = shuffle(otherWords);
+                    pool = unseenLevel.concat(seenLevel).concat(otherWords);
                 } else {
                     pool = shuffle(pool);
                     TOTAL_QUESTIONS = 5;
