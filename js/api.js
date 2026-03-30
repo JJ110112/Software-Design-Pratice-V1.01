@@ -378,22 +378,35 @@ function normalizeMode(mode) {
  * ✅ 改動：改用 localStorage 快取，TTL 30 分鐘
  */
 window.getScoresForUser = async function (userName) {
+    // 取得當前班級，用組出文檔 ID
+    let currentClass = document.getElementById('login-class')?.value;
+    if (!currentClass) {
+        try {
+            const userObj = JSON.parse(localStorage.getItem('sw_quiz_user'));
+            currentClass = userObj ? userObj.className : null;
+        } catch(e) {}
+    }
+    const className = currentClass;
+
     // 合併 local_scores 中尚未上傳的紀錄
     function mergeLocalScores(results, userName) {
         const localScores = JSON.parse(localStorage.getItem('local_scores') || '[]');
         const pending = localScores.filter(s => s.userName === userName);
         if (pending.length > 0) {
-            const existingKeys = new Set(results.map(r => `${r.qID}_${r.gameMode}_${r.timestamp}`));
+            const existingKeys = new Set(results.map(r => `${r.qID}_${r.gameMode}`));
             pending.forEach(s => {
                 s.gameMode = normalizeMode(s.gameMode);
-                const key = `${s.qID}_${s.gameMode}_${s.timestamp}`;
-                if (!existingKeys.has(key)) results.push(s);
+                const key = `${s.qID}_${s.gameMode}`;
+                if (!existingKeys.has(key) || (existingKeys.has(key) && s.stars > (results.find(r=>r.qID===s.qID && r.gameMode===s.gameMode)?.stars || 0))) {
+                    results = results.filter(r => !(r.qID === s.qID && r.gameMode === s.gameMode));
+                    results.push(s);
+                }
             });
         }
         return results;
     }
 
-    if (!db) {
+    if (!db || !className) {
         let localScores = JSON.parse(localStorage.getItem('local_scores') || '[]');
         return localScores.filter(s => s.userName === userName).map(s => {
             s.gameMode = normalizeMode(s.gameMode);
@@ -404,49 +417,45 @@ window.getScoresForUser = async function (userName) {
     const cacheKey = `fb_cache_${userName}`;
     const cached = cacheGet(cacheKey);
 
-    // 💡 優化 2：快取與預讀機制 (Caching & Prefetching)
-    // 本地優先：如果本地有資料，先向調用者返回 (0秒顯示)
-    // 同時在背景向 Firebase 拿最新資料 (異步)，確保下次或 UI 重新重繪時是最新的
+    // 💡 0 秒載入：如果本地有資料，先向調用者返回，同時在背景更新
     if (db) {
         setTimeout(async () => {
             if (window.location.search.includes('dev=1')) return;
             try {
-                const q = query(collection(db, "scores"), where("userName", "==", userName));
-                const snapshot = await getDocs(q);
-                const results = [];
-                snapshot.forEach(doc => {
-                    const data = doc.data(); data.id = doc.id; data.gameMode = normalizeMode(data.gameMode); results.push(data);
-                });
+                // O(1) 極速抓取單一扁平化進度檔
+                const docSnap = await getDoc(doc(db, "user_progress", `${className}_${userName}`));
+                let results = [];
+                if (docSnap.exists()) {
+                    const progress = docSnap.data();
+                    for (const key in progress.bestLevelInfo) {
+                        const [qID, gameMode] = key.split('_');
+                        const info = progress.bestLevelInfo[key];
+                        results.push({ qID, gameMode: normalizeMode(gameMode), stars: info.stars, timeSpent: info.timeSpent, status: 'PASS' });
+                    }
+                }
                 cacheSet(cacheKey, results);
             } catch(e) { console.warn("背景同步更新 Firebase 失敗:", e.message); }
         }, 50);
     }
 
-    // 0 秒載入：如果有快取且裡面有資料，就直接合併本地分數後回傳，不用等 Firebase
     if (cached && cached.length > 0) return mergeLocalScores(cached, userName);
 
-    // 如果連快取都沒有（例如第一次登入）或是背景執行時，才真正等待 Firebase
     try {
-        const q = query(
-            collection(db, "scores"),
-            where("userName", "==", userName)
-        );
-        const snapshot = await getDocs(q);
-        const results = [];
-        snapshot.forEach(doc => {
-            const data = doc.data();
-            data.id = doc.id;
-            data.gameMode = normalizeMode(data.gameMode);
-            results.push(data);
-        });
-
+        const docSnap = await getDoc(doc(db, "user_progress", `${className}_${userName}`));
+        let results = [];
+        if (docSnap.exists()) {
+            const progress = docSnap.data();
+            for (const key in progress.bestLevelInfo) {
+                const [qID, gameMode] = key.split('_');
+                const info = progress.bestLevelInfo[key];
+                results.push({ qID, gameMode: normalizeMode(gameMode), stars: info.stars, timeSpent: info.timeSpent, status: 'PASS' });
+            }
+        }
         cacheSet(cacheKey, results);
         return mergeLocalScores(results, userName);
     } catch (e) {
-        console.error("載入個人紀錄失敗:", e);
-        // 即使 Firestore 失敗，也返回快取 + local_scores
-        const fallback = cacheGet(cacheKey) || [];
-        return mergeLocalScores(fallback, userName);
+        console.error("讀取學生成績失敗（維持本地快取，保護連線）:", e);
+        return mergeLocalScores(cached || [], userName);
     }
 };
 
