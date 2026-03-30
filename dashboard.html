@@ -192,7 +192,11 @@ const PAGE_SIZE = 20;
 
 document.addEventListener('DOMContentLoaded', () => {
     // 當按下刷新按鈕
-    document.getElementById('btn-refresh').addEventListener('click', fetchData);
+    document.getElementById('btn-refresh').addEventListener('click', () => {
+        localStorage.removeItem('fb_cache_dashboard_teacher');
+        localStorage.removeItem('fb_cache_overall_ranking_v2');
+        fetchData();
+    });
     
     // 當切換下拉選單，不用重新 fetch，只需 refresh UI
     document.getElementById('filter-class').addEventListener('change', renderDashboard);
@@ -253,7 +257,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 const fn = getFunctions(undefined, "asia-east1");
                 const callable = httpsCallable(fn, "rebuildLeaderboard");
                 const r = await callable({ teacherPassword: pwd });
+                localStorage.removeItem('fb_cache_overall_ranking_v2');
                 alert(`✅ 排行榜結算完成！${r.data.studentCount} 位學生、${r.data.totalRecords} 筆紀錄`);
+                fetchData();
             }
         } catch(e) { alert('❌ ' + (e.message || '結算失敗')); }
         finally { btn.textContent = '🏆 結算排行榜'; btn.disabled = false; }

@@ -111,7 +111,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }, 800);
 
-    btnSearch.addEventListener('click', fetchAndRender);
+    btnSearch.addEventListener('click', () => {
+        localStorage.removeItem('fb_cache_overall_ranking_v2');
+        fetchAndRender();
+    });
     document.getElementById('sel-class').addEventListener('change', fetchAndRender);
 });
 
