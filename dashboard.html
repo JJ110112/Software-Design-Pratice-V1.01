@@ -555,15 +555,22 @@ function sortAndRenderStudents() {
 
     tbody.innerHTML = studentRows.map(r => {
         const lastStr = r.lastActive ? (() => { const d = new Date(r.lastActive); return `${d.getMonth()+1}/${d.getDate()} ${d.getHours()}:${d.getMinutes().toString().padStart(2,'0')}`; })() : '-';
-        const practiceCls = r.attempts === 0 ? 'no-practice' : 'has-practice';
+        const hasPractice = r.attempts > 0 || r.stars > 0;
+        const practiceCls = hasPractice ? 'has-practice' : 'no-practice';
         const barW = Math.min(r.progress, 100);
+        
+        let attemptHtml = r.attempts;
+        if (r.attempts === 0) {
+            attemptHtml = r.stars > 0 ? '<span style="color:var(--muted);" title="紀錄較早，不在近期 500 筆挑戰內">-</span>' : '<span style="color:var(--danger);">未練習</span>';
+        }
+
         return `<tr>
             <td>${r.no}</td>
             <td style="text-align:left;font-weight:600;">${escapeHTML(r.name)}</td>
             <td>${escapeHTML(r.className)}</td>
             <td class="${practiceCls}">${r.stars}</td>
             <td class="${practiceCls}">${r.clears}</td>
-            <td class="${practiceCls}">${r.attempts === 0 ? '<span style="color:var(--danger);">未練習</span>' : r.attempts}</td>
+            <td class="${practiceCls}">${attemptHtml}</td>
             <td>${lastStr}</td>
             <td>${r.progress}%<div class="progress-bar"><div class="progress-bar-fill" style="width:${barW}%"></div></div></td>
         </tr>`;
