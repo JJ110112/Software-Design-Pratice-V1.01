@@ -318,41 +318,59 @@ exports.saveScoreSecure = onCall(
     };
 
     try {
-      const docRef = await db.collection("scores").add(record);
+      if (className === "測試用") {
+        const docRef = await db.collection("scores").add(record);
+        return { success: true, id: docRef.id };
+      }
 
-      // 增量同步更新 Dashboard 與 Leaderboard，避免全表掃描
-      if (className !== "測試用") {
-        try {
-          await db.runTransaction(async (t) => {
-            const dashRef = db.doc("summaries/dashboard");
-            const lbRef = db.doc("summaries/leaderboard");
-            
-            const [dashDoc, lbDoc] = await Promise.all([
-              t.get(dashRef),
-              t.get(lbRef)
-            ]);
+      let newDocId = null;
+      await db.runTransaction(async (t) => {
+        // 先取出該學生的專屬 user_progress 文件 (包含防刷保護)
+        const userProgressRef = db.doc(`user_progress/${className}__${userName}`);
+        const userProgressDoc = await t.get(userProgressRef);
 
-            // 1. 更新 Dashboard (保留最新 500 筆)
-            if (dashDoc.exists) {
-              const dashData = dashDoc.data();
-              let records = dashData.records || [];
-              records.unshift(record); // 插到最前面
-              if (records.length > 500) records = records.slice(0, 500);
-              t.update(dashRef, {
-                records,
-                updatedAt: new Date().toISOString(),
-                totalRecords: (dashData.totalRecords || 0) + 1
-              });
+        // 防連刷核心：跨冷啟動的持久化保護
+        if (userProgressDoc.exists) {
+          const prevData = userProgressDoc.data();
+          if (prevData.lastActive) {
+            const lastTime = new Date(prevData.lastActive).getTime();
+            const nowTime = new Date(record.timestamp).getTime();
+            if (nowTime - lastTime < 3000) {
+              throw new HttpsError("resource-exhausted", "送出太頻繁 (低於 3 秒)，判定為惡意連刷");
             }
+          }
+        }
 
-            // 2. 更新 Leaderboard 與 UserProgress (極致效能，不再遍歷 scores)
-            if (lbDoc.exists) {
-              const lbData = lbDoc.data();
-              let ranking = lbData.ranking || [];
+        const dashRef = db.doc("summaries/dashboard");
+        const lbRef = db.doc("summaries/leaderboard");
+        
+        const [dashDoc, lbDoc] = await Promise.all([
+          t.get(dashRef),
+          t.get(lbRef)
+        ]);
 
-              // 取出該學生的專屬 user_progress 文件
-              const userProgressRef = db.doc(`user_progress/${className}__${userName}`);
-              const userProgressDoc = await t.get(userProgressRef);
+        // 1. 將成績寫入 scores 集合 (納入 Transaction 確保防刷時不會製造垃圾)
+        const newScoreRef = db.collection("scores").doc();
+        t.set(newScoreRef, record);
+        newDocId = newScoreRef.id;
+
+        // 2. 更新 Dashboard (保留最新 500 筆)
+        if (dashDoc.exists) {
+          const dashData = dashDoc.data();
+          let records = dashData.records || [];
+          records.unshift(record); // 插到最前面
+          if (records.length > 500) records = records.slice(0, 500);
+          t.update(dashRef, {
+            records,
+            updatedAt: new Date().toISOString(),
+            totalRecords: (dashData.totalRecords || 0) + 1
+          });
+        }
+
+        // 3. 更新 Leaderboard 與 UserProgress (極致效能，不再遍歷 scores)
+        if (lbDoc.exists) {
+          const lbData = lbDoc.data();
+          let ranking = lbData.ranking || [];
 
               let userRankingInfo = {
                 className,
@@ -431,13 +449,8 @@ exports.saveScoreSecure = onCall(
                 totalRecords: (lbData.totalRecords || 0) + 1
               });
             }
-          });
-        } catch (updateErr) {
-          console.error("即時更新摘要失敗:", updateErr);
-        }
-      }
-
-      return { success: true, id: docRef.id };
+      });
+      return { success: true, id: newDocId };
     } catch (e) {
       console.error("寫入成績失敗:", e);
       throw new HttpsError("internal", "寫入失敗");
