@@ -195,6 +195,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-refresh').addEventListener('click', () => {
         localStorage.removeItem('fb_cache_dashboard_teacher');
         localStorage.removeItem('fb_cache_overall_ranking_v2');
+        _forceRefresh = true;
         fetchData();
     });
     
@@ -290,6 +291,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 800);
 });
 
+let _forceRefresh = false;
+
 async function fetchData() {
     const btn = document.getElementById('btn-refresh');
     btn.textContent = "載入中...";
@@ -302,12 +305,15 @@ async function fetchData() {
             return;
         }
 
+        const force = _forceRefresh;
+        _forceRefresh = false;
+
         // 同時撈取「近期紀錄」與「全站排行（精確星星數）」
         [rawData, fullRankingData] = await Promise.all([
-            window.getAllScoresForDashboard(),
-            typeof window.getOverallRanking === 'function' ? window.getOverallRanking("ALL") : []
+            window.getAllScoresForDashboard(force),
+            typeof window.getOverallRanking === 'function' ? window.getOverallRanking("ALL", force) : []
         ]);
-        console.log("儀表板資料筆數:", rawData.length, "排行榜人數:", fullRankingData.length);
+        console.log("儀表板資料筆數:", rawData.length, "排行榜人數:", fullRankingData.length, force ? "(即時查詢)" : "(快取)");
         renderDashboard();
     } catch(e) {
         console.error("儀表板載入失敗:", e);
@@ -426,7 +432,7 @@ function renderCharts(data) {
 
     // 1. Bar Chart: 不同題目的過關總量
     const passCountByQ = {};
-    data.filter(d => d.status === 'PASS').forEach(d => {
+    data.filter(d => d.status === 'PASS' && !d.qID.startsWith('E2E_') && d.qID !== 'TEST_E2E').forEach(d => {
         passCountByQ[d.qID] = (passCountByQ[d.qID] || 0) + 1;
     });
     
@@ -494,20 +500,29 @@ let sortAsc = false;
 function buildStudentStatus(data) {
     const filterCls = document.getElementById('filter-class').value;
 
-    // 從近期 500 筆紀錄，彙整每位學生的近期活躍資料
+    // 從近期 500 筆紀錄，彙整每位學生的近期活躍資料 + 即時星星計算
     const practiceMap = {};
     data.forEach(r => {
         const key = `${r.className}_${r.userName}`;
         if (!practiceMap[key]) {
-            practiceMap[key] = { attempts: 0, lastTime: 0 };
+            practiceMap[key] = { attempts: 0, lastTime: 0, bestLevelInfo: {} };
         }
         const p = practiceMap[key];
         p.attempts++;
         const ts = new Date(r.timestamp).getTime();
         if (ts > p.lastTime) p.lastTime = ts;
+
+        // 即時計算星星（僅 PASS 紀錄）
+        if (r.status === 'PASS') {
+            const levelKey = `${r.qID}_${r.gameMode}`;
+            const stars = r.stars !== undefined ? r.stars : 1;
+            if (!p.bestLevelInfo[levelKey] || stars > p.bestLevelInfo[levelKey]) {
+                p.bestLevelInfo[levelKey] = stars;
+            }
+        }
     });
 
-    // 從全站排行榜取得精確的星星/破關數（不受 500 筆截斷影響）
+    // 從全站排行榜取得結算的星星/破關數
     const rankMap = {};
     if (fullRankingData) {
         fullRankingData.forEach(r => rankMap[`${r.className}_${r.userName}`] = r);
@@ -522,16 +537,39 @@ function buildStudentStatus(data) {
             const key = `${cls}_${s.name}`;
             const p = practiceMap[key];
             const rank = rankMap[key];
-            const totalStars = rank ? rank.stars : 0;
-            const clears = rank ? rank.uniqueClears : 0;
+
+            // 從近期紀錄即時算出的星星與破關數
+            let liveStars = 0, liveClears = 0;
+            if (p) {
+                for (const k in p.bestLevelInfo) {
+                    liveStars += p.bestLevelInfo[k];
+                    liveClears++;
+                }
+            }
+
+            // 取排行榜結算值與即時值的較大者
+            const rankStars = rank ? rank.stars : 0;
+            const rankClears = rank ? rank.uniqueClears : 0;
+            const totalStars = Math.max(rankStars, liveStars);
+            const clears = Math.max(rankClears, liveClears);
+
+            // 挑戰次數與最後活躍：近期紀錄優先，排行榜資料補底
+            const recentAttempts = p ? p.attempts : 0;
+            const rankAttempts = rank && rank.totalAttempts ? rank.totalAttempts : 0;
+            const attempts = Math.max(recentAttempts, rankAttempts);
+
+            const recentLastActive = p ? p.lastTime : 0;
+            const rankLastActive = rank && rank.lastActive ? new Date(rank.lastActive).getTime() : 0;
+            const lastActive = Math.max(recentLastActive, rankLastActive);
+
             studentRows.push({
                 no: s.no,
                 name: s.name,
                 className: cls,
                 stars: totalStars,
                 clears: clears,
-                attempts: p ? p.attempts : 0,
-                lastActive: p ? p.lastTime : 0,
+                attempts: attempts,
+                lastActive: lastActive,
                 progress: Math.round(totalStars / MAX_STARS * 100)
             });
         });

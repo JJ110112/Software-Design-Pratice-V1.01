@@ -13,7 +13,7 @@ const _lastSaveByUid = {};
  */
 function computeRanking(results) {
   const filtered = results.filter(
-    (r) => r.status === "PASS" && r.className !== "測試用"
+    (r) => r.status === "PASS" && r.className !== "測試用" && !(r.qID || "").startsWith("E2E_") && r.qID !== "TEST_E2E"
   );
 
   const studentMap = {};
@@ -83,9 +83,32 @@ async function rebuildLeaderboard() {
   const passResults = allResults.filter((r) => r.status === "PASS");
   const ranking = computeRanking(passResults);
 
+  // 從全部紀錄（含 FAIL）統計每位學生的挑戰次數與最後活躍時間
+  const activityMap = {};
+  allResults.filter((r) => r.className !== "測試用" && !(r.qID || "").startsWith("E2E_") && r.qID !== "TEST_E2E").forEach((r) => {
+    const key = `${r.className}_${r.userName}`;
+    if (!activityMap[key]) {
+      activityMap[key] = { totalAttempts: 0, lastActive: "" };
+    }
+    activityMap[key].totalAttempts++;
+    if ((r.timestamp || "") > activityMap[key].lastActive) {
+      activityMap[key].lastActive = r.timestamp || "";
+    }
+  });
+
+  // 將挑戰次數與最後活躍時間合併到排行榜資料中
+  ranking.forEach((r) => {
+    const key = `${r.className}_${r.userName}`;
+    const activity = activityMap[key];
+    if (activity) {
+      r.totalAttempts = activity.totalAttempts;
+      r.lastActive = activity.lastActive;
+    }
+  });
+
   // 儀表板摘要：過濾測試帳號，只保留最近 500 筆
   const dashData = allResults
-    .filter((r) => r.className !== "測試用")
+    .filter((r) => r.className !== "測試用" && !(r.qID || "").startsWith("E2E_") && r.qID !== "TEST_E2E")
     .sort((a, b) => (b.timestamp || "").localeCompare(a.timestamp || ""))
     .slice(0, 500);
 
@@ -261,10 +284,10 @@ exports.saveScoreSecure = onCall(
             }
 
             // 2. 更新 Leaderboard (只針對該學生的星星數進行重算與排位)
-            if (lbDoc.exists && status === "PASS") {
+            if (lbDoc.exists) {
               const lbData = lbDoc.data();
               let ranking = lbData.ranking || [];
-              
+
               // 取得該學生所有 PASS 紀錄以正確算星 (輕量化查詢)
               const userScoresQuery = db.collection("scores")
                   .where("userName", "==", userName)
@@ -274,32 +297,52 @@ exports.saveScoreSecure = onCall(
 
               let userResults = [];
               userScoresSnap.forEach(d => userResults.push(d.data()));
-              userResults.push(record); // 加入本次剛新增的紀錄 (保險起見，可能因延遲未拿到)
-              
-              // 透過既有函式計算單一學生最佳狀態
-              const userRankingInfo = computeRanking(userResults)[0];
-
-              if (userRankingInfo) {
-                const studentIdx = ranking.findIndex(r => r.className === className && r.userName === userName);
-                if (studentIdx >= 0) {
-                  ranking[studentIdx] = userRankingInfo;
-                } else {
-                  ranking.push(userRankingInfo);
-                }
-                
-                // 重新排序整個排行榜
-                ranking.sort((a, b) => {
-                  if (b.stars !== a.stars) return b.stars - a.stars;
-                  if (a.totalBestTime !== b.totalBestTime) return a.totalBestTime - b.totalBestTime;
-                  return b.uniqueClears - a.uniqueClears;
-                });
-                
-                t.update(lbRef, {
-                  ranking,
-                  updatedAt: new Date().toISOString(),
-                  totalRecords: (lbData.totalRecords || 0) + 1
-                });
+              if (status === "PASS") {
+                userResults.push(record); // 加入本次剛新增的紀錄
               }
+
+              // 找到該學生在排行榜中的位置
+              const studentIdx = ranking.findIndex(r => r.className === className && r.userName === userName);
+
+              if (userResults.length > 0) {
+                // 透過既有函式計算單一學生最佳狀態
+                const userRankingInfo = computeRanking(userResults)[0];
+
+                if (userRankingInfo) {
+                  // 更新挑戰次數與最後活躍時間
+                  const prevAttempts = studentIdx >= 0 && ranking[studentIdx].totalAttempts ? ranking[studentIdx].totalAttempts : 0;
+                  userRankingInfo.totalAttempts = prevAttempts + 1;
+                  userRankingInfo.lastActive = record.timestamp;
+
+                  if (studentIdx >= 0) {
+                    ranking[studentIdx] = userRankingInfo;
+                  } else {
+                    ranking.push(userRankingInfo);
+                  }
+                }
+              } else if (studentIdx < 0) {
+                // 沒有 PASS 紀錄但有 FAIL 紀錄，也要記錄活動
+                ranking.push({
+                  className, userName, stars: 0, uniqueClears: 0, totalBestTime: 0,
+                  totalAttempts: 1, lastActive: record.timestamp
+                });
+              } else {
+                ranking[studentIdx].totalAttempts = (ranking[studentIdx].totalAttempts || 0) + 1;
+                ranking[studentIdx].lastActive = record.timestamp;
+              }
+
+              // 重新排序整個排行榜
+              ranking.sort((a, b) => {
+                if (b.stars !== a.stars) return b.stars - a.stars;
+                if (a.totalBestTime !== b.totalBestTime) return a.totalBestTime - b.totalBestTime;
+                return b.uniqueClears - a.uniqueClears;
+              });
+
+              t.update(lbRef, {
+                ranking,
+                updatedAt: new Date().toISOString(),
+                totalRecords: (lbData.totalRecords || 0) + 1
+              });
             }
           });
         } catch (updateErr) {
