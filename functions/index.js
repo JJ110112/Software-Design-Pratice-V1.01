@@ -372,86 +372,88 @@ exports.saveScoreSecure = onCall(
           const lbData = lbDoc.data();
           let ranking = lbData.ranking || [];
 
-              let userRankingInfo = {
-                className,
-                userName,
-                stars: 0,
-                uniqueClears: 0,
-                totalBestTime: 0,
-                totalAttempts: 0,
-                lastActive: record.timestamp,
-                bestLevelInfo: {}
-              };
+          let userRankingInfo = {
+            className,
+            userName,
+            stars: 0,
+            uniqueClears: 0,
+            totalBestTime: 0,
+            totalAttempts: 0,
+            lastActive: record.timestamp,
+            bestLevelInfo: {}
+          };
 
-              if (userProgressDoc.exists) {
-                userRankingInfo = { ...userRankingInfo, ...userProgressDoc.data() };
-              }
+          if (userProgressDoc.exists) {
+            userRankingInfo = { ...userRankingInfo, ...userProgressDoc.data() };
+          }
 
-              userRankingInfo.totalAttempts++;
-              if ((record.timestamp || "") > userRankingInfo.lastActive) {
-                userRankingInfo.lastActive = record.timestamp;
-              }
+          userRankingInfo.totalAttempts++;
+          if ((record.timestamp || "") > userRankingInfo.lastActive) {
+            userRankingInfo.lastActive = record.timestamp;
+          }
 
-              if (status === "PASS") {
-                  const levelKey = `${qID}_${gameMode}`;
-                  const currentStars = record.stars;
-                  const currentTime = record.timeSpent;
-                  const best = userRankingInfo.bestLevelInfo[levelKey];
+          if (status === "PASS") {
+            const levelKey = `${qID}_${gameMode}`;
+            const currentStars = record.stars;
+            const currentTime = record.timeSpent;
+            const best = userRankingInfo.bestLevelInfo[levelKey];
 
-                  if (!best || currentStars > best.stars || (currentStars === best.stars && currentTime < best.timeSpent)) {
-                      userRankingInfo.bestLevelInfo[levelKey] = { stars: currentStars, timeSpent: currentTime };
-                  }
-
-                  // 重新結算總星數等
-                  let totalStars = 0, totalBestTime = 0, uniqueClears = 0;
-                  for (const k in userRankingInfo.bestLevelInfo) {
-                      totalStars += userRankingInfo.bestLevelInfo[k].stars;
-                      totalBestTime += userRankingInfo.bestLevelInfo[k].timeSpent;
-                      uniqueClears++;
-                  }
-                  userRankingInfo.stars = totalStars;
-                  userRankingInfo.uniqueClears = uniqueClears;
-                  userRankingInfo.totalBestTime = totalBestTime;
-              }
-
-               // 寫回 user_progress (極速 O(1) 更新)
-              t.set(userProgressRef, userRankingInfo);
-
-              // 找到該學生在排行榜中的位置並更新
-              const studentIdx = ranking.findIndex(r => r.className === className && r.userName === userName);
-              
-              const strippedRankInfo = {
-                className: userRankingInfo.className,
-                userName: userRankingInfo.userName,
-                stars: userRankingInfo.stars,
-                uniqueClears: userRankingInfo.uniqueClears,
-                totalBestTime: userRankingInfo.totalBestTime,
-                totalAttempts: userRankingInfo.totalAttempts,
-                lastActive: userRankingInfo.lastActive
-              };
-
-              if (studentIdx >= 0) {
-                ranking[studentIdx] = strippedRankInfo;
-              } else {
-                ranking.push(strippedRankInfo);
-              }
-
-              // 重新排序整個排行榜
-              ranking.sort((a, b) => {
-                if (b.stars !== a.stars) return b.stars - a.stars;
-                if (a.totalBestTime !== b.totalBestTime) return a.totalBestTime - b.totalBestTime;
-                return b.uniqueClears - a.uniqueClears;
-              });
-
-              t.update(lbRef, {
-                ranking,
-                updatedAt: new Date().toISOString(),
-                totalRecords: (lbData.totalRecords || 0) + 1
-              });
+            if (!best || currentStars > best.stars || (currentStars === best.stars && currentTime < best.timeSpent)) {
+              userRankingInfo.bestLevelInfo[levelKey] = { stars: currentStars, timeSpent: currentTime };
             }
+
+            // 重新結算總星數等
+            let totalStars = 0, totalBestTime = 0, uniqueClears = 0;
+            for (const k in userRankingInfo.bestLevelInfo) {
+              totalStars += userRankingInfo.bestLevelInfo[k].stars;
+              totalBestTime += userRankingInfo.bestLevelInfo[k].timeSpent;
+              uniqueClears++;
+            }
+            userRankingInfo.stars = totalStars;
+            userRankingInfo.uniqueClears = uniqueClears;
+            userRankingInfo.totalBestTime = totalBestTime;
+          }
+
+          // 寫回 user_progress (極速 O(1) 更新)
+          t.set(userProgressRef, userRankingInfo);
+
+          // 找到該學生在排行榜中的位置並更新
+          const studentIdx = ranking.findIndex(r => r.className === className && r.userName === userName);
+
+          const strippedRankInfo = {
+            className: userRankingInfo.className,
+            userName: userRankingInfo.userName,
+            stars: userRankingInfo.stars,
+            uniqueClears: userRankingInfo.uniqueClears,
+            totalBestTime: userRankingInfo.totalBestTime,
+            totalAttempts: userRankingInfo.totalAttempts,
+            lastActive: userRankingInfo.lastActive
+          };
+
+          if (studentIdx >= 0) {
+            ranking[studentIdx] = strippedRankInfo;
+          } else {
+            ranking.push(strippedRankInfo);
+          }
+
+          // 重新排序整個排行榜
+          ranking.sort((a, b) => {
+            if (b.stars !== a.stars) return b.stars - a.stars;
+            if (a.totalBestTime !== b.totalBestTime) return a.totalBestTime - b.totalBestTime;
+            return b.uniqueClears - a.uniqueClears;
+          });
+
+          t.update(lbRef, {
+            ranking,
+            updatedAt: new Date().toISOString(),
+            totalRecords: (lbData.totalRecords || 0) + 1
+          });
+        }
       });
       return { success: true, id: newDocId };
     } catch (e) {
+      // 防連刷等 HttpsError 直接向前端拋出原始訊息
+      if (e instanceof HttpsError) throw e;
       console.error("寫入成績失敗:", e);
       throw new HttpsError("internal", "寫入失敗");
     }
