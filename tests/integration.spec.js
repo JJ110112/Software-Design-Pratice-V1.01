@@ -245,7 +245,7 @@ test.describe('多使用者切換', () => {
     await page.evaluate(() => {
       if (typeof logoutUser === 'function') logoutUser();
     });
-    await page.waitForTimeout(300);
+    await page.waitForTimeout(1000);
 
     // 驗證教師快取被清除
     const teacherCache = await page.evaluate(() =>
