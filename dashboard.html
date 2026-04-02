@@ -499,9 +499,9 @@ function renderCharts(data) {
         }
     });
 
-    const stageLabels = Object.keys(STAGE_MODES);
+    const stageLabels = Object.keys(STAGE_MODES).reverse();
     const stageCounts = stageLabels.map(s => stageStudents[s].size);
-    const stageColors = ['#38bdf8', '#a78bfa', '#4ade80', '#fbbf24', '#f97316', '#f43f5e'];
+    const stageColors = ['#f43f5e', '#f97316', '#fbbf24', '#4ade80', '#a78bfa', '#38bdf8'];
 
     const ctx2 = document.getElementById('stageChart').getContext('2d');
     chart2 = new Chart(ctx2, {
