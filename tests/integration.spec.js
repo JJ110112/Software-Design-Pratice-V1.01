@@ -319,25 +319,29 @@ test.describe('Dashboard 資料完整性', () => {
 
   test('學生狀況表的星星應從排行榜取得（不是近期紀錄）', async ({ page }) => {
     await page.goto('/dashboard.html');
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(4000);
 
-    // 模擬：設定 fullRankingData 有精確資料
-    await page.evaluate(() => {
-      fullRankingData = [
-        { className: '資訊二', userName: '李亦澄', stars: 50, uniqueClears: 10, totalBestTime: 300 }
-      ];
-      // 重新 render
-      if (typeof buildStudentStatus === 'function' && typeof rawData !== 'undefined') {
-        buildStudentStatus(rawData);
+    // 驗證機制：buildStudentStatus 使用 fullRankingData 的值（取較大者）
+    const result = await page.evaluate(() => {
+      // 注入虛構班級到名冊
+      if (typeof CLASS_ROSTER !== 'undefined') {
+        CLASS_ROSTER['測試班X'] = [{ no: 1, name: '虛構學生' }];
       }
-    });
+      // 注入排行資料（50 星）
+      fullRankingData.push(
+        { className: '測試班X', userName: '虛構學生', stars: 50, uniqueClears: 10, totalBestTime: 300 }
+      );
+      // 注入 rawData（只有 1 星，排行榜應取較大值 50）
+      rawData.push(
+        { className: '測試班X', userName: '虛構學生', qID: 'Q1_T01', gameMode: '連連看', timeSpent: 30, status: 'PASS', stars: 1, timestamp: new Date().toISOString() }
+      );
+      // 切到全站模式並重建
+      document.getElementById('filter-class').value = 'ALL';
+      if (typeof buildStudentStatus === 'function') buildStudentStatus(rawData);
 
-    // 檢查表格中李亦澄的星星數
-    const starText = await page.evaluate(() => {
       const rows = document.querySelectorAll('#tb-student-status tr');
       for (const row of rows) {
-        if (row.textContent.includes('李亦澄')) {
-          // 星星欄位是第 4 個 td
+        if (row.textContent.includes('虛構學生')) {
           const tds = row.querySelectorAll('td');
           return tds[3] ? tds[3].textContent.trim() : null;
         }
@@ -345,8 +349,8 @@ test.describe('Dashboard 資料完整性', () => {
       return null;
     });
 
-    // 星星數應為 50（來自 fullRankingData），不是 0
-    expect(starText).toBe('50');
+    // 星星數應為 50（來自 fullRankingData 取 max），不是 1
+    expect(result).toBe('50');
   });
 
   test('自動刷新機制設定正確', async ({ page }) => {

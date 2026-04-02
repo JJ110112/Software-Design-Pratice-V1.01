@@ -210,31 +210,12 @@ exports.dailyLeaderboardRebuild = onSchedule(
 );
 
 /**
- * Callable 端點：手動觸發結算（供儀表板按鈕使用）
- * 速率限制：30 分鐘內不可重複呼叫（全表掃描極耗配額）
+ * Callable 端點：手動觸發結算（供儀表板刷新按鈕使用）
+ * 已移除速率限制（資料庫扁平化後流量可控）
  */
 exports.rebuildLeaderboard = onCall(
   { region: "asia-east1", cors: true },
   async (request) => {
-    // Rate limit: 30 分鐘內不可重複結算
-    const RATE_LIMIT_MS = 30 * 60 * 1000;
-    const leaderboardDoc = await db.doc("summaries/leaderboard").get();
-
-    if (leaderboardDoc.exists) {
-      const data = leaderboardDoc.data();
-      if (data.updatedAt) {
-        const lastUpdated = new Date(data.updatedAt).getTime();
-        const elapsed = Date.now() - lastUpdated;
-        if (elapsed < RATE_LIMIT_MS) {
-          const remainingSec = Math.ceil((RATE_LIMIT_MS - elapsed) / 1000);
-          throw new HttpsError(
-            "resource-exhausted",
-            `請稍候再試，距離上次結算不足 30 分鐘（剩餘 ${Math.ceil(remainingSec/60)} 分鐘）`
-          );
-        }
-      }
-    }
-
     try {
       const result = await rebuildLeaderboard();
       return {

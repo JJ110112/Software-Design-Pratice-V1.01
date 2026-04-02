@@ -70,8 +70,10 @@ test.describe('Dashboard', () => {
     await mockLogin(page);
   });
 
-  test('頁面載入且有教師管理工具區塊', async ({ page }) => {
+  test('頁面載入且有教師管理工具區塊（摺疊）', async ({ page }) => {
     await page.goto('/dashboard.html');
+    // 管理工具在 <details> 摺疊中，先展開
+    await page.locator('details summary').click();
     await expect(page.locator('#btn-del-single')).toBeVisible();
     await expect(page.locator('#btn-del-all')).toBeVisible();
     await expect(page.locator('#btn-seed-teacher')).toBeVisible();
@@ -101,12 +103,10 @@ test.describe('Dashboard', () => {
 
   test('清除快取按鈕可以使用', async ({ page }) => {
     await page.goto('/dashboard.html');
-    // 先設一個假快取
-    await page.evaluate(() => {
-      localStorage.setItem('fb_cache_test', 'dummy');
-    });
-    // 攔截 alert
+    await page.evaluate(() => { localStorage.setItem('fb_cache_test', 'dummy'); });
     page.on('dialog', async dialog => await dialog.accept());
+    // 展開管理工具
+    await page.locator('details summary').click();
     await page.click('#btn-clear-cache');
     await page.waitForTimeout(500);
     const val = await page.evaluate(() => localStorage.getItem('fb_cache_test'));

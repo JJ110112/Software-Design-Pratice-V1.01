@@ -140,24 +140,6 @@
         </div>
     </div>
 
-    <!-- 教師管理工具 -->
-    <div class="card" style="margin-bottom:20px;border:1px solid var(--danger);">
-        <h3 style="color:var(--danger);margin-top:0;">🔧 教師管理工具（需要密碼）</h3>
-        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">
-            <div>
-                <label style="display:block;font-size:.8rem;color:var(--muted);margin-bottom:4px;">刪除單一學生成績</label>
-                <div style="display:flex;gap:6px;">
-                    <input id="del-student-name" type="text" placeholder="輸入學生姓名" style="width:140px;">
-                    <button id="btn-del-single" style="background:var(--danger);">刪除該生</button>
-                </div>
-            </div>
-            <button id="btn-del-all" style="background:var(--danger);">⚠️ 刪除全部成績</button>
-            <button id="btn-seed-teacher" style="background:var(--success);">🔄 回復測試教師資料</button>
-            <button id="btn-rebuild-ranking" style="background:#fbbf24;color:#000;">🏆 結算排行榜</button>
-            <button id="btn-clear-cache" style="background:var(--surface2);">🗑️ 清除本地快取</button>
-        </div>
-    </div>
-
     <!-- 紀錄明細（分頁） -->
     <div class="table-wrapper">
         <table>
@@ -179,6 +161,26 @@
         <div id="pagination" style="display:flex;justify-content:center;align-items:center;gap:10px;padding:16px;color:var(--muted);font-size:.9rem;">
         </div>
     </div>
+
+    <!-- 教師管理工具（摺疊） -->
+    <details style="margin-top:20px;">
+        <summary style="cursor:pointer;color:var(--muted);font-size:.9rem;padding:12px 0;user-select:none;">🔧 教師管理工具（需要密碼）</summary>
+        <div class="card" style="margin-top:8px;border:1px solid var(--danger);">
+            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">
+                <div>
+                    <label style="display:block;font-size:.8rem;color:var(--muted);margin-bottom:4px;">刪除單一學生成績</label>
+                    <div style="display:flex;gap:6px;">
+                        <input id="del-student-name" type="text" placeholder="輸入學生姓名" style="width:140px;">
+                        <button id="btn-del-single" style="background:var(--danger);">刪除該生</button>
+                    </div>
+                </div>
+                <button id="btn-del-all" style="background:var(--danger);">⚠️ 刪除全部成績</button>
+                <button id="btn-seed-teacher" style="background:var(--success);">🔄 回復測試教師資料</button>
+                <button id="btn-rebuild-ranking" style="background:#fbbf24;color:#000;">🏆 手動結算排行榜</button>
+                <button id="btn-clear-cache" style="background:var(--surface2);">🗑️ 清除本地快取</button>
+            </div>
+        </div>
+    </details>
 </div>
 
 <script src="js/users.js"></script>
@@ -191,11 +193,25 @@ let currentPage = 1;
 const PAGE_SIZE = 20;
 
 document.addEventListener('DOMContentLoaded', () => {
-    // 當按下刷新按鈕
-    document.getElementById('btn-refresh').addEventListener('click', () => {
+    // 當按下刷新按鈕：同時結算排行榜 + 刷新資料
+    document.getElementById('btn-refresh').addEventListener('click', async () => {
+        const btn = document.getElementById('btn-refresh');
+        btn.textContent = '結算+刷新中...'; btn.disabled = true;
+        try {
+            // 先結算排行榜（背景，不阻擋 UI）
+            const { getFunctions, httpsCallable } = await import("https://www.gstatic.com/firebasejs/10.9.0/firebase-functions.js");
+            const fn = getFunctions(undefined, "asia-east1");
+            const callable = httpsCallable(fn, "rebuildLeaderboard");
+            await callable({});
+            console.log("✅ 排行榜已結算");
+        } catch(e) {
+            console.warn("排行榜結算跳過:", e.message);
+        }
+        // 清除快取並刷新資料
         localStorage.removeItem('fb_cache_dashboard_teacher');
         localStorage.removeItem('fb_cache_overall_ranking_v2');
         _forceRefresh = true;
+        btn.textContent = '↻ 刷新資料'; btn.disabled = false;
         fetchData();
     });
     

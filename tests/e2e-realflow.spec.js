@@ -283,6 +283,8 @@ test.describe('教師操作', () => {
       }
     });
 
+    // 展開管理工具
+    await page.locator('details summary').click();
     await page.click('#btn-rebuild-ranking');
     await page.waitForTimeout(1000);
 
@@ -294,6 +296,8 @@ test.describe('教師操作', () => {
     await page.goto('/dashboard.html');
     await page.waitForTimeout(2500);
 
+    // 展開管理工具
+    await page.locator('details summary').click();
     await page.fill('#del-student-name', '測試名字');
 
     let promptSeen = false;

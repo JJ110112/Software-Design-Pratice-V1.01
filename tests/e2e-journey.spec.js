@@ -295,7 +295,8 @@ test.describe('教師完整旅程', () => {
     expect(dataLoaded, '刷新後 rawData 和 fullRankingData 應存在').toBe(true);
     assertNoFatalErrors(errors, 'T-Step3-刷新');
 
-    // ── Step 4: 教師管理工具區塊存在 ──
+    // ── Step 4: 教師管理工具區塊存在（摺疊中） ──
+    await page.locator('details summary').click();
     await expect(page.locator('#btn-del-single'), '刪除單一學生按鈕應存在').toBeVisible();
     await expect(page.locator('#btn-del-all'), '刪除全部按鈕應存在').toBeVisible();
     await expect(page.locator('#btn-seed-teacher'), '回復教師按鈕應存在').toBeVisible();
@@ -516,6 +517,8 @@ test.describe('Dashboard 資料驗證', () => {
 
     // 攔截 alert
     page.on('dialog', async d => await d.accept());
+    // 展開管理工具
+    await page.locator('details summary').click();
     await page.click('#btn-clear-cache');
     await page.waitForTimeout(500);
 
