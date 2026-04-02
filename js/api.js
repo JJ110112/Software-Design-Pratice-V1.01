@@ -347,7 +347,7 @@ window.getAllScoresForDashboard = async function (forceRefresh = false) {
             const snapshot = await getDocs(q);
             const results = [];
             snapshot.forEach(d => { const data = d.data(); data.id = d.id; results.push(data); });
-            const filtered = results.filter(r => r.className !== '測試用');
+            const filtered = results.filter(r => r.className !== '測試用' && !r.className.startsWith('測試'));
             filtered.sort((a, b) => (b.timestamp || '').localeCompare(a.timestamp || ''));
             cacheSet(sysCacheKey, filtered);
             console.log("儀表板即時載入完成:", filtered.length, "筆");
@@ -357,7 +357,7 @@ window.getAllScoresForDashboard = async function (forceRefresh = false) {
         // 一般載入：優先讀取預結算的 summary（1 次讀取）
         const summarySnap = await getDoc(doc(db, "summaries", "dashboard"));
         if (summarySnap.exists()) {
-            const data = summarySnap.data().records || [];
+            const data = (summarySnap.data().records || []).filter(r => !r.className.startsWith('測試'));
             cacheSet(sysCacheKey, data);
             console.log("儀表板載入完成（summary）:", data.length, "筆");
             return data;
@@ -556,15 +556,16 @@ window.getOverallRanking = async function (classFilter = "ALL", forceRefresh = f
     }
 };
 
-/** 排行榜班級篩選 */
+/** 排行榜班級篩選（永遠排除測試班級） */
 function _filterRanking(ranking, classFilter) {
-    if (classFilter === "ALL") return ranking;
-    return ranking.filter(r => r.className === classFilter);
+    const filtered = ranking.filter(r => !r.className.startsWith('測試'));
+    if (classFilter === "ALL") return filtered;
+    return filtered.filter(r => r.className === classFilter);
 }
 
 /** 從原始 scores 計算排名（結算 & 回退共用） */
 function _computeRanking(results) {
-    const filtered = results.filter(r => r.status === "PASS" && r.className !== '測試用');
+    const filtered = results.filter(r => r.status === "PASS" && !r.className.startsWith('測試'));
     const studentMap = {};
     filtered.forEach(r => {
         const key = `${r.className}_${r.userName}`;
