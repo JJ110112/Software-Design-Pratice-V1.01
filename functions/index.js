@@ -115,18 +115,18 @@ async function rebuildLeaderboard() {
 
   // 讀取名冊，只保留名冊上的學生（已從名冊刪除的學生不進排行榜）
   const rosterSnap = await db.doc("config/roster").get();
-  let rosterSet = null;
   if (rosterSnap.exists()) {
-    rosterSet = new Set();
     const rosterData = rosterSnap.data();
-    for (const cls in rosterData) {
-      if (Array.isArray(rosterData[cls])) {
-        rosterData[cls].forEach(s => rosterSet.add(`${cls}_${s.name}`));
+    const classes = rosterData.classes || rosterData;
+    const rosterSet = new Set();
+    for (const cls in classes) {
+      if (Array.isArray(classes[cls])) {
+        classes[cls].forEach(s => rosterSet.add(`${cls}_${s.name}`));
       }
     }
-  }
-  if (rosterSet) {
-    ranking = ranking.filter(r => rosterSet.has(`${r.className}_${r.userName}`));
+    if (rosterSet.size > 0) {
+      ranking = ranking.filter(r => rosterSet.has(`${r.className}_${r.userName}`));
+    }
   }
 
   // 批次寫入：先建立排行榜摘要 (濾除 bestLevelInfo 避免檔案過大)
