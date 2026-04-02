@@ -115,7 +115,7 @@ async function rebuildLeaderboard() {
 
   // 讀取名冊，只保留名冊上的學生（已從名冊刪除的學生不進排行榜）
   const rosterSnap = await db.doc("config/roster").get();
-  if (rosterSnap.exists()) {
+  if (rosterSnap.exists) {
     const rosterData = rosterSnap.data();
     const classes = rosterData.classes || rosterData;
     const rosterSet = new Set();
