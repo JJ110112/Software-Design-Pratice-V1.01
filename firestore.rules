@@ -24,6 +24,12 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // ── user_progress 集合：學生過關進度（由 Cloud Functions 寫入） ──
+    match /user_progress/{docId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
     // ── 其他集合：預設全部拒絕 ──
     match /{document=**} {
       allow read, write: if false;

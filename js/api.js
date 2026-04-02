@@ -482,8 +482,24 @@ window.getScoresForUser = async function (userName) {
         cacheSet(cacheKey, results);
         return mergeLocalScores(results, userName);
     } catch (e) {
-        console.error("讀取學生成績失敗（維持本地快取，保護連線）:", e);
-        return mergeLocalScores(cached || [], userName);
+        console.warn("user_progress 讀取失敗，改從 scores 集合撈取:", e.message);
+        // 防禦性回退：user_progress 無權限或異常時，改讀 scores 集合（有 read 權限）
+        try {
+            const q = query(collection(db, "scores"), where("userName", "==", userName), where("status", "==", "PASS"));
+            const snapshot = await getDocs(q);
+            let results = [];
+            snapshot.forEach(d => {
+                const data = d.data();
+                data.id = d.id;
+                data.gameMode = normalizeMode(data.gameMode);
+                results.push(data);
+            });
+            cacheSet(cacheKey, results);
+            return mergeLocalScores(results, userName);
+        } catch (e2) {
+            console.error("scores 集合也讀取失敗:", e2.message);
+            return mergeLocalScores(cached || [], userName);
+        }
     }
 };
 
