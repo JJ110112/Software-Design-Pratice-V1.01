@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
-import { getFirestore, collection, addDoc, query, where, orderBy, getDocs, limit, doc, setDoc, getDoc, deleteField, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, query, where, orderBy, getDocs, limit, doc, setDoc, getDoc, getDocFromServer, deleteField, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore.js";
 import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js";
 import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-functions.js";
 
@@ -109,6 +109,14 @@ window.syncOnLogout = function (userName) {
     localStorage.removeItem('fb_cache_dashboard_teacher');
     // ⚠️ 不清除 fb_cache_overall_ranking_v2（排行榜快取不可清除）
 };
+
+// 跨分頁資料更新偵測：dashboard 回復/刪除/結算後，其他分頁自動 forceRefresh
+window.addEventListener('storage', (e) => {
+    if (e.key === 'fb_data_updated' && e.newValue) {
+        console.log("📡 偵測到其他分頁資料更新，清除本地快取");
+        Object.keys(localStorage).filter(k => k.startsWith('fb_cache_')).forEach(k => localStorage.removeItem(k));
+    }
+});
 
 /**
  * 回到 map 頁面時：節流背景同步（每 10 分鐘最多一次）
@@ -396,7 +404,7 @@ function normalizeMode(mode) {
  * 取得特定使用者的所有紀錄
  * ✅ 改動：改用 localStorage 快取，TTL 30 分鐘
  */
-window.getScoresForUser = async function (userName) {
+window.getScoresForUser = async function (userName, forceRefresh = false) {
     // 取得當前班級，用組出文檔 ID
     let currentClass = document.getElementById('login-class')?.value;
     if (!currentClass) {
@@ -437,6 +445,12 @@ window.getScoresForUser = async function (userName) {
     }
 
     const cacheKey = `fb_cache_${userName}`;
+
+    // forceRefresh：清除本地快取，強制從 server 讀取（用於 seedTestTeacher 後）
+    if (forceRefresh) {
+        localStorage.removeItem(cacheKey);
+    }
+
     const cached = cacheGet(cacheKey);
 
     // 💡 背景同步：從 user_progress 更新快取，但保留本地尚未上傳的紀錄
@@ -467,7 +481,9 @@ window.getScoresForUser = async function (userName) {
     if (cached && cached.length > 0) return mergeLocalScores(cached, userName);
 
     try {
-        const docSnap = await getDoc(doc(db, "user_progress", `${className}__${userName}`));
+        // forceRefresh 時用 getDocFromServer 繞過 IndexedDB 離線快取
+        const readFn = forceRefresh ? getDocFromServer : getDoc;
+        const docSnap = await readFn(doc(db, "user_progress", `${className}__${userName}`));
         let results = [];
         if (docSnap.exists()) {
             const progress = docSnap.data();
@@ -816,17 +832,21 @@ window.addEventListener('DOMContentLoaded', () => {
         topBar.innerHTML = '<span class="level-top-bar-title">' + tStr + ' ' + modeName + '</span>';
 
         const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
-        if (user && typeof window.getUserStarStats === 'function') {
+
+        document.body.prepend(topBar);
+
+        // 星星徽章插入 game-toolbar（與工具按鈕同層，避免被遮蓋或手機隱藏）
+        const toolbar = document.querySelector('.game-toolbar');
+        if (toolbar) toolbar.style.top = '10px';
+
+        if (user && typeof window.getUserStarStats === 'function' && toolbar) {
             const starBadge = document.createElement('div');
             starBadge.id = 'top-bar-star-badge';
-            starBadge.style.cssText = 'background: rgba(0,0,0,0.3); padding: 4px 10px; border-radius: 20px; font-weight: bold; font-size: 0.8rem; color: #fbbf24; border: 1px solid rgba(251,191,36,0.3); z-index: 8500; white-space: nowrap; margin-left: auto; flex-shrink: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis;';
-            topBar.appendChild(starBadge);
-
-            const esc = window.escapeHTML || (s => s);
-            const nameSpan = `<span style="color:#fff;font-weight:800;">${esc(user.name)}</span>`;
+            starBadge.style.cssText = 'background: rgba(0,0,0,0.5); padding: 4px 10px; border-radius: 20px; font-weight: bold; font-size: 0.8rem; color: #fbbf24; border: 1px solid rgba(251,191,36,0.3); white-space: nowrap; display: flex; align-items: center; height: 44px; box-sizing: border-box;';
+            toolbar.insertBefore(starBadge, toolbar.firstChild);
 
             function renderBadge(stats) {
-                starBadge.innerHTML = `${nameSpan} ⭐${stats.currentStars}/${stats.totalPossibleStars}`;
+                starBadge.textContent = `⭐${stats.currentStars}/${stats.totalPossibleStars}`;
             }
 
             // 初始載入星星
@@ -839,11 +859,6 @@ window.addEventListener('DOMContentLoaded', () => {
                 }
             };
         }
-
-        document.body.prepend(topBar);
-
-        const toolbar = document.querySelector('.game-toolbar');
-        if (toolbar) toolbar.style.top = '10px';
 
         const gameSec = document.querySelector('.game-section');
         if (gameSec) {

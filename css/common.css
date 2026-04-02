@@ -253,13 +253,10 @@ body.stage-bg-5 { background: #211c08; }
     text-align: center;
   }
   .level-top-bar-title { margin: 0; }
-  /* 隱藏使用者/星星資訊 */
-  .level-top-bar [style*="margin-left: auto"] {
-    display: none !important;
-  }
   /* 工具列固定右上角，縮小 */
   .game-toolbar { top: 6px; right: 6px; gap: 3px; }
   .toolbar-btn { width: 30px; height: 30px; font-size: 0.85rem; border-radius: 6px; }
+  #top-bar-star-badge { font-size: 0.7rem !important; padding: 2px 7px !important; height: 30px !important; }
 
   /* 打字練習：關鍵字/單行模式輸入區縮小 */
   .prompt-box:not(.mode-full) {

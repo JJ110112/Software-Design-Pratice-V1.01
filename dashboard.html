@@ -227,6 +227,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const r = await window.deleteScores(pwd, 'single', name);
             localStorage.removeItem(`fb_cache_${name}`);
+            localStorage.setItem('fb_data_updated', Date.now().toString());
             alert(`✅ 已刪除 ${r.deleted} 筆成績`);
             document.getElementById('del-student-name').value = '';
             fetchData();
@@ -241,6 +242,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const r = await window.deleteScores(pwd, 'all');
             // 清除所有快取
             Object.keys(localStorage).filter(k => k.startsWith('fb_cache_') || k.startsWith('last_sync_')).forEach(k => localStorage.removeItem(k));
+            localStorage.setItem('fb_data_updated', Date.now().toString());
             alert(`✅ 已刪除全部 ${r.deleted} 筆成績`);
             fetchData();
         } catch(e) { alert('❌ ' + (e.message || '操作失敗')); }
@@ -254,8 +256,10 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const r1 = await window.seedTestTeacher(pwd, '測試老師');
             const r2 = await window.seedTestTeacher(pwd, '蔡明耀');
-            // 清除所有快取
+            // 清除所有快取（含 IndexedDB 信號），通知其他分頁
             Object.keys(localStorage).filter(k => k.startsWith('fb_cache_') || k.startsWith('last_sync_')).forEach(k => localStorage.removeItem(k));
+            // 寫入時戳信號，讓其他分頁偵測到資料已更新需要 forceRefresh
+            localStorage.setItem('fb_data_updated', Date.now().toString());
             alert(`✅ 完成！\n測試老師: ${r1.records} 筆\n蔡明耀: ${r2.records} 筆\n排行榜已自動結算`);
             fetchData();
         } catch(e) { alert('❌ ' + (e.message || '操作失敗')); }

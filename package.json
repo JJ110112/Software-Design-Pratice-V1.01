@@ -9,6 +9,7 @@
     "test:exam": "npx playwright test mock-exam",
     "test:headed": "npx playwright test --headed",
     "test:ui": "npx playwright test --ui",
+    "test:emulator": "npx firebase emulators:exec --only firestore,auth,functions,hosting \"npx playwright test tests/emulator-integration.spec.js\"",
     "serve": "npx serve -l 5500"
   },
   "repository": {

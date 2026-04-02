@@ -316,11 +316,7 @@ exports.saveScoreSecure = onCall(
     };
 
     try {
-      if (className === "測試用") {
-        const docRef = await db.collection("scores").add(record);
-        return { success: true, id: docRef.id };
-      }
-
+      // 測試用班級也走完整 transaction，確保 user_progress 即時更新
       let newDocId = null;
       await db.runTransaction(async (t) => {
         // 先取出該學生的專屬 user_progress 文件 (包含防刷保護)
