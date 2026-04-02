@@ -100,7 +100,7 @@
             <div class="stat-value" id="stat-students">0</div>
         </div>
         <div class="card">
-            <h3>最常遭遇困難的題目</h3>
+            <h3>平均耗時最久的題目</h3>
             <div class="stat-value" id="stat-hardest" style="font-size: 1.5rem; color: var(--danger); margin-top:10px;">計算中...</div>
         </div>
     </div>
@@ -350,25 +350,22 @@ function renderDashboard() {
     const uniqueStudents = new Set(data.map(d => `${d.className}_${d.userName}`));
     document.getElementById('stat-students').textContent = uniqueStudents.size;
 
-    // 分算最困難的題目 (平均耗時最久或是 FAIL 比例最高，這裡用 FAIL 計算)
-    const qFails = {};
+    // 找出平均耗時最久的題目（至少 3 人挑戰過才統計）
+    const qTime = {};
     data.forEach(d => {
-        if (!qFails[d.qID]) qFails[d.qID] = { total: 0, fail: 0 };
-        qFails[d.qID].total++;
-        if (d.status === 'FAIL') qFails[d.qID].fail++;
+        if (d.status !== 'PASS' || !d.timeSpent) return;
+        if (!qTime[d.qID]) qTime[d.qID] = { total: 0, count: 0 };
+        qTime[d.qID].total += Number(d.timeSpent);
+        qTime[d.qID].count++;
     });
-    let hardestQ = "無資料";
-    let highestFailRate = -1;
-    for (const [q, stats] of Object.entries(qFails)) {
-        if (stats.total > 2) { // 至少超過兩次挑戰才統計
-            const rate = stats.fail / stats.total;
-            if (rate > highestFailRate) {
-                highestFailRate = rate;
-                hardestQ = q;
-            }
+    let slowestQ = "無資料", longestAvg = 0;
+    for (const [q, s] of Object.entries(qTime)) {
+        if (s.count >= 3) {
+            const avg = s.total / s.count;
+            if (avg > longestAvg) { longestAvg = avg; slowestQ = q; }
         }
     }
-    document.getElementById('stat-hardest').textContent = highestFailRate > 0 ? `${hardestQ} (${Math.round(highestFailRate*100)}% 失敗率)` : "目前無特別困難";
+    document.getElementById('stat-hardest').textContent = longestAvg > 0 ? `${slowestQ} (平均 ${Math.round(longestAvg)}秒)` : "資料不足";
 
     // ========== 學生練習狀況 ==========
     buildStudentStatus(data);

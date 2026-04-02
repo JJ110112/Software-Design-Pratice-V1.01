@@ -535,12 +535,8 @@ window.getOverallRanking = async function (classFilter = "ALL", forceRefresh = f
             return _filterRanking(ranking, classFilter);
         }
 
-        if (forceRefresh) {
-            console.log("🔄 教師刷新：即時計算排行榜...");
-            return await _fallbackLiveRanking(classFilter);
-        }
-
         // 讀取單一 summary document（1 次讀取）
+        // forceRefresh 時也讀 summaries（剛結算完的正確資料），不走 limit(500) fallback
         const summaryRef = doc(db, "summaries", "leaderboard");
         const summarySnap = await getDoc(summaryRef);
 
