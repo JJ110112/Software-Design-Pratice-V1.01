@@ -82,7 +82,7 @@ async function rebuildLeaderboard() {
   allSnapshot.forEach((doc) => allResults.push(doc.data()));
 
   const passResults = allResults.filter((r) => r.status === "PASS");
-  const ranking = computeRanking(passResults);
+  let ranking = computeRanking(passResults);
 
   // 從全部紀錄（含 FAIL）統計每位學生的挑戰次數與最後活躍時間
   const activityMap = {};
@@ -112,6 +112,22 @@ async function rebuildLeaderboard() {
     .filter((r) => !r.className.startsWith("測試") && !(r.qID || "").startsWith("E2E_") && r.qID !== "TEST_E2E")
     .sort((a, b) => (b.timestamp || "").localeCompare(a.timestamp || ""))
     .slice(0, 500);
+
+  // 讀取名冊，只保留名冊上的學生（已從名冊刪除的學生不進排行榜）
+  const rosterSnap = await db.doc("config/roster").get();
+  let rosterSet = null;
+  if (rosterSnap.exists()) {
+    rosterSet = new Set();
+    const rosterData = rosterSnap.data();
+    for (const cls in rosterData) {
+      if (Array.isArray(rosterData[cls])) {
+        rosterData[cls].forEach(s => rosterSet.add(`${cls}_${s.name}`));
+      }
+    }
+  }
+  if (rosterSet) {
+    ranking = ranking.filter(r => rosterSet.has(`${r.className}_${r.userName}`));
+  }
 
   // 批次寫入：先建立排行榜摘要 (濾除 bestLevelInfo 避免檔案過大)
   const leaderboardRanking = ranking.map(r => ({
