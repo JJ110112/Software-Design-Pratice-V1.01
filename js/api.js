@@ -121,6 +121,7 @@ window.addEventListener('storage', (e) => {
 /**
  * 回到 map 頁面時：節流背景同步（每 10 分鐘最多一次）
  * 快取有效時直接用快取，不額外查 Firestore
+ * ✅ 改用 user_progress (O(1))，不再全撈 scores 集合
  */
 window.syncOnMapLoad = async function (userName) {
     if (!db || !userName) return;
@@ -131,17 +132,30 @@ window.syncOnMapLoad = async function (userName) {
     const cacheKey = `fb_cache_${userName}`;
     if (cacheGet(cacheKey)) return;
 
-    // 快取不存在或已過期，才從 Firestore 拉一次
+    // 快取不存在或已過期，讀 user_progress（O(1)，不讀 scores 集合）
     try {
-        const q = query(collection(db, "scores"), where("userName", "==", userName));
-        const snapshot = await getDocs(q);
+        let currentClass = null;
+        try {
+            let raw = sessionStorage.getItem('sw_quiz_user');
+            if (!raw) raw = localStorage.getItem('sw_quiz_user');
+            const userObj = raw ? JSON.parse(raw) : null;
+            currentClass = userObj ? userObj.className : null;
+        } catch(_) {}
+
+        if (!currentClass) return; // 無班級資訊，跳過
+
+        const docSnap = await getDoc(doc(db, "user_progress", `${currentClass}__${userName}`));
         const results = [];
-        snapshot.forEach(d => {
-            const data = d.data();
-            data.id = d.id;
-            data.gameMode = normalizeMode(data.gameMode);
-            results.push(data);
-        });
+        if (docSnap.exists()) {
+            const progress = docSnap.data();
+            for (const key in progress.bestLevelInfo) {
+                const sepIdx = key.lastIndexOf('_');
+                const qID = key.substring(0, sepIdx);
+                const gameMode = key.substring(sepIdx + 1);
+                const info = progress.bestLevelInfo[key];
+                results.push({ qID, gameMode: normalizeMode(gameMode), stars: info.stars, timeSpent: info.timeSpent, status: 'PASS' });
+            }
+        }
         cacheSet(cacheKey, results);
     } catch (e) {
         console.error("背景同步失敗:", e);

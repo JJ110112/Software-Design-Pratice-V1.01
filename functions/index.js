@@ -8,6 +8,10 @@ const db = admin.firestore();
 // 記憶體層級防連刷（不耗 DB 讀取，Cloud Function 實例回收時自動清除）
 const _lastSaveByUid = {};
 
+// rebuildLeaderboard 冷卻計時（記憶體層級，防止短時間內多次全表掃描）
+let _lastRebuildAt = 0;
+const REBUILD_COOLDOWN_MS = 5 * 60 * 1000; // 5 分鐘
+
 /**
  * 從全部 scores 計算排行榜
  */
@@ -233,7 +237,19 @@ exports.dailyLeaderboardRebuild = onSchedule(
 exports.rebuildLeaderboard = onCall(
   { region: "asia-east1", cors: true },
   async (request) => {
+    // 冷卻保護：5 分鐘內不重複全表掃描
+    const now = Date.now();
+    if (now - _lastRebuildAt < REBUILD_COOLDOWN_MS) {
+      const remainSec = Math.ceil((REBUILD_COOLDOWN_MS - (now - _lastRebuildAt)) / 1000);
+      console.log(`⏳ rebuildLeaderboard 冷卻中，剩餘 ${remainSec} 秒`);
+      return {
+        success: true,
+        message: `排行榜結算冷卻中（${remainSec} 秒後可再次結算）`,
+        skipped: true,
+      };
+    }
     try {
+      _lastRebuildAt = now;
       const result = await rebuildLeaderboard();
       return {
         success: true,
@@ -241,6 +257,7 @@ exports.rebuildLeaderboard = onCall(
         ...result,
       };
     } catch (e) {
+      _lastRebuildAt = 0; // 失敗時重置，允許立即重試
       console.error("結算失敗:", e);
       throw new HttpsError("internal", e.message);
     }
@@ -592,6 +609,21 @@ exports.seedTestTeacher = onCall(
     }
 
     const name = teacherName || "測試老師";
+
+    // 先清除此測試教師的舊紀錄，避免每次呼叫累積 304 筆
+    const oldSnap = await db.collection("scores")
+      .where("className", "==", "測試用")
+      .where("userName", "==", name)
+      .get();
+    if (!oldSnap.empty) {
+      for (let i = 0; i < oldSnap.docs.length; i += 500) {
+        const delBatch = db.batch();
+        oldSnap.docs.slice(i, i + 500).forEach((d) => delBatch.delete(d.ref));
+        await delBatch.commit();
+      }
+      console.log(`🧹 已清除舊測試資料: ${oldSnap.docs.length} 筆`);
+    }
+
     const gameModes = [
       "連連看", "記憶翻牌遊戲", "中英選擇題",
       "程式碼朗讀練習", "一行程式碼翻譯", "錯誤找找看",
