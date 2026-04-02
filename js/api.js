@@ -21,7 +21,7 @@ if (firebaseConfig.apiKey && firebaseConfig.apiKey !== "YOUR_API_KEY_HERE") {
     try {
         app = initializeApp(firebaseConfig);
         db = getFirestore(app);
-        
+
         // 啟用離線持久化
         enableIndexedDbPersistence(db).catch((err) => {
             if (err.code == 'failed-precondition') {
