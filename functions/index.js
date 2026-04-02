@@ -4,6 +4,7 @@ const admin = require("firebase-admin");
 
 admin.initializeApp();
 const db = admin.firestore();
+const FieldValue = admin.firestore.FieldValue;
 
 // 記憶體層級防連刷（不耗 DB 讀取，Cloud Function 實例回收時自動清除）
 const _lastSaveByUid = {};
@@ -196,6 +197,37 @@ async function rebuildLeaderboard() {
     }
   }
 
+  // [Plan A] 4. 寫入 leaderboard_entries（每學生獨立文件，供前端直接查詢）
+  ranking.forEach((r) => {
+    const docId = `${r.className}__${r.userName}`;
+    allWrites.push({ ref: db.doc(`leaderboard_entries/${docId}`), data: {
+      className: r.className,
+      userName: r.userName,
+      stars: r.stars,
+      uniqueClears: r.uniqueClears,
+      totalBestTime: r.totalBestTime,
+      totalAttempts: r.totalAttempts || 0,
+      lastActive: r.lastActive || ""
+    }});
+  });
+  for (const key in activityMap) {
+    if (!rankingKeySet.has(key)) {
+      const activity = activityMap[key];
+      const sample = allResults.find(r => `${r.className}_${r.userName}` === key);
+      if (sample) {
+        allWrites.push({ ref: db.doc(`leaderboard_entries/${sample.className}__${sample.userName}`), data: {
+          className: sample.className,
+          userName: sample.userName,
+          stars: 0,
+          uniqueClears: 0,
+          totalBestTime: 0,
+          totalAttempts: activity.totalAttempts,
+          lastActive: activity.lastActive,
+        }});
+      }
+    }
+  }
+
   // 分批寫入（每批最多 500 操作）
   for (let i = 0; i < allWrites.length; i += 500) {
     const batch = db.batch();
@@ -207,6 +239,29 @@ async function rebuildLeaderboard() {
       }
     });
     await batch.commit();
+  }
+
+  // [Plan B] 5. 重建 dashboard_records 集合（刪舊 → 寫新，idempotent）
+  const oldDashSnap = await db.collection("dashboard_records").get();
+  if (!oldDashSnap.empty) {
+    for (let i = 0; i < oldDashSnap.docs.length; i += 500) {
+      const delBatch = db.batch();
+      oldDashSnap.docs.slice(i, i + 500).forEach(d => delBatch.delete(d.ref));
+      await delBatch.commit();
+    }
+  }
+  for (let i = 0; i < dashData.length; i += 500) {
+    const dashBatch = db.batch();
+    dashData.slice(i, i + 500).forEach(record => {
+      const ref = db.collection("dashboard_records").doc();
+      // [Plan C] 將 string timestamp 轉為原生 Timestamp，讓前端可用 orderBy("createdAt")
+      const tsDate = record.timestamp ? new Date(record.timestamp) : new Date();
+      dashBatch.set(ref, {
+        ...record,
+        createdAt: admin.firestore.Timestamp.fromDate(tsDate),
+      });
+    });
+    await dashBatch.commit();
   }
 
   return { studentCount: ranking.length, totalRecords: allResults.length, dashboardRecords: dashData.length };
@@ -333,10 +388,16 @@ exports.saveScoreSecure = onCall(
     };
 
     try {
+      // [Plan C] dbRecord = record + serverTimestamp（供 Firestore 原生排序用，不傳回前端）
+      const dbRecord = {
+        ...record,
+        createdAt: FieldValue.serverTimestamp(),
+      };
+
       // 測試用班級也走完整 transaction，確保 user_progress 即時更新
       let newDocId = null;
       await db.runTransaction(async (t) => {
-        // 先取出該學生的專屬 user_progress 文件 (包含防刷保護)
+        // ── 唯一的 Read：user_progress（防刷 + bestLevelInfo）──
         const userProgressRef = db.doc(`user_progress/${className}__${userName}`);
         const userProgressDoc = await t.get(userProgressRef);
 
@@ -352,114 +413,73 @@ exports.saveScoreSecure = onCall(
           }
         }
 
-        const dashRef = db.doc("summaries/dashboard");
-        const lbRef = db.doc("summaries/leaderboard");
-        
-        const [dashDoc, lbDoc] = await Promise.all([
-          t.get(dashRef),
-          t.get(lbRef)
-        ]);
+        // ── 建立 userRankingInfo（邏輯不變）──
+        let userRankingInfo = {
+          className,
+          userName,
+          stars: 0,
+          uniqueClears: 0,
+          totalBestTime: 0,
+          totalAttempts: 0,
+          lastActive: record.timestamp,
+          bestLevelInfo: {}
+        };
 
-        // 1. 將成績寫入 scores 集合 (納入 Transaction 確保防刷時不會製造垃圾)
+        if (userProgressDoc.exists) {
+          userRankingInfo = { ...userRankingInfo, ...userProgressDoc.data() };
+        }
+
+        userRankingInfo.totalAttempts++;
+        if ((record.timestamp || "") > userRankingInfo.lastActive) {
+          userRankingInfo.lastActive = record.timestamp;
+        }
+
+        if (status === "PASS") {
+          const levelKey = `${qID}_${gameMode}`;
+          const currentStars = record.stars;
+          const currentTime = record.timeSpent;
+          const best = userRankingInfo.bestLevelInfo[levelKey];
+
+          if (!best || currentStars > best.stars || (currentStars === best.stars && currentTime < best.timeSpent)) {
+            userRankingInfo.bestLevelInfo[levelKey] = { stars: currentStars, timeSpent: currentTime };
+          }
+
+          let totalStars = 0, totalBestTime = 0, uniqueClears = 0;
+          for (const k in userRankingInfo.bestLevelInfo) {
+            totalStars += userRankingInfo.bestLevelInfo[k].stars;
+            totalBestTime += userRankingInfo.bestLevelInfo[k].timeSpent;
+            uniqueClears++;
+          }
+          userRankingInfo.stars = totalStars;
+          userRankingInfo.uniqueClears = uniqueClears;
+          userRankingInfo.totalBestTime = totalBestTime;
+        }
+
+        // ── Writes（共 4 筆，無共享文件競爭）──
+
+        // Write 1: scores 集合（含 serverTimestamp，防刷時不製造垃圾）
         const newScoreRef = db.collection("scores").doc();
-        t.set(newScoreRef, record);
+        t.set(newScoreRef, dbRecord);
         newDocId = newScoreRef.id;
 
-        // 2. 更新 Dashboard (保留最新 500 筆)
-        if (dashDoc.exists) {
-          const dashData = dashDoc.data();
-          let records = dashData.records || [];
-          records.unshift(record); // 插到最前面
-          if (records.length > 500) records = records.slice(0, 500);
-          t.update(dashRef, {
-            records,
-            updatedAt: new Date().toISOString(),
-            totalRecords: (dashData.totalRecords || 0) + 1
-          });
-        }
+        // [Plan B] Write 2: dashboard_records（直接 append，不需讀任何文件）
+        const dashRecordRef = db.collection("dashboard_records").doc();
+        t.set(dashRecordRef, dbRecord);
 
-        // 3. 更新 Leaderboard 與 UserProgress (極致效能，不再遍歷 scores)
-        if (lbDoc.exists) {
-          const lbData = lbDoc.data();
-          let ranking = lbData.ranking || [];
+        // Write 3: user_progress（O(1) 更新，不變）
+        t.set(userProgressRef, userRankingInfo);
 
-          let userRankingInfo = {
-            className,
-            userName,
-            stars: 0,
-            uniqueClears: 0,
-            totalBestTime: 0,
-            totalAttempts: 0,
-            lastActive: record.timestamp,
-            bestLevelInfo: {}
-          };
-
-          if (userProgressDoc.exists) {
-            userRankingInfo = { ...userRankingInfo, ...userProgressDoc.data() };
-          }
-
-          userRankingInfo.totalAttempts++;
-          if ((record.timestamp || "") > userRankingInfo.lastActive) {
-            userRankingInfo.lastActive = record.timestamp;
-          }
-
-          if (status === "PASS") {
-            const levelKey = `${qID}_${gameMode}`;
-            const currentStars = record.stars;
-            const currentTime = record.timeSpent;
-            const best = userRankingInfo.bestLevelInfo[levelKey];
-
-            if (!best || currentStars > best.stars || (currentStars === best.stars && currentTime < best.timeSpent)) {
-              userRankingInfo.bestLevelInfo[levelKey] = { stars: currentStars, timeSpent: currentTime };
-            }
-
-            // 重新結算總星數等
-            let totalStars = 0, totalBestTime = 0, uniqueClears = 0;
-            for (const k in userRankingInfo.bestLevelInfo) {
-              totalStars += userRankingInfo.bestLevelInfo[k].stars;
-              totalBestTime += userRankingInfo.bestLevelInfo[k].timeSpent;
-              uniqueClears++;
-            }
-            userRankingInfo.stars = totalStars;
-            userRankingInfo.uniqueClears = uniqueClears;
-            userRankingInfo.totalBestTime = totalBestTime;
-          }
-
-          // 寫回 user_progress (極速 O(1) 更新)
-          t.set(userProgressRef, userRankingInfo);
-
-          // 找到該學生在排行榜中的位置並更新
-          const studentIdx = ranking.findIndex(r => r.className === className && r.userName === userName);
-
-          const strippedRankInfo = {
-            className: userRankingInfo.className,
-            userName: userRankingInfo.userName,
-            stars: userRankingInfo.stars,
-            uniqueClears: userRankingInfo.uniqueClears,
-            totalBestTime: userRankingInfo.totalBestTime,
-            totalAttempts: userRankingInfo.totalAttempts,
-            lastActive: userRankingInfo.lastActive
-          };
-
-          if (studentIdx >= 0) {
-            ranking[studentIdx] = strippedRankInfo;
-          } else {
-            ranking.push(strippedRankInfo);
-          }
-
-          // 重新排序整個排行榜
-          ranking.sort((a, b) => {
-            if (b.stars !== a.stars) return b.stars - a.stars;
-            if (a.totalBestTime !== b.totalBestTime) return a.totalBestTime - b.totalBestTime;
-            return b.uniqueClears - a.uniqueClears;
-          });
-
-          t.update(lbRef, {
-            ranking,
-            updatedAt: new Date().toISOString(),
-            totalRecords: (lbData.totalRecords || 0) + 1
-          });
-        }
+        // [Plan A] Write 4: leaderboard_entries（每學生獨立文件，消除所有人搶同一份文件）
+        const leaderboardEntryRef = db.doc(`leaderboard_entries/${className}__${userName}`);
+        t.set(leaderboardEntryRef, {
+          className: userRankingInfo.className,
+          userName: userRankingInfo.userName,
+          stars: userRankingInfo.stars,
+          uniqueClears: userRankingInfo.uniqueClears,
+          totalBestTime: userRankingInfo.totalBestTime,
+          totalAttempts: userRankingInfo.totalAttempts,
+          lastActive: userRankingInfo.lastActive,
+        });
       });
       return { success: true, id: newDocId };
     } catch (e) {

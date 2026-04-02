@@ -363,7 +363,7 @@ window.getAllScoresForDashboard = async function (forceRefresh = false) {
 
     try {
         if (forceRefresh) {
-            // 教師刷新：直接查詢 Firestore 最新 500 筆
+            // 教師刷新：直接查詢 scores（source of truth），確保最新
             console.log("🔄 教師刷新：即時查詢 Firestore scores...");
             const q = query(collection(db, "scores"), limit(500));
             const snapshot = await getDocs(q);
@@ -376,16 +376,38 @@ window.getAllScoresForDashboard = async function (forceRefresh = false) {
             return filtered;
         }
 
-        // 一般載入：優先讀取預結算的 summary（1 次讀取）
+        // [Plan B] 優先：dashboard_records 集合（每筆獨立文件，orderBy createdAt）
+        try {
+            const dashSnap = await getDocs(
+                query(collection(db, "dashboard_records"), orderBy("createdAt", "desc"), limit(500))
+            );
+            if (!dashSnap.empty) {
+                const results = [];
+                dashSnap.forEach(d => {
+                    const data = d.data();
+                    data.id = d.id;
+                    delete data.createdAt; // 移除 Timestamp 物件，避免 JSON.stringify 失敗
+                    results.push(data);
+                });
+                const filtered = results.filter(r => !r.className.startsWith('測試'));
+                cacheSet(sysCacheKey, filtered);
+                console.log("儀表板載入完成（dashboard_records）:", filtered.length, "筆");
+                return filtered;
+            }
+        } catch(e) {
+            console.warn("⚠️ dashboard_records 讀取失敗，回退 summaries/dashboard:", e.message);
+        }
+
+        // Fallback：summaries/dashboard（舊格式，rebuildLeaderboard 前或降級用）
         const summarySnap = await getDoc(doc(db, "summaries", "dashboard"));
         if (summarySnap.exists()) {
             const data = (summarySnap.data().records || []).filter(r => !r.className.startsWith('測試'));
             cacheSet(sysCacheKey, data);
-            console.log("儀表板載入完成（summary）:", data.length, "筆");
+            console.log("儀表板載入完成（summaries/dashboard fallback）:", data.length, "筆");
             return data;
         }
 
-        // 回退：限量讀取最近 200 筆（避免全表掃描）
+        // 最終回退：限量讀取 scores（避免全表掃描）
         console.warn("⚠️ summaries/dashboard 不存在，回退到限量查詢");
         const q = query(collection(db, "scores"), limit(200));
         const snapshot = await getDocs(q);
@@ -394,7 +416,7 @@ window.getAllScoresForDashboard = async function (forceRefresh = false) {
         const filtered = results.filter(r => r.className !== '測試用');
         filtered.sort((a, b) => (b.timestamp || '').localeCompare(a.timestamp || ''));
         cacheSet(sysCacheKey, filtered);
-        console.log("儀表板載入完成（回退）:", filtered.length, "筆");
+        console.log("儀表板載入完成（最終回退）:", filtered.length, "筆");
         return filtered;
     } catch (e) {
         console.error("載入儀表板資料失敗:", e.code, e.message, e);
@@ -565,8 +587,22 @@ window.getOverallRanking = async function (classFilter = "ALL", forceRefresh = f
             return _filterRanking(ranking, classFilter);
         }
 
-        // 讀取單一 summary document（1 次讀取）
-        // forceRefresh 時也讀 summaries（剛結算完的正確資料），不走 limit(500) fallback
+        // [Plan A] 優先：leaderboard_entries 集合（每學生獨立文件，無寫入競爭）
+        try {
+            const entriesSnap = await getDocs(
+                query(collection(db, "leaderboard_entries"), orderBy("stars", "desc"), limit(300))
+            );
+            if (!entriesSnap.empty) {
+                const ranking = [];
+                entriesSnap.forEach(d => ranking.push(d.data()));
+                try { localStorage.setItem(sysCacheKey, JSON.stringify({ time: Date.now(), data: ranking })); } catch(e) {}
+                return _filterRanking(ranking, classFilter);
+            }
+        } catch(e) {
+            console.warn("⚠️ leaderboard_entries 讀取失敗，回退 summaries/leaderboard:", e.message);
+        }
+
+        // Fallback：summaries/leaderboard（舊格式，rebuildLeaderboard 前或降級用）
         const summaryRef = doc(db, "summaries", "leaderboard");
         const summarySnap = await getDoc(summaryRef);
 
@@ -577,7 +613,7 @@ window.getOverallRanking = async function (classFilter = "ALL", forceRefresh = f
             return _filterRanking(ranking, classFilter);
         }
 
-        // summary 不存在（尚未結算過）：回退到即時計算
+        // summary 也不存在（尚未結算過）：回退到即時計算
         console.warn("⚠️ leaderboard_summary 尚未建立，使用即時計算");
         return await _fallbackLiveRanking(classFilter);
     } catch (e) {

@@ -30,6 +30,18 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // ── leaderboard_entries 集合：每學生獨立排行榜文件（Plan A）──
+    match /leaderboard_entries/{docId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // ── dashboard_records 集合：每筆成績獨立文件（Plan B）──
+    match /dashboard_records/{docId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
     // ── 其他集合：預設全部拒絕 ──
     match /{document=**} {
       allow read, write: if false;
