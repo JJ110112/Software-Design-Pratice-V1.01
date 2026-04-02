@@ -13,7 +13,7 @@ const _lastSaveByUid = {};
  */
 function computeRanking(results) {
   const filtered = results.filter(
-    (r) => r.status === "PASS" && !r.className.startsWith("測試") && !(r.qID || "").startsWith("E2E_") && r.qID !== "TEST_E2E"
+    (r) => r.status === "PASS" && !(r.qID || "").startsWith("E2E_") && r.qID !== "TEST_E2E"
   );
 
   const studentMap = {};
