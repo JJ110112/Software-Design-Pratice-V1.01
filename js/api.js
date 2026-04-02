@@ -873,8 +873,6 @@ window.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        // 工具列高度對齊 top bar
-        const toolbar = document.querySelector('.game-toolbar');
-        if (toolbar) toolbar.style.top = '6px';
+        // 工具列位置由 CSS 控制，不用 inline style 覆蓋
     }
 });

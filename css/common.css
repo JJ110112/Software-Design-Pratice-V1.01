@@ -101,7 +101,8 @@ h1 { font-size: clamp(1.5rem, 5vw, 2.6rem); font-weight: 900; letter-spacing: -.
 /* ═══ GAME TOP TOOLBAR ═══ */
 .game-toolbar {
   position: fixed;
-  top: 16px; right: 16px;
+  /* top bar height:48px, button height:44px → (48-44)/2 = 2px 垂直置中 */
+  top: 2px; right: 16px;
   display: flex;
   gap: 8px;
   z-index: 9000;
