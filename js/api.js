@@ -220,6 +220,9 @@ window.saveScore = async function (className, userName, qID, gameMode, timeSpent
     // ── Step 1: 樂觀更新 ── 立即寫入本地快取（不等 CF）
     cacheAppend(cacheKey, newRecord);
 
+    // ── Step 1b: 即時刷新 top bar 星星（樂觀更新後立即反映）
+    if (typeof window.refreshStarBadge === 'function') window.refreshStarBadge();
+
     // ── Step 2: 寫入 local_scores 備份（CF 失敗時保底）
     try {
         let localScores = JSON.parse(localStorage.getItem('local_scores') || '[]');
@@ -798,14 +801,27 @@ window.addEventListener('DOMContentLoaded', () => {
 
         const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
         if (user && typeof window.getUserStarStats === 'function') {
+            const starBadge = document.createElement('div');
+            starBadge.id = 'top-bar-star-badge';
+            starBadge.style.cssText = 'background: rgba(0,0,0,0.3); padding: 4px 12px; border-radius: 20px; font-weight: bold; font-size: 0.85rem; color: #fbbf24; border: 1px solid rgba(251,191,36,0.3); z-index: 8500; white-space: nowrap; margin-left: auto; margin-right: clamp(170px, 15vw, 210px); flex-shrink: 0;';
+            topBar.appendChild(starBadge);
+
+            const esc = window.escapeHTML || (s => s);
+            const userInfoSpan = `<span style="color: #e2e8f0; font-weight: normal; margin-right: 10px;">${esc(user.className) || ''} <span style="font-weight: 800; color: #fff;">${esc(user.name)}</span></span>`;
+
+            // 初始載入星星
             window.getUserStarStats(user.name).then(stats => {
-                const starBadge = document.createElement('div');
-                starBadge.style.cssText = 'background: rgba(0,0,0,0.3); padding: 4px 12px; border-radius: 20px; font-weight: bold; font-size: 0.85rem; color: #fbbf24; border: 1px solid rgba(251,191,36,0.3); z-index: 8500; white-space: nowrap; margin-left: auto; margin-right: clamp(170px, 15vw, 210px); flex-shrink: 0;';
-                const esc = window.escapeHTML || (s => s);
-                const userInfoSpan = `<span style="color: #e2e8f0; font-weight: normal; margin-right: 10px;">${esc(user.className) || ''} <span style="font-weight: 800; color: #fff;">${esc(user.name)}</span></span>`;
                 starBadge.innerHTML = `${userInfoSpan}⭐ ${stats.currentStars} / ${stats.totalPossibleStars}`;
-                topBar.appendChild(starBadge);
             });
+
+            // 全域刷新函式：過關後呼叫以即時更新 top bar 星星
+            window.refreshStarBadge = function () {
+                if (typeof window.getUserStarStats === 'function' && user) {
+                    window.getUserStarStats(user.name).then(stats => {
+                        starBadge.innerHTML = `${userInfoSpan}⭐ ${stats.currentStars} / ${stats.totalPossibleStars}`;
+                    });
+                }
+            };
         }
 
         document.body.prepend(topBar);
