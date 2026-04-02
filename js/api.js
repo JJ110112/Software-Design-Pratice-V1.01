@@ -433,12 +433,12 @@ window.getScoresForUser = async function (userName) {
     const cacheKey = `fb_cache_${userName}`;
     const cached = cacheGet(cacheKey);
 
-    // 💡 0 秒載入：如果本地有資料，先向調用者返回，同時在背景更新
-    if (db) {
+    // 💡 背景同步：從 user_progress 更新快取，但保留本地尚未上傳的紀錄
+    if (db && !cached) {
+        // 只在沒有快取時才背景同步，避免覆蓋剛存的樂觀更新
         setTimeout(async () => {
             if (window.location.search.includes('dev=1')) return;
             try {
-                // O(1) 極速抓取單一扁平化進度檔
                 const docSnap = await getDoc(doc(db, "user_progress", `${className}__${userName}`));
                 let results = [];
                 if (docSnap.exists()) {
@@ -451,6 +451,8 @@ window.getScoresForUser = async function (userName) {
                         results.push({ qID, gameMode: normalizeMode(gameMode), stars: info.stars, timeSpent: info.timeSpent, status: 'PASS' });
                     }
                 }
+                // merge local_scores 以保留尚未上傳的紀錄
+                results = mergeLocalScores(results, userName);
                 cacheSet(cacheKey, results);
             } catch(e) { console.warn("背景同步更新 Firebase 失敗:", e.message); }
         }, 50);
