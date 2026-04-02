@@ -828,31 +828,28 @@ window.addEventListener('DOMContentLoaded', () => {
         const tID = urlParams.get('t') || '';
         const topBar = document.createElement('div');
         topBar.className = 'level-top-bar stage-bar-' + stage;
-        let tStr = qID === 'SETUP' ? 'Form1_Load(表單載入)' : (qID + ' ' + qTitle + (tID ? '(' + tID + ')' : ''));
-        topBar.innerHTML = '<span class="level-top-bar-title">' + tStr + ' ' + modeName + '</span>';
+
+        // 標題（次要）：彈性填滿，超出時跑馬燈
+        const titleSpan = document.createElement('span');
+        titleSpan.className = 'level-top-bar-title';
+        const titleText = qID === 'SETUP' ? 'Form1_Load(表單載入)' : (qID + ' ' + qTitle + (tID ? '(' + tID + ')' : ''));
+        titleSpan.textContent = titleText + ' ' + modeName;
+        topBar.appendChild(titleSpan);
 
         const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
 
-        document.body.prepend(topBar);
-
-        // 星星徽章插入 game-toolbar（與工具按鈕同層，避免被遮蓋或手機隱藏）
-        const toolbar = document.querySelector('.game-toolbar');
-        if (toolbar) toolbar.style.top = '10px';
-
-        if (user && typeof window.getUserStarStats === 'function' && toolbar) {
-            const starBadge = document.createElement('div');
+        // 星星徽章（最重要）：永遠在 top bar 右側，flex-shrink:0 不被壓縮
+        let starBadge = null;
+        if (user && typeof window.getUserStarStats === 'function') {
+            starBadge = document.createElement('div');
             starBadge.id = 'top-bar-star-badge';
-            starBadge.style.cssText = 'background: rgba(0,0,0,0.5); padding: 4px 10px; border-radius: 20px; font-weight: bold; font-size: 0.8rem; color: #fbbf24; border: 1px solid rgba(251,191,36,0.3); white-space: nowrap; display: flex; align-items: center; height: 44px; box-sizing: border-box;';
-            toolbar.insertBefore(starBadge, toolbar.firstChild);
+            topBar.appendChild(starBadge);
 
             function renderBadge(stats) {
                 starBadge.textContent = `⭐${stats.currentStars}/${stats.totalPossibleStars}`;
             }
-
-            // 初始載入星星
             window.getUserStarStats(user.name).then(renderBadge);
 
-            // 全域刷新函式：過關後呼叫以即時更新 top bar 星星
             window.refreshStarBadge = function () {
                 if (typeof window.getUserStarStats === 'function' && user) {
                     window.getUserStarStats(user.name).then(renderBadge);
@@ -860,11 +857,24 @@ window.addEventListener('DOMContentLoaded', () => {
             };
         }
 
-        const gameSec = document.querySelector('.game-section');
-        if (gameSec) {
-            gameSec.style.marginTop = '85px';
-        } else {
-            document.body.style.paddingTop = '95px';
-        }
+        document.body.prepend(topBar);
+
+        // 跑馬燈：標題超出可用寬度時啟動
+        requestAnimationFrame(() => {
+            if (titleSpan.scrollWidth > titleSpan.clientWidth + 2) {
+                const txt = titleSpan.textContent;
+                // 複製一份文字，讓動畫無縫循環
+                titleSpan.innerHTML =
+                    `<span class="marquee-inner">${txt}&nbsp;&nbsp;&nbsp;&nbsp;${txt}</span>`;
+                // 速度：以 scrollWidth 為基準，約 80px/s
+                const dur = Math.max(6, Math.round(titleSpan.scrollWidth / 80));
+                titleSpan.style.setProperty('--marquee-dur', dur + 's');
+                titleSpan.classList.add('marquee-active');
+            }
+        });
+
+        // 工具列高度對齊 top bar
+        const toolbar = document.querySelector('.game-toolbar');
+        if (toolbar) toolbar.style.top = '6px';
     }
 });

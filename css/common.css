@@ -150,7 +150,9 @@ body { padding-top: 56px !important; }
   top: 0; left: 0; right: 0;
   display: flex;
   align-items: center;
-  padding: 12px 20px;
+  /* 右側留出工具列空間：4個按鈕×44px + 3gap×8px + 16px右距 = 220px */
+  padding: 0 220px 0 20px;
+  height: 48px;
   z-index: 8000;
   font-weight: 900;
   font-size: 1.05rem;
@@ -161,8 +163,41 @@ body { padding-top: 56px !important; }
   -webkit-backdrop-filter: blur(12px);
   border-bottom: 2px solid transparent;
 }
+/* 標題：彈性填滿，超出時跑馬燈 */
 .level-top-bar-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  margin-left: 6px;
+}
+.level-top-bar-title .marquee-inner {
+  display: inline-block;
+  white-space: nowrap;
+  padding-right: 40px; /* 兩段文字之間的間距 */
+}
+.level-top-bar-title.marquee-active {
+  animation: none; /* 容器不動，inner 滑動 */
+}
+.level-top-bar-title.marquee-active .marquee-inner {
+  animation: level-title-marquee var(--marquee-dur, 12s) linear infinite;
+}
+@keyframes level-title-marquee {
+  0%    { transform: translateX(0); }
+  100%  { transform: translateX(-50%); }
+}
+/* 星星徽章：縮不動，永遠顯示 */
+#top-bar-star-badge {
+  flex-shrink: 0;
   margin-left: 10px;
+  background: rgba(0,0,0,0.35);
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-weight: bold;
+  font-size: 0.82rem;
+  color: #fbbf24;
+  border: 1px solid rgba(251,191,36,0.35);
+  white-space: nowrap;
 }
 
 body.stage-bg-1 { background: #081721; }
@@ -246,17 +281,18 @@ body.stage-bg-5 { background: #211c08; }
   /* 手機：隱藏固定導覽列，改用頁面頂部顯示題目資訊 */
   body { padding-top: 0 !important; }
   .level-top-bar {
-    position: relative !important;
-    padding: 10px 14px;
-    font-size: 0.85rem;
-    white-space: normal;
-    text-align: center;
+    position: fixed !important;
+    /* 手機工具列：4個按鈕×30px + 3gap×3px + 6px右距 = 141px，留 148px */
+    padding: 0 148px 0 10px !important;
+    height: 42px !important;
+    font-size: 0.82rem;
   }
-  .level-top-bar-title { margin: 0; }
+  .level-top-bar-title { margin-left: 4px; }
+  #top-bar-star-badge { font-size: 0.72rem; padding: 2px 8px; }
+  body { padding-top: 42px !important; }
   /* 工具列固定右上角，縮小 */
   .game-toolbar { top: 6px; right: 6px; gap: 3px; }
   .toolbar-btn { width: 30px; height: 30px; font-size: 0.85rem; border-radius: 6px; }
-  #top-bar-star-badge { font-size: 0.7rem !important; padding: 2px 7px !important; height: 30px !important; }
 
   /* 打字練習：關鍵字/單行模式輸入區縮小 */
   .prompt-box:not(.mode-full) {
