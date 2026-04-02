@@ -111,8 +111,8 @@
             <canvas id="barChart"></canvas>
         </div>
         <div class="chart-box">
-            <h3 style="color:var(--muted); margin-top:0;">闖關狀態比例</h3>
-            <canvas id="doughnutChart"></canvas>
+            <h3 style="color:var(--muted); margin-top:0;">各階段通關人數</h3>
+            <canvas id="stageChart"></canvas>
         </div>
     </div>
 
@@ -474,29 +474,60 @@ function renderCharts(data) {
         }
     });
 
-    // 2. Doughnut Chart: PASS vs FAIL
-    let passCt = 0, failCt = 0;
-    data.forEach(d => {
-        if(d.status === 'FAIL') failCt++;
-        else passCt++;
+    // 2. 各階段通關人數（含模擬考獨立顯示）
+    const STAGE_MODES = {
+        '階段一 認識': ['連連看', '記憶翻牌遊戲', '中英選擇題'],
+        '階段二 理解': ['一行程式碼翻譯', '錯誤找找看', '程式碼朗讀練習'],
+        '階段三 應用': ['程式碼排列重組', '程式與結果配對', '逐行中文注解填空'],
+        '階段四 打字': ['打字-關鍵字', '打字-單行', '看中文寫程式', '打字-完整', '打字練習'],
+        '階段五 實作': ['程式填空', '獨立全程式撰寫', '錯誤程式除錯'],
+        '模擬考': ['模擬考']
+    };
+    const stageStudents = {};
+    for (const stage in STAGE_MODES) stageStudents[stage] = new Set();
+
+    data.filter(d => d.status === 'PASS').forEach(d => {
+        const studentKey = d.className + '_' + d.userName;
+        for (const [stage, modes] of Object.entries(STAGE_MODES)) {
+            if (modes.includes(d.gameMode)) {
+                stageStudents[stage].add(studentKey);
+            }
+        }
     });
 
-    const ctx2 = document.getElementById('doughnutChart').getContext('2d');
+    const stageLabels = Object.keys(STAGE_MODES);
+    const stageCounts = stageLabels.map(s => stageStudents[s].size);
+    const stageColors = ['#38bdf8', '#a78bfa', '#4ade80', '#fbbf24', '#f97316', '#f43f5e'];
+
+    const ctx2 = document.getElementById('stageChart').getContext('2d');
     chart2 = new Chart(ctx2, {
-        type: 'doughnut',
+        type: 'bar',
         data: {
-            labels: ['順利過關', '挑戰失敗/未完'],
+            labels: stageLabels,
             datasets: [{
-                data: [passCt, failCt],
-                backgroundColor: ['#10b981', '#f43f5e'],
-                borderWidth: 0
+                label: '通關人數',
+                data: stageCounts,
+                backgroundColor: stageColors.map(c => c + 'cc'),
+                borderColor: stageColors,
+                borderWidth: 1,
+                borderRadius: 6
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            indexAxis: 'y',
+            scales: {
+                x: { beginAtZero: true, ticks: { color: '#64748b', stepSize: 1 } },
+                y: { ticks: { color: '#e2e8f0', font: { size: 12 } } }
+            },
             plugins: {
-                legend: { position: 'bottom', labels: { color: '#e2e8f0' } }
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => ctx.raw + ' 人'
+                    }
+                }
             }
         }
     });
