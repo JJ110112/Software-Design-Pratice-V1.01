@@ -401,7 +401,10 @@ window.getScoresForUser = async function (userName) {
     let currentClass = document.getElementById('login-class')?.value;
     if (!currentClass) {
         try {
-            const userObj = JSON.parse(localStorage.getItem('sw_quiz_user'));
+            // 須同時檢查 sessionStorage（非永久登入）與 localStorage（永久登入）
+            let raw = sessionStorage.getItem('sw_quiz_user');
+            if (!raw) raw = localStorage.getItem('sw_quiz_user');
+            const userObj = raw ? JSON.parse(raw) : null;
             currentClass = userObj ? userObj.className : null;
         } catch(e) {}
     }

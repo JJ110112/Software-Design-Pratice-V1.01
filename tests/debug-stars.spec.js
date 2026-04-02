@@ -397,6 +397,72 @@ test.describe('Debug: 連連看星星更新', () => {
       .forEach(l => console.log(l));
   });
 
+  test('ROOT CAUSE: sessionStorage-only 登入導致 className=null → 快取被跳過', async ({ page }) => {
+    const logs = collectLogs(page);
+
+    // 模擬「非永久登入」：只寫 sessionStorage，不寫 localStorage
+    await page.goto('/');
+    await page.evaluate(() => {
+      sessionStorage.setItem('sw_quiz_user', JSON.stringify({
+        className: '資訊二', no: 1, name: '測試生E',
+        loginTime: new Date().toISOString(),
+        lastActive: new Date().toISOString()
+      }));
+      // 注意：localStorage 沒有 sw_quiz_user！（非永久登入的真實狀態）
+      localStorage.removeItem('sw_quiz_user');
+
+      // 模擬 saveScore 已寫入快取
+      localStorage.setItem('fb_cache_測試生E', JSON.stringify({
+        time: Date.now(),
+        data: [{
+          className: '資訊二', userName: '測試生E',
+          qID: 'SETUP_T01', gameMode: '連連看',
+          timeSpent: 30, status: 'PASS', stars: 3,
+          timestamp: new Date().toISOString()
+        }]
+      }));
+    });
+
+    await page.goto('/pages/map.html?mode=連連看&tab=map');
+    await page.waitForTimeout(3000);
+
+    const result = await page.evaluate(async () => {
+      const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+      if (!user) return { error: 'no user' };
+
+      const allScores = typeof window.getScoresForUser === 'function'
+        ? await window.getScoresForUser(user.name) : [];
+
+      const GAME_MODE = new URLSearchParams(window.location.search).get('mode') || '';
+      const filtered = allScores.filter(s => s.gameMode === GAME_MODE && s.status === 'PASS');
+      const statsBar = document.getElementById('user-stats-bar')?.textContent || '';
+
+      return {
+        userName: user.name,
+        className: user.className,
+        localStorageHasUser: !!localStorage.getItem('sw_quiz_user'),
+        sessionStorageHasUser: !!sessionStorage.getItem('sw_quiz_user'),
+        allScoresCount: allScores.length,
+        filteredCount: filtered.length,
+        statsBarText: statsBar
+      };
+    });
+
+    console.log('=== sessionStorage-only 登入測試 ===');
+    console.log(JSON.stringify(result, null, 2));
+
+    expect(result.error).toBeUndefined();
+    expect(result.sessionStorageHasUser, 'sessionStorage 應有 user').toBe(true);
+    expect(result.localStorageHasUser, 'localStorage 不應有 user（非永久登入）').toBe(false);
+
+    // 核心斷言：即使 localStorage 沒有 sw_quiz_user，也應該讀到快取中的 3 星
+    expect(result.filteredCount, '應讀到快取中的成績').toBeGreaterThan(0);
+
+    const match = result.statsBarText.match(/(\d+)\s*\/\s*\d+/);
+    const stars = match ? parseInt(match[1]) : 0;
+    expect(stars, '應顯示 3 星').toBe(3);
+  });
+
   test('BUG: 遊戲頁 top bar 星星在過關後不會即時更新', async ({ page }) => {
     const logs = collectLogs(page);
     await login(page, '測試班', 1, '測試學生D');
