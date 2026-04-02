@@ -13,7 +13,7 @@ const _lastSaveByUid = {};
  */
 function computeRanking(results) {
   const filtered = results.filter(
-    (r) => r.status === "PASS" && r.className !== "測試用" && !(r.qID || "").startsWith("E2E_") && r.qID !== "TEST_E2E"
+    (r) => r.status === "PASS" && !r.className.startsWith("測試") && !(r.qID || "").startsWith("E2E_") && r.qID !== "TEST_E2E"
   );
 
   const studentMap = {};
@@ -86,7 +86,7 @@ async function rebuildLeaderboard() {
 
   // 從全部紀錄（含 FAIL）統計每位學生的挑戰次數與最後活躍時間
   const activityMap = {};
-  allResults.filter((r) => r.className !== "測試用" && !(r.qID || "").startsWith("E2E_") && r.qID !== "TEST_E2E").forEach((r) => {
+  allResults.filter((r) => !r.className.startsWith("測試") && !(r.qID || "").startsWith("E2E_") && r.qID !== "TEST_E2E").forEach((r) => {
     const key = `${r.className}_${r.userName}`;
     if (!activityMap[key]) {
       activityMap[key] = { totalAttempts: 0, lastActive: "" };
@@ -109,7 +109,7 @@ async function rebuildLeaderboard() {
 
   // 儀表板摘要：過濾測試帳號，只保留最近 500 筆
   const dashData = allResults
-    .filter((r) => r.className !== "測試用" && !(r.qID || "").startsWith("E2E_") && r.qID !== "TEST_E2E")
+    .filter((r) => !r.className.startsWith("測試") && !(r.qID || "").startsWith("E2E_") && r.qID !== "TEST_E2E")
     .sort((a, b) => (b.timestamp || "").localeCompare(a.timestamp || ""))
     .slice(0, 500);
 
