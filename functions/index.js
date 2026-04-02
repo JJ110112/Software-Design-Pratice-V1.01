@@ -113,7 +113,8 @@ async function rebuildLeaderboard() {
     .sort((a, b) => (b.timestamp || "").localeCompare(a.timestamp || ""))
     .slice(0, 500);
 
-  // 讀取名冊，只保留名冊上的學生（已從名冊刪除的學生不進排行榜）
+  // 讀取名冊，排行榜只顯示名冊上的學生（user_progress 保留所有人）
+  let leaderboardFiltered = ranking;
   const rosterSnap = await db.doc("config/roster").get();
   if (rosterSnap.exists) {
     const rosterData = rosterSnap.data();
@@ -125,12 +126,12 @@ async function rebuildLeaderboard() {
       }
     }
     if (rosterSet.size > 0) {
-      ranking = ranking.filter(r => rosterSet.has(`${r.className}_${r.userName}`));
+      leaderboardFiltered = ranking.filter(r => rosterSet.has(`${r.className}_${r.userName}`));
     }
   }
 
-  // 批次寫入：先建立排行榜摘要 (濾除 bestLevelInfo 避免檔案過大)
-  const leaderboardRanking = ranking.map(r => ({
+  // 批次寫入：排行榜摘要只含名冊上的學生
+  const leaderboardRanking = leaderboardFiltered.map(r => ({
     className: r.className,
     userName: r.userName,
     stars: r.stars,
