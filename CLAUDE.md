@@ -122,7 +122,7 @@ git push origin main        # 同步到 GitHub Pages（必須與 firebase deploy
 
 | Function | 用途 | 注意事項 |
 |----------|------|---------|
-| `saveScoreSecure` | 前端呼叫儲存成績，含完整 transaction | 每次讀 3 docs（user_progress + dashboard + leaderboard） |
+| `saveScoreSecure` | 前端呼叫儲存成績，含完整 transaction | 名冊驗證（`getRosterSet`）+ 每次讀 1 doc（user_progress） |
 | `rebuildLeaderboard` | 全表掃描 scores → 重建所有摘要 | **耗讀取量！有 5 分鐘冷卻**；全表掃描 O(N) |
 | `dailyLeaderboardRebuild` | 每日 UTC 18:00（台灣 02:00）自動結算 | Cron，不對外暴露 |
 | `seedTestTeacher` | 回復測試教師的 912 星資料 | 先刪舊記錄再植入，每次淨 304 筆 |
@@ -167,10 +167,10 @@ saveScore()
   ├─ Step 1b: refreshStarBadge() → 即時刷新 top bar 星星
   ├─ Step 2: 寫入 local_scores 備份（離線保底）
   └─ Step 3: _saveScoreCallable(newRecord) → Cloud Function saveScoreSecure
-               ├─ 讀 user_progress（防連刷 + 取得現有最佳）
-               ├─ 讀 summaries/dashboard
-               ├─ 讀 summaries/leaderboard
-               ├─ Transaction: 寫 scores + 更新 dashboard + 更新 leaderboard + 更新 user_progress
+               ├─ 驗證 timeSpent ≥ 3（防作弊）
+               ├─ 驗證 className_userName 在名冊中（getRosterSet，10 分鐘快取）
+               ├─ UID 防連刷（記憶體層級）
+               ├─ Transaction: 讀 user_progress → 寫 scores + dashboard_records + user_progress + leaderboard_entries
                └─ 回傳 { success, id }
 ```
 
@@ -238,7 +238,8 @@ Top bar `padding-right: 220px`（PC）/ `148px`（手機）預留 toolbar 空間
 
 ### 每次 saveScoreSecure 的讀取量
 
-- 3 docs per transaction（固定，O(1)）
+- 1 doc per transaction（user_progress，O(1)）
+- 名冊驗證：`getRosterSet()` 帶 10 分鐘記憶體快取，熱路徑 0 讀取
 - 不觸發 rebuildLeaderboard
 
 ---
@@ -315,6 +316,7 @@ git push origin main
 - **`saveScore()` 不可清除排行榜快取**
 - **修改 `firestore.rules` 前確認影響範圍**（預設全拒絕）
 - **Admin SDK 勿用 `.exists()` 語法**（前端 SDK 才是方法，Admin 是屬性）
+- **遊戲頁 `saveScore` 的 `timeSpent` 不可傳 0 或硬編碼**（Cloud Function 防作弊會拒絕 `<3` 秒的 PASS）
 
 ---
 
@@ -329,3 +331,5 @@ git push origin main
 | `scoreCollection` 只查 `scores` 在 `syncOnMapLoad` | 每次 cache 過期讀取量暴增 | 改用 `user_progress` |
 | `seedTestTeacher` 重複呼叫累積記錄 | scores 集合無限膨脹 + rebuild 讀取暴增 | 先清後植 |
 | Firebase deploy 但忘記 git push | GitHub Pages 版本落後 | 養成兩個指令一起下的習慣 |
+| `saveScore` 傳 `timeSpent=0` | 本機樂觀更新星星正常，但 CF 拒絕寫入（防作弊 `<3s`），排行榜不計 | 每個遊戲頁必須計時，傳實際秒數 |
+| `saveScoreSecure` 無名冊驗證 | 任何人可用 devtools 寫入任意姓名成績，排行榜出現垃圾帳號 | `getRosterSet()` 寫入前驗證，非名冊學生拒絕 |
