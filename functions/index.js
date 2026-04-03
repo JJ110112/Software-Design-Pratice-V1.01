@@ -176,8 +176,9 @@ async function rebuildLeaderboard() {
     totalRecords: dashData.length,
   }});
 
-  // 2. 將所有學生的進度扁平化寫入 `user_progress` 集合
-  ranking.forEach((r) => {
+  // 2. 將名冊上學生的進度寫入 `user_progress` 集合
+  const leaderboardFilteredKeySet = new Set(leaderboardFiltered.map(r => `${r.className}_${r.userName}`));
+  leaderboardFiltered.forEach((r) => {
     const docId = `${r.className}__${r.userName}`;
     allWrites.push({ ref: db.doc(`user_progress/${docId}`), data: {
       className: r.className,
@@ -191,10 +192,9 @@ async function rebuildLeaderboard() {
     }, merge: true });
   });
 
-  // 3. 對於只有失敗紀錄的學生，也要建立基本檔
-  const rankingKeySet = new Set(ranking.map(r => `${r.className}_${r.userName}`));
+  // 3. 對於只有失敗紀錄的名冊學生，也要建立基本檔
   for (const key in activityMap) {
-    if (!rankingKeySet.has(key)) {
+    if (!leaderboardFilteredKeySet.has(key) && (rosterSet.size === 0 || rosterSet.has(key))) {
       const activity = activityMap[key];
       const sample = allResults.find(r => `${r.className}_${r.userName}` === key);
       if (sample) {
@@ -212,8 +212,16 @@ async function rebuildLeaderboard() {
     }
   }
 
-  // [Plan A] 4. 寫入 leaderboard_entries（每學生獨立文件，供前端直接查詢）
-  ranking.forEach((r) => {
+  // [Plan A] 4. 刪除舊 leaderboard_entries → 只寫名冊上的學生
+  const oldLeaderboardSnap = await db.collection("leaderboard_entries").get();
+  if (!oldLeaderboardSnap.empty) {
+    for (let i = 0; i < oldLeaderboardSnap.docs.length; i += 500) {
+      const delBatch = db.batch();
+      oldLeaderboardSnap.docs.slice(i, i + 500).forEach(d => delBatch.delete(d.ref));
+      await delBatch.commit();
+    }
+  }
+  leaderboardFiltered.forEach((r) => {
     const docId = `${r.className}__${r.userName}`;
     allWrites.push({ ref: db.doc(`leaderboard_entries/${docId}`), data: {
       className: r.className,
@@ -226,7 +234,7 @@ async function rebuildLeaderboard() {
     }});
   });
   for (const key in activityMap) {
-    if (!rankingKeySet.has(key)) {
+    if (!leaderboardFilteredKeySet.has(key) && (rosterSet.size === 0 || rosterSet.has(key))) {
       const activity = activityMap[key];
       const sample = allResults.find(r => `${r.className}_${r.userName}` === key);
       if (sample) {
@@ -279,7 +287,7 @@ async function rebuildLeaderboard() {
     await dashBatch.commit();
   }
 
-  return { studentCount: ranking.length, totalRecords: allResults.length, dashboardRecords: dashData.length };
+  return { studentCount: leaderboardFiltered.length, totalRecords: allResults.length, dashboardRecords: dashData.length };
 }
 
 /**
