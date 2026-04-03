@@ -320,6 +320,9 @@ const urlParams = new URLSearchParams(window.location.search);
 const qID = urlParams.get('q') || 'Q1';
 const tID = urlParams.get('t') || 'T01';
 
+// 計時：頁面載入開始計時
+const _pageStartTime = Date.now();
+
 // 設定 UI
 window.addEventListener('load', () => {
     if (QUIZ_DATA[qID]) {
@@ -600,7 +603,8 @@ function showResult() {
     if (typeof getCurrentUser === 'function') {
         const user = getCurrentUser();
         if (user && typeof window.saveScore === 'function') {
-            window.saveScore(user.className, user.name, qID + '_' + tID, "程式碼朗讀練習", 0, "PASS", stars)
+            const elapsedSec = Math.round((Date.now() - _pageStartTime) / 1000);
+            window.saveScore(user.className, user.name, qID + '_' + tID, "程式碼朗讀練習", elapsedSec, "PASS", stars)
               .then(res => console.log("朗讀練習成績上傳完成:", res));
         }
     }

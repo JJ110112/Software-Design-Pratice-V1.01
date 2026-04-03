@@ -9,6 +9,31 @@ const FieldValue = admin.firestore.FieldValue;
 // 記憶體層級防連刷（不耗 DB 讀取，Cloud Function 實例回收時自動清除）
 const _lastSaveByUid = {};
 
+// 名冊快取（記憶體層級，避免每次 saveScore 都讀 config/roster）
+let _rosterCache = null;
+let _rosterCacheTime = 0;
+const ROSTER_CACHE_TTL = 10 * 60 * 1000; // 10 分鐘
+
+async function getRosterSet() {
+  const now = Date.now();
+  if (_rosterCache && now - _rosterCacheTime < ROSTER_CACHE_TTL) return _rosterCache;
+
+  const rosterSnap = await db.doc("config/roster").get();
+  const rosterSet = new Set();
+  if (rosterSnap.exists) {
+    const rosterData = rosterSnap.data();
+    const classes = rosterData.classes || rosterData;
+    for (const cls in classes) {
+      if (Array.isArray(classes[cls])) {
+        classes[cls].forEach(s => rosterSet.add(`${cls}_${s.name}`));
+      }
+    }
+  }
+  _rosterCache = rosterSet;
+  _rosterCacheTime = now;
+  return rosterSet;
+}
+
 // rebuildLeaderboard 冷卻計時（記憶體層級，防止短時間內多次全表掃描）
 let _lastRebuildAt = 0;
 const REBUILD_COOLDOWN_MS = 5 * 60 * 1000; // 5 分鐘
@@ -120,19 +145,9 @@ async function rebuildLeaderboard() {
 
   // 讀取名冊，排行榜只顯示名冊上的學生（user_progress 保留所有人）
   let leaderboardFiltered = ranking;
-  const rosterSnap = await db.doc("config/roster").get();
-  if (rosterSnap.exists) {
-    const rosterData = rosterSnap.data();
-    const classes = rosterData.classes || rosterData;
-    const rosterSet = new Set();
-    for (const cls in classes) {
-      if (Array.isArray(classes[cls])) {
-        classes[cls].forEach(s => rosterSet.add(`${cls}_${s.name}`));
-      }
-    }
-    if (rosterSet.size > 0) {
-      leaderboardFiltered = ranking.filter(r => rosterSet.has(`${r.className}_${r.userName}`));
-    }
+  const rosterSet = await getRosterSet();
+  if (rosterSet.size > 0) {
+    leaderboardFiltered = ranking.filter(r => rosterSet.has(`${r.className}_${r.userName}`));
   }
 
   // 批次寫入：排行榜摘要只含名冊上的學生
@@ -366,7 +381,15 @@ exports.saveScoreSecure = onCall(
       throw new HttpsError("invalid-argument", "破關時間異常");
     }
 
-    // 5. UID 防連刷（記憶體層級，不耗 DB 讀取）
+    // 5. 名冊驗證：只有名冊上的學生才能儲存成績（測試班級除外）
+    if (!className.startsWith("測試")) {
+      const rosterSet = await getRosterSet();
+      if (rosterSet.size > 0 && !rosterSet.has(`${className}_${userName}`)) {
+        throw new HttpsError("permission-denied", "此學生不在班級名冊中，無法儲存成績");
+      }
+    }
+
+    // 6. UID 防連刷（記憶體層級，不耗 DB 讀取）
     const uid = request.auth.uid;
     const now = Date.now();
     if (_lastSaveByUid[uid] && now - _lastSaveByUid[uid] < 5000) {
