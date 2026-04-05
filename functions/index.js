@@ -726,6 +726,24 @@ exports.seedTestTeacher = onCall(
     // 自動結算排行榜
     await rebuildLeaderboard();
 
+    // 直接寫入 user_progress（測試教師不在名冊中，rebuildLeaderboard 不會幫他寫）
+    const bestLevelInfo = {};
+    for (const mode of gameModes) {
+      for (const qID of qIDs) {
+        bestLevelInfo[`${qID}_${mode}`] = { stars: 3, timeSpent: Math.floor(Math.random() * 60) + 10 };
+      }
+    }
+    await db.doc(`user_progress/測試用__${name}`).set({
+      className: "測試用",
+      userName: name,
+      stars: qIDs.length * gameModes.length * 3,
+      uniqueClears: qIDs.length * gameModes.length,
+      totalBestTime: 0,
+      totalAttempts: count,
+      lastActive: new Date().toISOString(),
+      bestLevelInfo
+    });
+
     return { success: true, records: count, teacherName: name };
   }
 );
