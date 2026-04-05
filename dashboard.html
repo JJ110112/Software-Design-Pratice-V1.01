@@ -69,7 +69,14 @@
             .controls { flex-wrap: wrap; }
             .dashboard-grid { grid-template-columns: 1fr; }
             .charts-wrapper { grid-template-columns: 1fr; }
-            .student-table th, .student-table td { padding: 8px 10px; font-size: 0.8rem; }
+            /* 學生練習狀況表 — 手機折行 */
+            .student-table { white-space: normal; }
+            .student-table th, .student-table td { padding: 6px 5px; font-size: 0.7rem; }
+            .student-table th { word-break: keep-all; }
+            .progress-bar { width: 36px; }
+            /* 紀錄明細表 — 手機折行 */
+            table { white-space: normal; }
+            th, td { padding: 8px 6px; font-size: 0.75rem; }
         }
     </style>
     <!-- Chart.js 引入 -->
