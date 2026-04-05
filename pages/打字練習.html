@@ -615,6 +615,16 @@ if (subMode && ['keyword', 'line', 'full'].includes(subMode)) {
   window.addEventListener('load', () => startMode(subMode));
 }
 
+// ── 打字正規化：全形→半形、智慧引號→直引號、連續空白→單一空白 ──
+function normTyping(s) {
+  let r = s.replace(/[\uff01-\uff5e]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xfee0));
+  r = r.replace(/\u3000/g, ' ');
+  r = r.replace(/[\u201c\u201d\u201e\u201f\u2033\u2036]/g, '"');
+  r = r.replace(/[\u2018\u2019\u201a\u201b\u2032\u2035]/g, "'");
+  r = r.replace(/ +/g, ' ');
+  return r;
+}
+
 function startMode(mode) {
   currentMode = mode;
   stopTimer();
@@ -622,8 +632,8 @@ function startMode(mode) {
   sessionWpmSum = 0; sessionCount = 0; sessionTimeSum = 0;
 
   queue = mode === 'keyword' ? shuffle([...KEYWORDS])
-        : mode === 'line'    ? LINES.map(l => ({ ...l, text: l.noIndent || l.text.trim() }))
-        : [{ text: FULL_CODE, zh:'完整程式碼', note:'完整程式碼' }];
+        : mode === 'line'    ? LINES.map(l => ({ ...l, text: normTyping(l.noIndent || l.text.trim()) }))
+        : [{ text: LINES.map(x => normTyping(x.noIndent || x.text.trim())).join('\n'), zh:'完整程式碼', note:'完整程式碼' }];
   qIdx = 0;
 
   document.getElementById('mode-select').style.display  = 'none';
@@ -802,8 +812,11 @@ typingInput.addEventListener('input', onTypingInput);
 function onTypingInput() {
   if (!queue[qIdx] || isCompleting) return;
   const target = queue[qIdx].text;
-  const typed  = typingInput.value;
-  if (!startTime && typed.length > 0) beginTimer();
+  const rawTyped = typingInput.value;
+  if (!startTime && rawTyped.length > 0) beginTimer();
+
+  // 正規化學生輸入：全形→半形、智慧引號、連續空白壓縮
+  const typed = normTyping(rawTyped);
 
   const chars = Array.from(document.querySelectorAll('#prompt-chars .char'));
   let cursorSet = false, errCount = 0, allCorrect = true;
@@ -813,8 +826,10 @@ function onTypingInput() {
     const real = span.dataset.real;
     span.classList.remove('correct','wrong','cursor','pending');
     if (i < typed.length) {
-      span.classList.add(typed[i] === real ? 'correct' : 'wrong');
-      if (typed[i] !== real) { errCount++; allCorrect = false; }
+      // VB.NET 大小寫不敏感：比對時忽略大小寫
+      const match = typed[i].toLowerCase() === real.toLowerCase();
+      span.classList.add(match ? 'correct' : 'wrong');
+      if (!match) { errCount++; allCorrect = false; }
     } else if (i === typed.length && !cursorSet) {
       span.classList.add('cursor'); cursorSet = true; allCorrect = false;
     } else {
