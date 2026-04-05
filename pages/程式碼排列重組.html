@@ -741,7 +741,7 @@ function showWin() {
   if (typeof getCurrentUser === 'function') {
       const user = getCurrentUser();
       const eff = Math.min(acc, 100);
-      if (user && eff >= 60 && typeof window.saveScore === 'function') {
+      if (user && typeof window.saveScore === 'function') {
           
           let stars = 3;
           if (typeof totalHintsUsed !== 'undefined') {
