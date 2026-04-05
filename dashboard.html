@@ -85,6 +85,7 @@
                 <option value="ALL">全站即時所有班級</option>
             </select>
             <button id="btn-refresh">↻ 刷新資料</button>
+            <button id="btn-export" style="background:var(--success);">📥 匯出紀錄</button>
             <a href="manage-roster.html" class="btn" style="background:var(--purple);color:#000;text-decoration:none;font-size:.85rem;">👥 學生管理</a>
             <a href="index.html" style="margin-left:10px; color: var(--muted); text-decoration: none;">返回首頁</a>
         </div>
@@ -291,6 +292,55 @@ document.addEventListener('DOMContentLoaded', () => {
         keys.forEach(k => localStorage.removeItem(k));
         alert(`✅ 已清除 ${keys.length} 筆本地快取，重新載入頁面`);
         location.reload();
+    });
+
+    // ── 匯出紀錄 ──
+    document.getElementById('btn-export').addEventListener('click', () => {
+        const filterCls = document.getElementById('filter-class').value;
+        const filterLabel = filterCls === 'ALL' ? '全班級' : filterCls;
+
+        if (studentRows.length === 0) {
+            alert('目前無學生資料可匯出');
+            return;
+        }
+
+        // 學生練習狀況總表
+        const summaryHeader = ['座號', '姓名', '班級', '星星數', '破關數', '挑戰次數', '最後練習時間', '進度(%)'];
+        const summaryRows = studentRows.map(r => {
+            const lastStr = r.lastActive ? new Date(r.lastActive).toLocaleString('zh-TW') : '';
+            return [r.no, r.name, r.className, r.stars, r.clears, r.attempts, lastStr, r.progress];
+        });
+
+        // 詳細紀錄明細
+        const filteredData = filterCls === 'ALL' ? rawData : rawData.filter(d => d.className === filterCls);
+        const detailHeader = ['時間', '班級', '姓名', '題號(qID)', '模式', '花費秒數', '狀態', '星星數'];
+        const detailRows = filteredData.map(r => {
+            const dt = new Date(r.timestamp).toLocaleString('zh-TW');
+            return [dt, r.className || '', r.userName || '訪客', r.qID, r.gameMode, r.timeSpent, r.status, r.stars !== undefined ? r.stars : ''];
+        });
+
+        // 組合 CSV（BOM + 兩張表）
+        const csvEscape = v => {
+            const s = String(v == null ? '' : v);
+            return s.includes(',') || s.includes('"') || s.includes('\n') ? '"' + s.replace(/"/g, '""') + '"' : s;
+        };
+        const toCSV = (header, rows) => [header.map(csvEscape).join(','), ...rows.map(r => r.map(csvEscape).join(','))].join('\n');
+
+        const csv = '\uFEFF'
+            + '=== 學生練習狀況總表 ===\n'
+            + toCSV(summaryHeader, summaryRows)
+            + '\n\n=== 詳細紀錄明細 (' + filteredData.length + ' 筆) ===\n'
+            + toCSV(detailHeader, detailRows);
+
+        // 下載
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const dateStr = new Date().toISOString().slice(0, 10);
+        a.href = url;
+        a.download = `學生練習紀錄_${filterLabel}_${dateStr}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
     });
 
     // 延遲 1 秒等模組內的 Firebase 載入完畢，安全呼叫
