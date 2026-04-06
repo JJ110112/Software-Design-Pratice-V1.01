@@ -66,25 +66,23 @@
         .modal-header { display:flex; align-items:center; gap:12px; margin-bottom:20px; }
         .modal-header h2 { margin:0; font-size:1.3rem; color:var(--accent); }
         .modal-header .modal-badge { font-size:.8rem; background:var(--surface2); color:var(--muted); padding:3px 10px; border-radius:20px; }
-        .modal-summary { display:flex; gap:20px; flex-wrap:wrap; margin-bottom:24px; padding:16px; background:var(--surface2); border-radius:10px; }
-        .modal-summary .sum-item { text-align:center; }
-        .modal-summary .sum-item .sum-val { font-size:1.5rem; font-weight:700; color:#fff; }
-        .modal-summary .sum-item .sum-label { font-size:.75rem; color:var(--muted); }
-        .level-group { margin-bottom:20px; }
-        .level-group-title { font-size:.85rem; font-weight:700; color:var(--muted); letter-spacing:.08em; margin-bottom:10px; padding-bottom:6px; border-bottom:1px solid var(--border); }
-        .level-cards { display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:12px; }
-        .level-card { background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:14px; }
-        .level-card-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
-        .level-card-header .lc-name { font-weight:700; font-size:.95rem; color:#fff; }
-        .level-card-header .lc-count { font-size:.75rem; color:var(--muted); }
-        .mode-grid { display:grid; grid-template-columns:repeat(4, 1fr); gap:4px; }
-        .mode-cell { width:100%; aspect-ratio:1; border-radius:4px; cursor:default; position:relative; display:flex; align-items:center; justify-content:center; font-size:.6rem; }
-        .mode-cell.s0 { background:rgba(255,255,255,.04); }
-        .mode-cell.s1 { background:rgba(167,139,250,.35); }
-        .mode-cell.s2 { background:rgba(56,189,248,.4); }
-        .mode-cell.s3 { background:rgba(74,222,128,.45); }
-        .mode-tooltip { display:none; position:absolute; bottom:calc(100% + 6px); left:50%; transform:translateX(-50%); background:#1e293b; color:var(--text); padding:6px 10px; border-radius:6px; font-size:.72rem; white-space:nowrap; z-index:10; pointer-events:none; border:1px solid var(--border); }
-        .mode-cell:hover .mode-tooltip { display:block; }
+        .modal-stage { margin-bottom:18px; }
+        .modal-stage-title { font-size:.9rem; font-weight:700; padding:6px 14px; border-radius:8px; margin-bottom:10px; display:flex; align-items:center; gap:10px; }
+        .modal-stage-title .stage-stars { font-size:.85rem; color:var(--success); }
+        .modal-mode-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(200px, 1fr)); gap:8px; }
+        .modal-mode-card { background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:10px 12px; display:flex; align-items:center; gap:10px; }
+        .modal-mode-card.all-clear { border-color:rgba(74,222,128,.4); }
+        .modal-mode-card .mc-icon { font-size:1.2rem; flex-shrink:0; }
+        .modal-mode-card .mc-info { flex:1; min-width:0; }
+        .modal-mode-card .mc-name { font-size:.82rem; font-weight:600; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .modal-mode-card .mc-stars { font-size:.75rem; color:var(--success); font-weight:700; }
+        .modal-mode-card .mc-stars.zero { color:var(--muted); }
+        .modal-mode-card .mc-dots { display:flex; gap:2px; margin-top:4px; }
+        .modal-mode-card .mc-dot { width:6px; height:6px; border-radius:50%; }
+        .mc-dot.d0 { background:rgba(255,255,255,.08); }
+        .mc-dot.d1 { background:#a78bfa; }
+        .mc-dot.d2 { background:#38bdf8; }
+        .mc-dot.d3 { background:#4ade80; }
 
         /* 手機 RWD */
         @media (max-width: 768px) {
@@ -95,7 +93,7 @@
             .charts-wrapper { grid-template-columns: 1fr; }
             #student-detail-overlay { padding: 16px 8px; }
             #student-detail-card { padding: 16px; }
-            .level-cards { grid-template-columns: 1fr !important; }
+            .modal-mode-grid { grid-template-columns: 1fr !important; }
             /* 學生練習狀況表 — 手機折行 */
             .student-table { white-space: normal; }
             .student-table th, .student-table td { padding: 6px 5px; font-size: 0.7rem; }
@@ -774,26 +772,41 @@ document.getElementById('student-status-table').addEventListener('click', e => {
 // ═══════════════════════════════════════════
 //  學生詳細進度 Modal
 // ═══════════════════════════════════════════
-const LEVEL_GROUPS = [
-    { name: '基礎題', levels: ['SETUP','Q1','Q2','Q3','Q4','Q5'] },
-    { name: 'Q1 延伸', levels: ['Q1_T01','Q1_T02','Q1_T03'] },
-    { name: 'Q2 延伸', levels: ['Q2_T01','Q2_T02','Q2_T03'] },
-    { name: 'Q3 延伸', levels: ['Q3_T01','Q3_T02','Q3_T03'] },
-    { name: 'Q4 延伸', levels: ['Q4_T01'] },
-    { name: '進階題', levels: ['1060306','1060307','1060308'] },
+const ALL_LEVELS = ['SETUP','Q1','Q2','Q3','Q4','Q5','Q1_T01','Q1_T02','Q1_T03','Q2_T01','Q2_T02','Q2_T03','Q3_T01','Q3_T02','Q3_T03','Q4_T01','1060306','1060307','1060308'];
+const MODAL_STAGES = [
+    { name: '第一階段', sub: '認識指令 (基礎)', color: '#38bdf8',
+      modes: [
+        { mode: '連連看', icon: '🔗', label: '英中單字配對' },
+        { mode: '記憶翻牌遊戲', icon: '🃏', label: '圖卡翻牌記憶' },
+        { mode: '中英選擇題', icon: '❓', label: '中英選擇題' },
+      ]},
+    { name: '第二階段', sub: '讀懂一行程式碼', color: '#f97316',
+      modes: [
+        { mode: '程式碼朗讀練習', icon: '🔊', label: '程式碼朗讀練習' },
+        { mode: '一行程式碼翻譯', icon: '📝', label: '一行程式碼翻譯' },
+        { mode: '錯誤找找看', icon: '🐛', label: '錯誤找找看' },
+      ]},
+    { name: '第三階段', sub: '讀懂整段程式', color: '#a78bfa',
+      modes: [
+        { mode: '程式碼排列重組', icon: '🧩', label: '程式碼排列重組' },
+        { mode: '程式與結果配對', icon: '⚖️', label: '程式與結果配對' },
+        { mode: '逐行中文注解填空', icon: '💬', label: '逐行中文注解填空' },
+      ]},
+    { name: '第四階段', sub: '自己動手寫', color: '#4ade80',
+      modes: [
+        { mode: '打字-關鍵字', icon: '🔤', label: '打字：關鍵字' },
+        { mode: '打字-單行', icon: '📄', label: '打字：單行程式碼' },
+        { mode: '看中文寫程式', icon: '📝', label: '看中文寫程式' },
+        { mode: '打字-完整', icon: '⌨️', label: '打字：完整程式碼' },
+      ]},
+    { name: '第五階段', sub: '模擬考試情境', color: '#f43f5e',
+      modes: [
+        { mode: '程式填空', icon: '🔑', label: '動態程式填空' },
+        { mode: '獨立全程式撰寫', icon: '💎', label: '獨立全程式撰寫' },
+        { mode: '錯誤程式除錯', icon: '💀', label: '錯誤程式除錯' },
+      ]},
 ];
-const GAME_MODES = [
-    '連連看','記憶翻牌遊戲','中英選擇題','程式碼朗讀練習','一行程式碼翻譯','錯誤找找看',
-    '程式碼排列重組','程式與結果配對','逐行中文注解填空',
-    '打字-關鍵字','打字-單行','打字-完整','看中文寫程式',
-    '程式填空','獨立全程式撰寫','錯誤程式除錯'
-];
-const MODE_SHORT = {
-    '連連看':'連','記憶翻牌遊戲':'翻','中英選擇題':'選','程式碼朗讀練習':'朗','一行程式碼翻譯':'譯','錯誤找找看':'找',
-    '程式碼排列重組':'排','程式與結果配對':'配','逐行中文注解填空':'填',
-    '打字-關鍵字':'K','打字-單行':'L','打字-完整':'F','看中文寫程式':'寫',
-    '程式填空':'空','獨立全程式撰寫':'獨','錯誤程式除錯':'蟲'
-};
+const MODE_ALIASES = {'英中單字配對':'連連看','圖卡翻牌記憶':'記憶翻牌遊戲'};
 
 // 點擊學生名字
 document.getElementById('tb-student-status').addEventListener('click', async (e) => {
@@ -814,35 +827,19 @@ function closeModal() {
     document.getElementById('student-detail-overlay').style.display = 'none';
 }
 
-async function openStudentDetailModal(className, userName) {
-    const overlay = document.getElementById('student-detail-overlay');
-    const content = document.getElementById('modal-content');
-    overlay.style.display = 'flex';
-    content.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted);">⏳ 載入學生進度中...</div>';
-
-    let bestLevelInfo = {};
-    if (typeof window.getStudentProgress === 'function') {
-        bestLevelInfo = await window.getStudentProgress(className, userName);
-    }
-
-    // 建立查找表：key = "qID|gameMode" → {stars, timeSpent}
+function parseBestLevelInfo(bestLevelInfo) {
+    const allModes = MODAL_STAGES.flatMap(s => s.modes.map(m => m.mode));
     const lookup = {};
     for (const [key, val] of Object.entries(bestLevelInfo)) {
-        // key 格式: "{qID}_{gameMode}"，gameMode 是中文，qID 可能含底線(Q1_T01)
-        // 從尾端匹配已知 gameMode 來正確分割
         let matched = false;
-        for (const mode of GAME_MODES) {
+        for (const mode of allModes) {
             if (key.endsWith('_' + mode)) {
-                const qID = key.slice(0, key.length - mode.length - 1);
-                lookup[`${qID}|${mode}`] = val;
-                matched = true;
-                break;
+                lookup[`${key.slice(0, key.length - mode.length - 1)}|${mode}`] = val;
+                matched = true; break;
             }
         }
         if (!matched) {
-            // 相容舊別名（英中單字配對→連連看、圖卡翻牌記憶→記憶翻牌遊戲）
-            const aliases = {'英中單字配對':'連連看','圖卡翻牌記憶':'記憶翻牌遊戲'};
-            for (const [alias, canon] of Object.entries(aliases)) {
+            for (const [alias, canon] of Object.entries(MODE_ALIASES)) {
                 if (key.endsWith('_' + alias)) {
                     const qID = key.slice(0, key.length - alias.length - 1);
                     if (!lookup[`${qID}|${canon}`]) lookup[`${qID}|${canon}`] = val;
@@ -851,52 +848,64 @@ async function openStudentDetailModal(className, userName) {
             }
         }
     }
+    return lookup;
+}
 
-    // 統計
-    let totalStars = 0, totalClears = 0;
-    for (const v of Object.values(bestLevelInfo)) {
-        totalStars += (v.stars || v);
-        totalClears++;
+async function openStudentDetailModal(className, userName) {
+    const overlay = document.getElementById('student-detail-overlay');
+    const content = document.getElementById('modal-content');
+    overlay.style.display = 'flex';
+    content.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted);">⏳ 載入中...</div>';
+
+    let bestLevelInfo = {};
+    if (typeof window.getStudentProgress === 'function') {
+        bestLevelInfo = await window.getStudentProgress(className, userName);
     }
 
-    // 渲染
-    let html = `
-        <div class="modal-header">
-            <h2>${escapeHTML(userName)}</h2>
-            <span class="modal-badge">${escapeHTML(className)}</span>
-        </div>
-        <div class="modal-summary">
-            <div class="sum-item"><div class="sum-val">⭐ ${totalStars}</div><div class="sum-label">總星星</div></div>
-            <div class="sum-item"><div class="sum-val">${totalClears}</div><div class="sum-label">通關數</div></div>
-            <div class="sum-item"><div class="sum-val">${Math.round(totalStars / MAX_STARS * 100)}%</div><div class="sum-label">進度</div></div>
-        </div>
-    `;
+    const lookup = parseBestLevelInfo(bestLevelInfo);
+    const maxPerMode = ALL_LEVELS.length * 3; // 19 levels × 3 stars = 57
 
-    LEVEL_GROUPS.forEach(group => {
+    // 總星星
+    let totalStars = 0;
+    for (const v of Object.values(bestLevelInfo)) totalStars += (v.stars || v);
+
+    let html = `<div class="modal-header"><h2>${escapeHTML(userName)}</h2><span class="modal-badge">${escapeHTML(className)}</span><span class="modal-badge">⭐ ${totalStars} / ${MAX_STARS}</span></div>`;
+
+    MODAL_STAGES.forEach(stage => {
+        let stageStars = 0, stageMax = 0;
         let cardsHtml = '';
-        group.levels.forEach(lvl => {
-            let cleared = 0, lvlStars = 0;
-            const cellsHtml = GAME_MODES.map(mode => {
+
+        stage.modes.forEach(({ mode, icon, label }) => {
+            let modeStars = 0;
+            const dots = ALL_LEVELS.map(lvl => {
                 const info = lookup[`${lvl}|${mode}`];
-                const stars = info ? (info.stars !== undefined ? info.stars : info) : 0;
-                const time = info && info.timeSpent ? info.timeSpent : 0;
-                if (stars > 0) { cleared++; lvlStars += stars; }
-                const starText = stars > 0 ? '⭐'.repeat(stars) : '';
-                const tooltip = `<div class="mode-tooltip">${mode}${stars > 0 ? `<br>${starText} ${time}秒` : '<br>未通關'}</div>`;
-                return `<div class="mode-cell s${stars}" title="">${MODE_SHORT[mode] || '?'}${tooltip}</div>`;
+                const s = info ? (info.stars !== undefined ? info.stars : info) : 0;
+                modeStars += s;
+                return `<span class="mc-dot d${s}" title="${lvl}: ${s > 0 ? s+'⭐' : '—'}"></span>`;
             }).join('');
 
+            stageStars += modeStars;
+            stageMax += maxPerMode;
+            const allClear = modeStars === maxPerMode;
             cardsHtml += `
-                <div class="level-card">
-                    <div class="level-card-header">
-                        <span class="lc-name">${lvl}</span>
-                        <span class="lc-count">${cleared}/16 ⭐${lvlStars}</span>
+                <div class="modal-mode-card${allClear ? ' all-clear' : ''}">
+                    <div class="mc-icon">${icon}</div>
+                    <div class="mc-info">
+                        <div class="mc-name">${label}</div>
+                        <div class="mc-stars${modeStars === 0 ? ' zero' : ''}">⭐ ${modeStars} / ${maxPerMode}</div>
+                        <div class="mc-dots">${dots}</div>
                     </div>
-                    <div class="mode-grid">${cellsHtml}</div>
-                </div>
-            `;
+                </div>`;
         });
-        html += `<div class="level-group"><div class="level-group-title">${group.name}</div><div class="level-cards">${cardsHtml}</div></div>`;
+
+        html += `
+            <div class="modal-stage">
+                <div class="modal-stage-title" style="background:${stage.color}15;border-left:3px solid ${stage.color};color:${stage.color};">
+                    <span>${stage.name}</span> ${stage.sub}
+                    <span class="stage-stars">⭐ ${stageStars} / ${stageMax}</span>
+                </div>
+                <div class="modal-mode-grid">${cardsHtml}</div>
+            </div>`;
     });
 
     content.innerHTML = html;
