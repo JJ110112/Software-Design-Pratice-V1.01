@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
-import { getFirestore, collection, addDoc, query, where, orderBy, getDocs, limit, doc, setDoc, getDoc, getDocFromServer, deleteField, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore.js";
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, addDoc, query, where, orderBy, getDocs, limit, doc, setDoc, getDoc, getDocFromServer, deleteField } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore.js";
 import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js";
 import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-functions.js";
 
@@ -20,15 +20,8 @@ let app, db, auth, functions, _saveScoreCallable;
 if (firebaseConfig.apiKey && firebaseConfig.apiKey !== "YOUR_API_KEY_HERE") {
     try {
         app = initializeApp(firebaseConfig);
-        db = getFirestore(app);
-
-        // 啟用離線持久化
-        enableIndexedDbPersistence(db).catch((err) => {
-            if (err.code == 'failed-precondition') {
-                console.warn("⚠️ 多個分頁開啟，離線持久化只能在一個分頁運作");
-            } else if (err.code == 'unimplemented') {
-                console.warn("⚠️ 此瀏覽器不支援離線持久化");
-            }
+        db = initializeFirestore(app, {
+            localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
         });
 
         auth = getAuth(app);
