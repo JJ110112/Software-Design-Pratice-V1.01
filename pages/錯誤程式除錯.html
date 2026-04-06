@@ -235,19 +235,19 @@ const BUGS = {
     "1060306": {
         "T01": [
             { orig: "Dim data As New List(Of String())", bug: "Dim data As New List(Of Integer)", desc: "讀入的資料包含字串（身分證號碼），應用 String() 不是 Integer" },
-            { orig: "If sum Mod 10 = 0 Then", bug: "If sum Mod 10 = 1 Then", desc: "身分證驗證碼檢查：總和除以 10 餘數為 0 才是合法" }
+            { orig: "If data(i)(3) = \"\" And y Mod 10 <> 0 Then", bug: "If data(i)(3) = \"\" And y \\\\ 10 <> 0 Then", desc: "檢查碼規則是看「餘數」是否為 0，應使用 Mod 取餘數，而非 \\\\ 整數除法取商" }
         ]
     },
     "1060307": {
         "T01": [
-            { orig: "Dim sum As Integer = 0", bug: "Dim sum As String = 0", desc: "累加用變數應宣告為 Integer，不是 String" },
-            { orig: "RichTextBox1.Text &=", bug: "RichTextBox1.Text =", desc: "使用 &= 附加文字，= 會覆蓋之前的輸出" }
+            { orig: "no = Int(f.ReadLine * 52)", bug: "no = Int(f.ReadLine / 52)", desc: "亂數範圍 0~1 要放大成 0~51，應用乘法 (*)，不是除法 (/)" },
+            { orig: "r(1) = s(a \\\\ 13) & p(a Mod 13)", bug: "r(1) = s(a Mod 13) & p(a \\\\ 13)", desc: "花色是除以 13 取商 (\\\\)，點數是取餘數 (Mod)，兩者寫反了" }
         ]
     },
     "1060308": {
         "T01": [
-            { orig: "For i = 0 To n - 1", bug: "For i = 1 To n", desc: "陣列索引從 0 開始，應為 0 To n-1" },
-            { orig: "If a(i) > a(i + 1) Then", bug: "If a(i) < a(i + 1) Then", desc: "泡沫排序要把大的往後移，應在 > 時交換" }
+            { orig: "m1 = b(i) * x(i) + a(i) * y(i) : m2 = a(i) * x(i)", bug: "m1 = b(i) * x(i) * a(i) * y(i) : m2 = a(i) * x(i)", desc: "通分後分子應「相加」(+)，不是「相乘」(*)" },
+            { orig: "ElseIf m2 = 1 Then", bug: "ElseIf m2 = 0 Then", desc: "分母為 1 時直接顯示整數，分母不可能為 0（數學上除以零無意義）" }
         ]
     }
 };
