@@ -443,7 +443,15 @@ function renderDashboard() {
     document.getElementById('stat-total').textContent = data.length;
     
     const uniqueStudents = new Set(data.map(d => `${d.className}_${d.userName}`));
-    document.getElementById('stat-students').textContent = uniqueStudents.size;
+    // 比對名冊，只計算名冊上的學生
+    if (typeof CLASS_ROSTER !== 'undefined' && Object.keys(CLASS_ROSTER).length > 0) {
+        const rosterSet = new Set();
+        Object.entries(CLASS_ROSTER).forEach(([cls, students]) => students.forEach(s => rosterSet.add(`${cls}_${s.name}`)));
+        const rosterStudents = [...uniqueStudents].filter(k => rosterSet.has(k));
+        document.getElementById('stat-students').textContent = rosterStudents.length;
+    } else {
+        document.getElementById('stat-students').textContent = uniqueStudents.size;
+    }
 
     // 找出平均耗時最久的題目（至少 3 人挑戰過才統計）
     const qTime = {};
