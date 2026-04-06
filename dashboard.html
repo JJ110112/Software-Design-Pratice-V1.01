@@ -268,6 +268,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const r = await window.deleteScores(pwd, 'single', name);
             localStorage.removeItem(`fb_cache_${name}`);
+            localStorage.removeItem('fb_cache_overall_ranking_v2');
             localStorage.setItem('fb_data_updated', Date.now().toString());
             alert(`✅ 已刪除 ${r.deleted} 筆成績`);
             document.getElementById('del-student-name').value = '';
@@ -573,7 +574,7 @@ function renderCharts(data) {
         '階段一 認識': ['連連看', '英中單字配對', '記憶翻牌遊戲', '圖卡翻牌記憶', '中英選擇題'],
         '階段二 理解': ['一行程式碼翻譯', '錯誤找找看', '程式碼朗讀練習'],
         '階段三 應用': ['程式碼排列重組', '程式與結果配對', '逐行中文注解填空'],
-        '階段四 打字': ['打字-關鍵字', '打字-單行', '看中文寫程式', '打字-完整', '打字練習'],
+        '階段四 打字': ['打字-關鍵字', '打字-單行', '看中文寫程式', '打字-完整'],
         '階段五 實作': ['程式填空', '獨立全程式撰寫', '錯誤程式除錯'],
         '模擬考': ['模擬考']
     };

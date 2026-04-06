@@ -140,7 +140,7 @@ async function fetchAndRender() {
     }
 
     try {
-        const data = await window.getOverallRanking(classFilter);
+        const data = await window.getOverallRanking(classFilter, true);
         
         if (!data || data.length === 0) {
             container.innerHTML = '<div class="empty-state">😭 目前尚無通關紀錄，趕緊成為榜單第一人吧！</div>';

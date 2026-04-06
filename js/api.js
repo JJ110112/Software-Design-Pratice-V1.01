@@ -557,24 +557,28 @@ window.getOverallRanking = async function (classFilter = "ALL", forceRefresh = f
             return _filterRanking(ranking, classFilter);
         }
 
-        // [Plan A] 優先：leaderboard_entries 集合（每學生獨立文件，無寫入競爭）
-        try {
-            const entriesSnap = await getDocs(
-                query(collection(db, "leaderboard_entries"), orderBy("stars", "desc"), limit(300))
-            );
-            if (!entriesSnap.empty) {
-                const ranking = [];
-                entriesSnap.forEach(d => ranking.push(d.data()));
-                try { localStorage.setItem(sysCacheKey, JSON.stringify({ time: Date.now(), data: ranking })); } catch(e) {}
-                return _filterRanking(ranking, classFilter);
+        // forceRefresh 時跳過 leaderboard_entries（getDocs 無法繞過 IndexedDB），
+        // 直接用 getDocFromServer 讀 summaries/leaderboard 確保最新
+        if (!forceRefresh) {
+            try {
+                const entriesSnap = await getDocs(
+                    query(collection(db, "leaderboard_entries"), orderBy("stars", "desc"), limit(300))
+                );
+                if (!entriesSnap.empty) {
+                    const ranking = [];
+                    entriesSnap.forEach(d => ranking.push(d.data()));
+                    try { localStorage.setItem(sysCacheKey, JSON.stringify({ time: Date.now(), data: ranking })); } catch(e) {}
+                    return _filterRanking(ranking, classFilter);
+                }
+            } catch(e) {
+                console.warn("⚠️ leaderboard_entries 讀取失敗，回退 summaries/leaderboard:", e.message);
             }
-        } catch(e) {
-            console.warn("⚠️ leaderboard_entries 讀取失敗，回退 summaries/leaderboard:", e.message);
         }
 
-        // Fallback：summaries/leaderboard（舊格式，rebuildLeaderboard 前或降級用）
+        // summaries/leaderboard（forceRefresh 時用 getDocFromServer 繞過 IndexedDB）
         const summaryRef = doc(db, "summaries", "leaderboard");
-        const summarySnap = await getDoc(summaryRef);
+        const readFn = forceRefresh ? getDocFromServer : getDoc;
+        const summarySnap = await readFn(summaryRef);
 
         if (summarySnap.exists()) {
             const data = summarySnap.data();
