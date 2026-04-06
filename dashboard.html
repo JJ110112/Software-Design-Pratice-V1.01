@@ -772,7 +772,7 @@ document.getElementById('student-status-table').addEventListener('click', e => {
 // ═══════════════════════════════════════════
 //  學生詳細進度 Modal
 // ═══════════════════════════════════════════
-const ALL_LEVELS = ['SETUP','Q1','Q2','Q3','Q4','Q5','Q1_T01','Q1_T02','Q1_T03','Q2_T01','Q2_T02','Q2_T03','Q3_T01','Q3_T02','Q3_T03','Q4_T01','1060306','1060307','1060308'];
+const ALL_LEVELS = ['SETUP_T01','Q1_T01','Q1_T02','Q1_T03','Q2_T01','Q2_T02','Q2_T03','Q3_T01','Q3_T02','Q3_T03','Q4_T01','Q4_T02','Q4_T03','Q5_T01','Q5_T02','Q5_T03','1060306_T01','1060307_T01','1060308_T01'];
 const MODAL_STAGES = [
     { name: '第一階段', sub: '認識指令 (基礎)', color: '#38bdf8',
       modes: [
@@ -806,7 +806,7 @@ const MODAL_STAGES = [
         { mode: '錯誤程式除錯', icon: '💀', label: '錯誤程式除錯' },
       ]},
 ];
-const MODE_ALIASES = {'英中單字配對':'連連看','圖卡翻牌記憶':'記憶翻牌遊戲'};
+const MODE_ALIASES = {'英中單字配對':'連連看','圖卡翻牌記憶':'記憶翻牌遊戲','全程式撰寫':'獨立全程式撰寫'};
 
 // 點擊學生名字
 document.getElementById('tb-student-status').addEventListener('click', async (e) => {
@@ -828,25 +828,16 @@ function closeModal() {
 }
 
 function parseBestLevelInfo(bestLevelInfo) {
-    const allModes = MODAL_STAGES.flatMap(s => s.modes.map(m => m.mode));
+    // 與 api.js 相同：用 lastIndexOf('_') 分割 qID 與 gameMode
     const lookup = {};
     for (const [key, val] of Object.entries(bestLevelInfo)) {
-        let matched = false;
-        for (const mode of allModes) {
-            if (key.endsWith('_' + mode)) {
-                lookup[`${key.slice(0, key.length - mode.length - 1)}|${mode}`] = val;
-                matched = true; break;
-            }
-        }
-        if (!matched) {
-            for (const [alias, canon] of Object.entries(MODE_ALIASES)) {
-                if (key.endsWith('_' + alias)) {
-                    const qID = key.slice(0, key.length - alias.length - 1);
-                    if (!lookup[`${qID}|${canon}`]) lookup[`${qID}|${canon}`] = val;
-                    break;
-                }
-            }
-        }
+        const sepIdx = key.lastIndexOf('_');
+        if (sepIdx < 0) continue;
+        const qID = key.substring(0, sepIdx);
+        let gameMode = key.substring(sepIdx + 1);
+        // 正規化別名
+        gameMode = MODE_ALIASES[gameMode] || gameMode;
+        lookup[`${qID}|${gameMode}`] = val;
     }
     return lookup;
 }
@@ -881,7 +872,8 @@ async function openStudentDetailModal(className, userName) {
                 const info = lookup[`${lvl}|${mode}`];
                 const s = info ? (info.stars !== undefined ? info.stars : info) : 0;
                 modeStars += s;
-                return `<span class="mc-dot d${s}" title="${lvl}: ${s > 0 ? s+'⭐' : '—'}"></span>`;
+                const shortLvl = lvl.replace('_T0','(T0').replace(/_T/,'(T') + (lvl.includes('_T') ? ')' : '');
+                return `<span class="mc-dot d${s}" title="${shortLvl}: ${s > 0 ? s+'⭐' : '—'}"></span>`;
             }).join('');
 
             stageStars += modeStars;
