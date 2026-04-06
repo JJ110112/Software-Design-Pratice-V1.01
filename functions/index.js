@@ -469,10 +469,13 @@ exports.saveScoreSecure = onCall(
           const levelKey = `${qID}_${gameMode}`;
           const currentStars = record.stars;
           const currentTime = record.timeSpent;
-          const best = userRankingInfo.bestLevelInfo[levelKey];
 
-          if (!best || currentStars > best.stars || (currentStars === best.stars && currentTime < best.timeSpent)) {
-            userRankingInfo.bestLevelInfo[levelKey] = { stars: currentStars, timeSpent: currentTime };
+          // 模擬考只記錄成績，不計入 bestLevelInfo 星星排行
+          if (gameMode !== "模擬考") {
+            const best = userRankingInfo.bestLevelInfo[levelKey];
+            if (!best || currentStars > best.stars || (currentStars === best.stars && currentTime < best.timeSpent)) {
+              userRankingInfo.bestLevelInfo[levelKey] = { stars: currentStars, timeSpent: currentTime };
+            }
           }
 
           let totalStars = 0, totalBestTime = 0, uniqueClears = 0;

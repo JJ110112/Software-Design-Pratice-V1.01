@@ -677,6 +677,7 @@ window.getUserStarStats = async function (userName) {
 
     const levelStars = {};
     passScores.forEach(r => {
+        if (r.gameMode === '模擬考') return; // 模擬考不計入星星
         const key = `${r.qID}_${r.gameMode}`;
         const stars = r.stars !== undefined ? r.stars : 1;
         if (!levelStars[key] || stars > levelStars[key].stars) {
