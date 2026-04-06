@@ -21,6 +21,21 @@ const { test, expect } = require('@playwright/test');
 
 const EMULATOR_HOST = 'http://127.0.0.1:5500';
 
+/**
+ * 檢測是否在 Emulator 環境下執行。
+ * 防止誤在 production 環境寫入測試資料（如 PLANB_ 開頭的假 qID）。
+ */
+async function assertEmulatorEnvironment(page) {
+  const isEmulator = await page.evaluate(() => {
+    // Firebase Emulator 會在 localhost 的特定 port 提供服務
+    // 檢查 Firestore 是否連到 Emulator（非 *.googleapis.com）
+    return location.hostname === '127.0.0.1' || location.hostname === 'localhost';
+  });
+  if (!isEmulator) {
+    throw new Error('⛔ 此測試只能在 Firebase Emulator 環境下執行（npm run test:emulator），禁止在 production 執行以避免寫入垃圾資料');
+  }
+}
+
 /** 模擬登入（寫入 sessionStorage），同時注入 Emulator 連線設定 */
 async function loginWithEmulator(page, { className, name }) {
   await page.goto(EMULATOR_HOST);
@@ -345,6 +360,7 @@ test.describe('Plan A/B/C: 新集合與 serverTimestamp 驗證', () => {
   // 共用：存一筆成績，等 CF 完成，清快取
   async function saveAndFlush(page, { className, name, qID, gameMode }) {
     await loginWithEmulator(page, { className, name });
+    await assertEmulatorEnvironment(page);
     await clearAllCaches(page);
     await page.goto(`${EMULATOR_HOST}/pages/連連看.html?q=SETUP&t=T01`);
     await page.waitForTimeout(3000);
@@ -425,7 +441,7 @@ test.describe('Plan A/B/C: 新集合與 serverTimestamp 驗證', () => {
   test('[Plan B] saveScore 後 getAllScoresForDashboard 能讀到新紀錄', async ({ page }) => {
     const uniqueQID = `PLANB_${Date.now()}`;
     const save = await saveAndFlush(page, {
-      className: 'A班', name: 'Dashboard測試生', qID: uniqueQID, gameMode: '連連看'
+      className: '測試用', name: 'Dashboard測試生', qID: uniqueQID, gameMode: '連連看'
     });
 
     if (save.skip || !save.success) {
