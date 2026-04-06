@@ -600,7 +600,7 @@ function renderCharts(data) {
 
     const stageLabels = Object.keys(STAGE_MODES).reverse();
     const stageCounts = stageLabels.map(s => stageStudents[s].size);
-    const stageColors = ['#f43f5e', '#f97316', '#fbbf24', '#4ade80', '#a78bfa', '#38bdf8'];
+    const stageColors = ['#ef4444', '#fbbf24', '#c084fc', '#60a5fa', '#4ade80', '#67e8f9'];
 
     const ctx2 = document.getElementById('stageChart').getContext('2d');
     chart2 = new Chart(ctx2, {
@@ -783,32 +783,32 @@ document.getElementById('student-status-table').addEventListener('click', e => {
 // ═══════════════════════════════════════════
 const ALL_LEVELS = ['SETUP_T01','Q1_T01','Q1_T02','Q1_T03','Q2_T01','Q2_T02','Q2_T03','Q3_T01','Q3_T02','Q3_T03','Q4_T01','Q4_T02','Q4_T03','Q5_T01','Q5_T02','Q5_T03','1060306_T01','1060307_T01','1060308_T01'];
 const MODAL_STAGES = [
-    { name: '第一階段', sub: '認識指令 (基礎)', color: '#38bdf8',
+    { name: '第一階段', sub: '認識指令 (基礎)', color: '#67e8f9',
       modes: [
         { mode: '連連看', icon: '🔗', label: '英中單字配對' },
         { mode: '記憶翻牌遊戲', icon: '🃏', label: '圖卡翻牌記憶' },
         { mode: '中英選擇題', icon: '❓', label: '中英選擇題' },
       ]},
-    { name: '第二階段', sub: '讀懂一行程式碼', color: '#f97316',
+    { name: '第二階段', sub: '讀懂一行程式碼', color: '#4ade80',
       modes: [
         { mode: '程式碼朗讀練習', icon: '🔊', label: '程式碼朗讀練習' },
         { mode: '一行程式碼翻譯', icon: '📝', label: '一行程式碼翻譯' },
         { mode: '錯誤找找看', icon: '🐛', label: '錯誤找找看' },
       ]},
-    { name: '第三階段', sub: '讀懂整段程式', color: '#a78bfa',
+    { name: '第三階段', sub: '讀懂整段程式', color: '#60a5fa',
       modes: [
         { mode: '程式碼排列重組', icon: '🧩', label: '程式碼排列重組' },
         { mode: '程式與結果配對', icon: '⚖️', label: '程式與結果配對' },
         { mode: '逐行中文注解填空', icon: '💬', label: '逐行中文注解填空' },
       ]},
-    { name: '第四階段', sub: '自己動手寫', color: '#4ade80',
+    { name: '第四階段', sub: '自己動手寫', color: '#c084fc',
       modes: [
         { mode: '打字-關鍵字', icon: '🔤', label: '打字：關鍵字' },
         { mode: '打字-單行', icon: '📄', label: '打字：單行程式碼' },
         { mode: '看中文寫程式', icon: '📝', label: '看中文寫程式' },
         { mode: '打字-完整', icon: '⌨️', label: '打字：完整程式碼' },
       ]},
-    { name: '第五階段', sub: '模擬考試情境', color: '#f43f5e',
+    { name: '第五階段', sub: '模擬考試情境', color: '#fbbf24',
       modes: [
         { mode: '程式填空', icon: '🔑', label: '動態程式填空' },
         { mode: '獨立全程式撰寫', icon: '💎', label: '獨立全程式撰寫' },
