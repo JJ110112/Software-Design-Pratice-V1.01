@@ -556,9 +556,23 @@ window.getScoresForUser = async function (userName, forceRefresh = false) {
 };
 
 /**
- * 取得綜合排行榜
- * ✅ 改動：改用 localStorage 快取，TTL 30 分鐘
+ * 取得單一學生的逐關進度（bestLevelInfo）
+ * @param {string} className
+ * @param {string} userName
+ * @returns {Object} { "Q1_連連看": {stars:3, timeSpent:42}, ... }
  */
+window.getStudentProgress = async function (className, userName) {
+    if (!db) return {};
+    try {
+        const docSnap = await getDocFromServer(doc(db, "user_progress", `${className}__${userName}`));
+        if (!docSnap.exists()) return {};
+        return docSnap.data().bestLevelInfo || {};
+    } catch (e) {
+        console.warn("getStudentProgress 失敗:", e.message);
+        return {};
+    }
+};
+
 /**
  * 讀取排行榜（從預先結算的 leaderboard_summary 單一 Document）
  * 每位學生只消耗 1 次讀取，不再撈全量 scores
