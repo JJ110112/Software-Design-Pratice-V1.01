@@ -35,6 +35,9 @@
 | 18 | 編輯器寬度不夠，長行被截斷 | `.content` max-width 960px 不足 | 獨立全程式撰寫.html |
 | 19 | Dashboard 學生 Modal 階段顏色與 map.html 不一致 | dashboard 的 stage color 與 map.html 定義不同 | dashboard.html |
 | 20 | 模擬考星星計入總星數 | saveScoreSecure 和 getUserStarStats 都計入模擬考 | api.js、functions/index.js |
+| 21 | `enableIndexedDbPersistence` 棄用警告 | Firebase 10.9.0 已棄用，多分頁時 fallback memory cache | api.js |
+| 22 | Emulator 測試資料寫入 production | 測試用 `className:'A班'` + 動態 qID `PLANB_*`，誤寫入 production scores | emulator-integration.spec.js |
+| 23 | Dashboard 圖表出現 `PLANB_177516714148` | #22 的後果，測試殘留資料顯示在班級過關挑戰率圖表 | 需手動從 Firestore 刪除 |
 
 ---
 
@@ -99,7 +102,19 @@ const user = raw ? JSON.parse(raw) : null;
 const user = JSON.parse(localStorage.getItem('sw_quiz_user'));
 ```
 
-### 3.3 Admin SDK vs 前端 SDK
+### 3.3 Emulator 測試資料安全
+
+```javascript
+// ✅ 所有測試資料必須使用 '測試用' 班級（production 會被過濾）
+await saveAndFlush(page, { className: '測試用', name: 'Test', qID: 'TEST_Q1', gameMode: '連連看' });
+
+// ✅ saveAndFlush 內建 assertEmulatorEnvironment 守衛，非 localhost 直接拋錯
+
+// ❌ 使用真實班級名（如 'A班'），一旦誤跑在 production 會汙染資料
+await saveAndFlush(page, { className: 'A班', name: 'Test', qID: 'PLANB_123', gameMode: '連連看' });
+```
+
+### 3.4 Admin SDK vs 前端 SDK
 
 ```javascript
 // ✅ Admin SDK：.exists 是屬性
@@ -135,7 +150,7 @@ npm run test:headed         # 有視窗 Playwright（視覺檢查用）
 | 層 | 管理方式 | 失效時機 |
 |----|---------|---------|
 | localStorage `fb_cache_*` | 手動 cacheGet/cacheSet，2hr TTL | 登出 / forceRefresh / fb_data_updated 信號 |
-| IndexedDB（Firestore SDK） | enableIndexedDbPersistence 自動 | 只有 `getDocFromServer` 能繞過 |
+| IndexedDB（Firestore SDK） | `persistentLocalCache` + `persistentMultipleTabManager` 自動管理，支援多分頁 | 只有 `getDocFromServer` 能繞過 |
 | 記憶體 | 頁面重整即清 | 導航 / 重整 |
 
 - 涉及快取的修改，必須考慮三層
@@ -243,3 +258,5 @@ npm run test:headed         # 有視窗 Playwright（視覺檢查用）
 | scrollIntoView 指向 code-display | 輸入區被推出螢幕 | scrollIntoView 應指向 inputEl |
 | Dashboard 階段顏色寫死錯誤值 | 學生 Modal 階段顏色與 map.html 不一致 | 參照 map.html 的 stage 配色表 |
 | 模擬考計入總星數 | 總星超過 912 | gameMode==='模擬考' 排除在星星計算外 |
+| `enableIndexedDbPersistence` 棄用 | console 警告 + 多分頁 fallback memory | 改用 `initializeFirestore` + `persistentLocalCache` + `persistentMultipleTabManager` |
+| Emulator 測試寫入 production | `PLANB_*` 假 qID 出現在 dashboard 圖表 | `assertEmulatorEnvironment` 守衛 + 所有測試用 `className:'測試用'` |
