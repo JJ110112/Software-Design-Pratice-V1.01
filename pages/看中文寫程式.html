@@ -355,8 +355,9 @@ function updateUI() {
     const activeLine = document.getElementById(`line-${currentIdx}`);
     if (activeLine) {
         activeLine.classList.add('active');
-        activeLine.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
+    // 確保打字區域始終可見，而非捲動到下方程式碼區
+    inputEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 
   inputEl.value = '';
