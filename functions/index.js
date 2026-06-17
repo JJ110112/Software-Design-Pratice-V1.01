@@ -291,22 +291,23 @@ async function rebuildLeaderboard() {
 }
 
 /**
+ * ⚠️ DISABLED (2026-06-17): Project offline
  * 每日排程結算（台灣時間每天凌晨 2:00）
  * Cron: 每天 UTC 18:00 = 台灣時間 02:00
  */
-exports.dailyLeaderboardRebuild = onSchedule(
-  {
-    schedule: "0 18 * * *",
-    timeZone: "Asia/Taipei",
-    region: "asia-east1",
-  },
-  async () => {
-    const result = await rebuildLeaderboard();
-    console.log(
-      `✅ 每日排行榜結算完成：${result.studentCount} 位學生，${result.totalRecords} 筆紀錄`
-    );
-  }
-);
+// exports.dailyLeaderboardRebuild = onSchedule(
+//   {
+//     schedule: "0 18 * * *",
+//     timeZone: "Asia/Taipei",
+//     region: "asia-east1",
+//   },
+//   async () => {
+//     const result = await rebuildLeaderboard();
+//     console.log(
+//       `✅ 每日排行榜結算完成：${result.studentCount} 位學生，${result.totalRecords} 筆紀錄`
+//     );
+//   }
+// );
 
 /**
  * Callable 端點：手動觸發結算（供儀表板刷新按鈕使用）

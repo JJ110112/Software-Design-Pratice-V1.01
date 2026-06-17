@@ -1,8 +1,15 @@
 # CLAUDE.md — Software Design Pratice V1.01 專案規範
 
-## 專案概述
+⚠️ **PROJECT STATUS: OFFLINE（已下線）**
+- Firebase 所有 Firestore rules 已停用
+- Cloud Functions 定期執行作業已禁用
+- 此文件保留供歷史參考
 
-**VB.NET 丙級術科練習系統**
+---
+
+## 專案概述（歷史存檔）
+
+**VB.NET 丙級術科練習系統**（已下線）
 技術棧：純 HTML/CSS/JS（無框架）+ Firebase Firestore + Cloud Functions + Playwright
 部署：Firebase Hosting（主站）+ GitHub Pages（備援）
 

@@ -2,47 +2,11 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ── scores 集合：學生成績 ──
-    // 前端完全禁止寫入，只能透過 Cloud Functions (admin SDK) 寫入
-    match /scores/{docId} {
-      allow read: if true;
-      allow write: if false;
-    }
+    // ⚠️ PROJECT OFFLINE (2026-06-17)
+    // All read/write access disabled
+    // Use archived 'offline' branch for reference if restoring
 
-    // ── summaries 集合：排行榜結算摘要 ──
-    match /summaries/{docId} {
-      // 任何人可讀
-      allow read: if true;
-      // 只允許 Cloud Functions (admin SDK) 寫入，前端禁止
-      allow write: if false;
-    }
-
-    // ── config 集合：班級名冊等設定 ──
-    match /config/{docId} {
-      allow read: if true;
-      // 前端禁止寫入，只能透過 Cloud Functions (admin SDK) + 教師密碼
-      allow write: if false;
-    }
-
-    // ── user_progress 集合：學生過關進度（由 Cloud Functions 寫入） ──
-    match /user_progress/{docId} {
-      allow read: if true;
-      allow write: if false;
-    }
-
-    // ── leaderboard_entries 集合：每學生獨立排行榜文件（Plan A）──
-    match /leaderboard_entries/{docId} {
-      allow read: if true;
-      allow write: if false;
-    }
-
-    // ── dashboard_records 集合：每筆成績獨立文件（Plan B）──
-    match /dashboard_records/{docId} {
-      allow read: if true;
-      allow write: if false;
-    }
-
-    // ── 其他集合：預設全部拒絕 ──
+    // ── 全部集合：已停用 ──
     match /{document=**} {
       allow read, write: if false;
     }
